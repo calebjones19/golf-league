@@ -181,14 +181,15 @@ section.active{display:block}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 /* Landing */
-.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:430px;left:50%;transform:translateX(-50%);overflow-y:auto;transition:opacity 0.35s ease,transform 0.35s ease}
-.landing-overlay.hidden{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(-16px)}
-.landing-top{padding:0 28px 28px;text-align:center;width:100%}
+.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;transition:opacity 0.35s ease}
+.landing-overlay.hidden{opacity:0;pointer-events:none}
+.landing-inner{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 24px}
+.landing-top{text-align:center;width:100%;padding-bottom:28px}
 .landing-icon{font-size:52px;margin-bottom:16px;display:block}
 .landing-league{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#C9A84C;line-height:1.2;margin-bottom:6px}
 .landing-meta{font-size:13px;color:#a0bfab;font-weight:500}
-.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin:0 28px 28px;width:100%}
-.landing-body{padding:0 20px 40px;width:100%}
+.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin-bottom:28px;width:100%}
+.landing-body{width:100%}
 .landing-prompt{font-size:12px;font-weight:700;letter-spacing:1px;color:#6b9e82;margin-bottom:14px;text-transform:uppercase}
 .player-pill{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;width:100%}
 .player-pill:hover,.player-pill:active{background:rgba(201,168,76,0.15);border-color:#C9A84C}
@@ -221,13 +222,15 @@ section.active{display:block}
 
   <!-- LANDING OVERLAY -->
   <div id="landing-overlay" class="landing-overlay">
-    <div class="landing-top">
-      <span class="landing-icon">⛳</span>
-      <div class="landing-league" id="landing-league-name">Golf League</div>
-      <div class="landing-meta" id="landing-meta"></div>
+    <div class="landing-inner">
+      <div class="landing-top">
+        <span class="landing-icon">⛳</span>
+        <div class="landing-league" id="landing-league-name">Golf League</div>
+        <div class="landing-meta" id="landing-meta"></div>
+      </div>
+      <div class="landing-divider"></div>
+      <div class="landing-body" id="landing-body"></div>
     </div>
-    <div class="landing-divider"></div>
-    <div class="landing-body" id="landing-body"></div>
   </div>
 
   <!-- TOP BAR -->
