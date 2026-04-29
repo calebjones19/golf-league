@@ -2,15 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Golf League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh}
-#app{width:100%;max-width:430px;background:#F5F0E8;min-height:100vh;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.18)}
+body{background:#1B4332;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh}
+#app{width:100%;max-width:430px;background:#F5F0E8;min-height:100vh;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.18);padding-top:env(safe-area-inset-top)}
 /* Top bar */
 .top-bar{background:#1B4332;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;height:50px}
 .top-bar-title{font-size:15px;font-weight:700;letter-spacing:0.3px;color:#C9A84C;font-family:'Space Grotesk',sans-serif}
@@ -18,7 +20,7 @@ body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;
 .avatar-btn{width:34px;height:34px;border-radius:50%;background:#2D6A4F;border:2px solid #C9A84C;color:#C9A84C;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
 .avatar-admin-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid #1B4332}
 /* Bottom nav */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#1B4332;display:flex;border-top:1px solid #2D6A4F;z-index:200;padding:4px 0 6px}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#1B4332;display:flex;border-top:1px solid #2D6A4F;z-index:200;padding:4px 0 0;padding-bottom:max(6px,env(safe-area-inset-bottom))}
 .nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;cursor:pointer;border:none;background:none;color:#6b9e82;font-size:10px;font-weight:500;letter-spacing:0.2px;transition:color 0.15s;font-family:'DM Sans',sans-serif}
 .nav-tab.active{color:#C9A84C}
 .nav-tab svg{width:20px;height:20px}
@@ -26,7 +28,7 @@ body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;
 .nav-tab.admin-tab.active{color:#C9A84C}
 /* Sections */
 section{display:none}
-section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:#F5F0E8;-webkit-overflow-scrolling:touch;animation:fadeIn 0.2s ease}
+section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-top));bottom:calc(70px + max(0px,env(safe-area-inset-bottom) - 6px));left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:#F5F0E8;-webkit-overflow-scrolling:touch;animation:fadeIn 0.2s ease}
 #sec-score.active{display:flex;flex-direction:column;overflow:hidden;animation:none}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 /* Section inner padding */
@@ -182,7 +184,7 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 /* Landing */
-.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;transition:opacity 0.35s ease}
+.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;transition:opacity 0.35s ease;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 .landing-overlay.hidden{opacity:0;pointer-events:none}
 .landing-inner{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 24px}
 .landing-top{text-align:center;width:100%;padding-bottom:28px}
