@@ -313,18 +313,29 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Stroke Index per Hole</label>
-        <div style="font-size:11px;color:#6B7280;margin-bottom:6px">Order holes by difficulty (1 = hardest)</div>
-        <div id="hcp-grid-labels" class="hole-grid"></div>
-        <div id="hcp-grid" class="hole-grid"></div>
+        <label class="form-label">Course Setup</label>
+        <div id="hcp-grid-labels" class="hole-grid" style="margin-bottom:6px"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">Par</div>
+          <div id="par-grid" class="hole-grid" style="margin:0;flex:1"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">HCP</div>
+          <div id="hcp-grid" class="hole-grid" style="margin:0;flex:1"></div>
+        </div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Start Date</label>
-        <input class="form-input" type="date" id="cfg-start">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Number of Weeks</label>
-        <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <label class="form-label">Start Date</label>
+            <input class="form-input" type="date" id="cfg-start">
+          </div>
+          <div style="width:100px">
+            <label class="form-label">Weeks</label>
+            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -511,6 +522,16 @@ const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 // ============================================================
+// VERSION
+// ============================================================
+const APP_VERSION = '1.0';
+
+function checkVersion() {
+  // No-op for now — version number shown in the update footer on the home screen.
+  // A service worker would be needed to intercept stale cached PWA installs.
+}
+
+// ============================================================
 // DATA LAYER
 // ============================================================
 const STORAGE_KEY = 'golf_league_data';
@@ -599,11 +620,30 @@ function buildBottomNav() {
 // ============================================================
 // DASHBOARD
 // ============================================================
+const UPDATE_FOOTER = `
+  <div style="text-align:center;padding:20px 16px 8px">
+    <button onclick="hardRefresh()" style="display:inline-flex;align-items:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s" onmouseover="this.style.borderColor='#1B4332';this.style.color='#1B4332'" onmouseout="this.style.borderColor='#E5E7EB';this.style.color='#6B7280'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Update to latest version
+    </button>
+    <div style="font-size:10px;color:#D1D5DB;margin-top:6px">v${APP_VERSION}</div>
+  </div>`;
+
+function hardRefresh() {
+  // Clear caches then reload for PWA / service worker installs
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(n => caches.delete(n))).finally(() => location.reload(true));
+  } else {
+    location.reload(true);
+  }
+}
+
 function buildDashboard() {
   const el = document.getElementById('dashboard-content');
   if (!DATA.league) {
+    el.style.cssText = 'display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 124px);padding:0';
     el.innerHTML = `
-      <div style="margin:14px 16px">
+      <div style="padding:0 16px">
         <div class="card-dark">
           <div class="hero-badge">WELCOME</div>
           <div class="hero-title">Set Up Your Golf League</div>
@@ -613,9 +653,11 @@ function buildDashboard() {
           </div>
         </div>
       </div>
+      ${UPDATE_FOOTER}
     `;
     return;
   }
+  el.style.cssText = '';
   const league = DATA.league;
   const hasRounds = DATA.rounds && DATA.rounds.length > 0;
   el.innerHTML = `
@@ -637,300 +679,586 @@ function buildDashboard() {
       <div class="stat-card"><div class="stat-val">${DATA.schedule.filter(w=>w.status==='upcoming').length}</div><div class="stat-lbl">Weeks Left</div></div>
     </div>` : ''}
     ${!hasRounds ? `<div class="card" style="text-align:center;color:#6B7280;font-size:13px;padding:24px">No rounds played yet this season.</div>` : ''}
+    ${UPDATE_FOOTER}
   `;
+}
+
+// ============================================================
+// SCORING ENGINE
+// ============================================================
+function playerStrokesOnHole(playerHcp, holeRank, numHoles) {
+  if (!playerHcp || playerHcp <= 0) return 0;
+  return Math.floor(playerHcp / numHoles) + (holeRank <= (playerHcp % numHoles) ? 1 : 0);
+}
+
+function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
+  const numHoles = scoringPars.length;
+  let bestNet = null;
+  for (const pid of teamPlayerIds) {
+    const player = DATA.players.find(p => p.id === pid);
+    if (!player) continue;
+    const gross = scores[pid] && scores[pid][holeIdx];
+    if (gross == null) continue;
+    const rank    = scoringHoleHcp[holeIdx];
+    const strokes = playerStrokesOnHole(player.handicap || 0, rank, numHoles);
+    const net     = gross - strokes;
+    if (bestNet === null || net < bestNet) bestNet = net;
+  }
+  return bestNet;
+}
+
+function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores) {
+  const netA = teamBestBallNet(teamAIds, holeIdx, scores);
+  const netB = teamBestBallNet(teamBIds, holeIdx, scores);
+  if (netA === null || netB === null) return null;
+  if (netA < netB) return 'A';
+  if (netB < netA) return 'B';
+  return 'T';
+}
+
+function computeMatchPoints(teamAIds, teamBIds, scores) {
+  const numHoles = scoringPars.length;
+  const cfg      = DATA.scoringConfig || {};
+  const ptsWin   = cfg.pointsPerHole != null ? cfg.pointsPerHole : 1;
+  const ptsTie   = cfg.tiePoints != null ? cfg.tiePoints : 0.5;
+  let pointsA = 0, pointsB = 0;
+  const holeResults = [];
+  let allPlayed = true;
+  for (let h = 0; h < numHoles; h++) {
+    const result = computeHoleWinner(teamAIds, teamBIds, h, scores);
+    holeResults.push(result);
+    if (result === null) { allPlayed = false; continue; }
+    if (result === 'A')      pointsA += ptsWin;
+    else if (result === 'B') pointsB += ptsWin;
+    else                   { pointsA += ptsTie; pointsB += ptsTie; }
+  }
+  const bonus = cfg.matchBonus != null ? cfg.matchBonus : 2;
+  if (allPlayed && pointsA > pointsB) pointsA += bonus;
+  else if (allPlayed && pointsB > pointsA) pointsB += bonus;
+  return { pointsA, pointsB, holeResults, allPlayed };
+}
+
+function getCurrentWeek() {
+  if (!DATA.schedule || !DATA.schedule.length) return 1;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = DATA.schedule.find(w => {
+    const d = new Date(w.date + 'T12:00:00');
+    return d >= today && w.status !== 'cancelled';
+  });
+  return upcoming ? upcoming.week : DATA.schedule.filter(w => w.status === 'completed').length + 1;
 }
 
 // ============================================================
 // SCORING
 // ============================================================
 let currentHole = 0;
-let jackScores = [], tomScores = [], jackSaved = [], tomSaved = [];
 let scoringPars = [], scoringHoleHcp = [];
-let scoringPlayers = [null, null];
+let activeMatch = null; // { teamAId, teamBId, week, scores:{pid:[...]}, saved:{pid:[...]} }
 
 function buildScoring() {
   const el = document.getElementById('score-content');
-  if (!DATA.league || DATA.teams.length === 0) {
-    el.innerHTML = `<div class="empty-state" style="margin-top:40px">
-      <div class="empty-state-icon">⛳</div>
-      <div class="empty-state-title">No Active Round</div>
-      <div class="empty-state-sub">Check back on game day, or ask your admin to set up teams.</div>
-    </div>`;
+  const holes = DATA.league ? (DATA.league.holes || 9) : 9;
+  scoringPars    = (DATA.league && DATA.league.par)     || Array(holes).fill(4);
+  scoringHoleHcp = (DATA.league && DATA.league.holeHcp) || Array(holes).fill(1).map(function(_,i){return i+1;});
+
+  if (!DATA.league || DATA.teams.filter(function(t){return t.playerIds.length >= 2;}).length < 2) {
+    el.innerHTML = '<div class="empty-state" style="margin-top:40px"><div class="empty-state-icon">⛳</div><div class="empty-state-title">No Teams Ready</div><div class="empty-state-sub">Set up at least 2 teams with 2 players each in Admin → Teams.</div></div>';
     return;
   }
-  const holes = DATA.league.holes || 9;
-  scoringPars     = DATA.league.par     || Array(holes).fill(4);
-  scoringHoleHcp  = DATA.league.holeHcp || Array(holes).fill(1).map((_,i)=>i+1);
-  if (jackScores.length !== holes) {
-    jackScores = Array(holes).fill(null);
-    tomScores  = Array(holes).fill(null);
-    jackSaved  = Array(holes).fill(false);
-    tomSaved   = Array(holes).fill(false);
-    // Pre-fill demo for first team
-    if (DATA.teams[0] && DATA.teams[0].playerIds.length >= 2) {
-      const p1 = DATA.players.find(p=>p.id===DATA.teams[0].playerIds[0]);
-      const p2 = DATA.players.find(p=>p.id===DATA.teams[0].playerIds[1]);
-      scoringPlayers = [p1||null, p2||null];
-    }
-  }
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0;flex-shrink:0">
-      <button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif" onclick="showSection('dashboard')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back
-      </button>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:14px;font-weight:700;color:#1A1A1A">${DATA.league.name}</span>
-        <span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span>
-      </div>
-    </div>
-    <div style="padding:6px 16px 0;flex-shrink:0">
-      <div class="score-entry-card" id="score-card-wrap">
-        <div class="hole-chips" id="hole-chips"></div>
-        <div style="padding:12px 16px 10px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <div id="entry-hole-num" style="width:32px;height:32px;background:#C9A84C;color:#fff;border-radius:10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;flex-shrink:0">1</div>
-            <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif" id="entry-hole-info">Hole 1 · Par 4 · HCP 1</div></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;padding:6px 0" id="player-row-1">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#1A1A1A" id="player1-name">Player 1</div>
-              <div id="player1-pill" style="font-size:10px;font-weight:700;color:#16A34A;margin-top:1px">+1 stroke</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button class="score-btn" id="btn-minus-p1" onclick="adjustScore(0,-1)">−</button>
-              <div class="score-display empty" style="font-size:32px;min-width:36px" id="score-display-p1">—</div>
-              <button class="score-btn" id="btn-plus-p1" onclick="adjustScore(0,1)">+</button>
-            </div>
-          </div>
-          <div style="height:1px;background:#F3F4F6;margin:4px 0"></div>
-          <div style="display:flex;align-items:center;gap:10px;padding:6px 0" id="player-row-2">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#1A1A1A" id="player2-name">Player 2</div>
-              <div id="player2-pill" style="font-size:10px;font-weight:700;color:#16A34A;margin-top:1px">+1 stroke</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button class="score-btn" id="btn-minus-p2" onclick="adjustScore(1,-1)">−</button>
-              <div class="score-display empty" style="font-size:32px;min-width:36px" id="score-display-p2">—</div>
-              <button class="score-btn" id="btn-plus-p2" onclick="adjustScore(1,1)">+</button>
-            </div>
-          </div>
-          <button class="save-btn disabled" id="save-btn" onclick="saveOrEdit()" style="margin-top:8px">Save Scores</button>
-          <div class="hole-nav">
-            <button class="hole-nav-btn" id="btn-prev" onclick="prevHole()">← Prev</button>
-            <span class="hole-nav-info" id="hole-nav-info">1 of ${holes}</span>
-            <button class="hole-nav-btn" id="btn-next" onclick="nextHole()">Next →</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div style="padding:8px 16px 4px;font-size:13px;font-weight:600;color:#6B7280;flex-shrink:0;font-family:'Space Grotesk',sans-serif">Scorecard</div>
-    <div class="scorecard-wrap">
-      <table class="scorecard" id="scorecard-table" style="box-shadow:none;border-radius:0">
-        <thead><tr>
-          <th style="text-align:left;padding-left:6px">Player</th>
-          ${scoringPars.map((_,i)=>`<th>${i+1}</th>`).join('')}
-          <th>Tot</th>
-        </tr></thead>
-        <tbody id="scorecard-body"></tbody>
-      </table>
-    </div>
-  `;
-  buildHoleChips();
-  renderEntryCard();
-  renderScorecard();
+  if (!activeMatch) { renderMatchPicker(el); return; }
+  renderScoringUI(el);
 }
 
-function buildHoleChips() {
-  const wrap = document.getElementById('hole-chips');
-  if (!wrap) return;
-  wrap.innerHTML = scoringPars.map((_,i) => {
-    const bothSaved = jackSaved[i] && tomSaved[i];
-    const hasScore  = jackScores[i] !== null || tomScores[i] !== null;
-    let cls = 'hole-chip';
-    if (bothSaved)    cls += ' saved';
-    else if(hasScore) cls += ' has-score';
+function renderMatchPicker(el) {
+  const readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
+  const opts = readyTeams.map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
+  el.innerHTML = '<div style="padding:16px;padding-top:8px"><div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="showSection(\'dashboard\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button><span style="font-size:15px;font-weight:700;color:#1A1A1A">Score Entry</span><div style="width:48px"></div></div><div class="card"><div style="font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:4px;font-family:\'Space Grotesk\',sans-serif">⛳ Start Match</div><div style="font-size:12px;color:#6B7280;margin-bottom:16px">Select today\'s matchup</div><div class="form-group"><label class="form-label">Team A</label><select class="form-select" id="pick-teamA">'+opts+'</select></div><div class="form-group" style="margin-bottom:16px"><label class="form-label">Team B</label><select class="form-select" id="pick-teamB">'+opts+'</select></div><button class="btn-green" style="width:100%" onclick="startMatch()">Start Match →</button></div></div>';
+  var selB = document.getElementById('pick-teamB');
+  if (selB && readyTeams.length > 1) selB.selectedIndex = 1;
+}
+
+function startMatch() {
+  var teamAId = document.getElementById('pick-teamA').value;
+  var teamBId = document.getElementById('pick-teamB').value;
+  if (teamAId === teamBId) { showToast('Select two different teams'); return; }
+  var readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
+  var tA = readyTeams.find(function(t){return t.id === teamAId;});
+  var tB = readyTeams.find(function(t){return t.id === teamBId;});
+  if (!tA || !tB) { showToast('Invalid team selection'); return; }
+  var numHoles = scoringPars.length;
+  var scores = {}, saved = {};
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    scores[pid] = Array(numHoles).fill(null);
+    saved[pid]  = Array(numHoles).fill(false);
+  });
+  activeMatch = { teamAId: teamAId, teamBId: teamBId, week: getCurrentWeek(), scores: scores, saved: saved };
+  currentHole = 0;
+  renderScoringUI(document.getElementById('score-content'));
+}
+
+function renderScoringUI(el) {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  if (!tA || !tB) { activeMatch = null; buildScoring(); return; }
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var numHoles = scoringPars.length;
+  var holeCols = scoringPars.map(function(_,i){return '<th>'+(i+1)+'</th>';}).join('');
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0;flex-shrink:0"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="confirmEndMatch()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> End Match</button><span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span></div><div style="padding:4px 16px 0;flex-shrink:0"><div id="match-banner" style="background:#1B4332;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tA.name+'</div><div id="score-a" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsA+'</div></div><div style="font-size:11px;font-weight:700;color:#6b9e82;padding:0 8px">vs</div><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tB.name+'</div><div id="score-b" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsB+'</div></div></div><div class="hole-chips" id="hole-chips"></div><div class="score-entry-card" id="score-card-wrap" style="margin:8px 0 0"><div id="entry-inner" style="padding:12px 14px 10px"></div></div></div><div style="padding:4px 16px 2px;font-size:13px;font-weight:600;color:#6B7280;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">Scorecard</div><div class="scorecard-wrap"><table class="scorecard" id="scorecard-table" style="box-shadow:none;border-radius:0"><thead><tr><th style="text-align:left;padding-left:6px">Player</th>'+holeCols+'<th>Tot</th></tr></thead><tbody id="scorecard-body"></tbody></table></div>';
+  buildHoleChips(tA, tB);
+  renderEntryCard(tA, tB);
+  renderScorecard(tA, tB);
+}
+
+function buildHoleChips(tA, tB) {
+  var wrap = document.getElementById('hole-chips');
+  if (!wrap || !activeMatch) return;
+  var allPids = tA.playerIds.concat(tB.playerIds);
+  wrap.innerHTML = scoringPars.map(function(_,i) {
+    var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][i];});
+    var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][i] != null;});
+    var cls = 'hole-chip';
+    if (allSaved)   cls += ' saved';
+    else if (hasAny) cls += ' has-score';
     if (i === currentHole) cls += ' active';
-    return `<div class="${cls}" onclick="goToHole(${i})">H${i+1}</div>`;
+    return '<div class="'+cls+'" onclick="goToHole('+i+')">H'+(i+1)+'</div>';
   }).join('');
 }
 
-function renderEntryCard() {
-  const h = currentHole;
-  const par = scoringPars[h];
-  const hcp = scoringHoleHcp[h];
-  const el = document.getElementById('entry-hole-num');
-  if (!el) return;
-  el.textContent = h + 1;
-  document.getElementById('entry-hole-info').textContent = `Hole ${h+1} · Par ${par} · HCP ${hcp}`;
-  // Player names
-  const p1 = scoringPlayers[0], p2 = scoringPlayers[1];
-  const p1name = p1 ? p1.name.split(' ')[0] : 'Player 1';
-  const p2name = p2 ? p2.name.split(' ')[0] : 'Player 2';
-  const p1hcp  = p1 ? (p1.handicap||0) : 0;
-  const p2hcp  = p2 ? (p2.handicap||0) : 0;
-  document.getElementById('player1-name').innerHTML = `${p1name} <span style="font-weight:500;color:#6B7280;font-size:12px">Hcp ${p1hcp}</span>`;
-  document.getElementById('player2-name').innerHTML = `${p2name} <span style="font-weight:500;color:#6B7280;font-size:12px">Hcp ${p2hcp}</span>`;
-  const p1strokes = p1hcp >= hcp ? 1 : 0;
-  const p2strokes = p2hcp >= hcp ? 1 : 0;
-  const p1pill = document.getElementById('player1-pill');
-  const p2pill = document.getElementById('player2-pill');
-  p1pill.textContent = p1strokes > 0 ? `+${p1strokes} stroke` : 'No extra strokes';
-  p1pill.style.color  = p1strokes > 0 ? '#16A34A' : '#9CA3AF';
-  p2pill.textContent = p2strokes > 0 ? `+${p2strokes} stroke` : 'No extra strokes';
-  p2pill.style.color  = p2strokes > 0 ? '#16A34A' : '#9CA3AF';
-  // Displays
-  const jVal = jackScores[h], tVal = tomScores[h];
-  const jSaved = jackSaved[h], tSaved = tomSaved[h];
-  const d1 = document.getElementById('score-display-p1');
-  const d2 = document.getElementById('score-display-p2');
-  d1.textContent = jVal !== null ? jVal : '—'; d1.classList.toggle('empty', jVal===null);
-  d2.textContent = tVal !== null ? tVal : '—'; d2.classList.toggle('empty', tVal===null);
-  document.getElementById('btn-minus-p1').disabled = jSaved;
-  document.getElementById('btn-plus-p1').disabled  = jSaved;
-  document.getElementById('btn-minus-p2').disabled = tSaved;
-  document.getElementById('btn-plus-p2').disabled  = tSaved;
-  // Save button
-  const bothSaved = jSaved && tSaved;
-  const allDone   = jackSaved.every(Boolean) && tomSaved.every(Boolean);
-  const hasAny    = jVal !== null || tVal !== null;
-  const btn = document.getElementById('save-btn');
-  if (allDone) {
-    btn.textContent = 'Submit Round →'; btn.className = 'save-btn submit';
-    btn.onclick = () => { showToast('Round submitted! 🏌️'); };
-  } else if (bothSaved) {
-    btn.textContent = 'Edit Scores'; btn.className = 'save-btn edit'; btn.onclick = saveOrEdit;
-  } else if (hasAny) {
-    btn.textContent = 'Save Scores'; btn.className = 'save-btn ready'; btn.onclick = saveOrEdit;
-  } else {
-    btn.textContent = 'Save Scores'; btn.className = 'save-btn disabled'; btn.onclick = null;
+function renderEntryCard(tA, tB) {
+  var inner = document.getElementById('entry-inner');
+  if (!inner || !activeMatch) return;
+  var h        = currentHole;
+  var par      = scoringPars[h];
+  var holeRank = scoringHoleHcp[h];
+  var numHoles = scoringPars.length;
+  var winner   = computeHoleWinner(tA.playerIds, tB.playerIds, h, activeMatch.scores);
+  var winColor = winner==='A' ? '#2D6A4F' : winner==='B' ? '#DC2626' : '#C9A84C';
+  var winLabel = winner==='A' ? tA.name+' wins hole' : winner==='B' ? tB.name+' wins hole' : winner==='T' ? 'Hole tied' : '';
+
+  function makePlayerRows(teamObj) {
+    return teamObj.playerIds.map(function(pid) {
+      var p = DATA.players.find(function(pl){return pl.id === pid;});
+      if (!p) return '';
+      var strokes = playerStrokesOnHole(p.handicap || 0, holeRank, numHoles);
+      var gross   = activeMatch.scores[pid] && activeMatch.scores[pid][h];
+      var isSaved = activeMatch.saved[pid]  && activeMatch.saved[pid][h];
+      var net     = gross != null ? gross - strokes : null;
+      var relPar  = net  != null ? net - par : null;
+      var netHtml = '';
+      if (net != null) {
+        var col = relPar < 0 ? '#16A34A' : relPar === 0 ? '#374151' : '#DC2626';
+        netHtml = ' · <span style="font-size:10px;color:'+col+';font-weight:700">Net '+net+' ('+(relPar>0?'+':'')+relPar+')</span>';
+      }
+      var strokePill = strokes > 0
+        ? '<span style="font-size:10px;color:#16A34A;font-weight:700">+'+strokes+' stroke'+(strokes>1?'s':'')+'</span>'
+        : '<span style="font-size:10px;color:#9CA3AF">No strokes</span>';
+      var dispVal = gross != null ? gross : '—';
+      var dispCls = gross != null ? 'score-display' : 'score-display empty';
+      var disAttr = isSaved ? 'disabled' : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+p.name.split(' ')[0]+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+(p.handicap||0)+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
+    }).join('');
   }
-  document.getElementById('btn-prev').disabled = h === 0;
-  document.getElementById('btn-next').disabled = h === scoringPars.length - 1;
-  document.getElementById('hole-nav-info').textContent = `${h+1} of ${scoringPars.length}`;
+
+  var allPids  = tA.playerIds.concat(tB.playerIds);
+  var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][h];});
+  var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][h] != null;});
+  var allDone  = scoringPars.every(function(_,hi){return allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][hi];});});
+
+  var saveBtnHtml = '';
+  if (allDone)       saveBtnHtml = '<button class="save-btn submit" onclick="submitRound()" style="margin-top:8px;width:100%">Submit Round →</button>';
+  else if (allSaved) saveBtnHtml = '<button class="save-btn edit"   onclick="editHoleScores()" style="margin-top:8px;width:100%">Edit Hole Scores</button>';
+  else if (hasAny)   saveBtnHtml = '<button class="save-btn ready"  onclick="saveHoleScores()" style="margin-top:8px;width:100%">Save Hole Scores</button>';
+  else               saveBtnHtml = '<button class="save-btn disabled" style="margin-top:8px;width:100%">Save Hole Scores</button>';
+
+  inner.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+      '<div style="width:32px;height:32px;background:#C9A84C;color:#fff;border-radius:10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">'+(h+1)+'</div>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+'</div>' +
+      (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
+      '</div></div>' +
+    '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+'</div>' +
+    makePlayerRows(tA) +
+    '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+'</div>' +
+    makePlayerRows(tB) +
+    saveBtnHtml +
+    '<div class="hole-nav" style="margin-top:8px">' +
+      '<button class="hole-nav-btn" '+(h===0?'disabled':'')+' onclick="prevHole()">← Prev</button>' +
+      '<span class="hole-nav-info">'+(h+1)+' of '+numHoles+'</span>' +
+      '<button class="hole-nav-btn" '+(h===scoringPars.length-1?'disabled':'')+' onclick="nextHole()">Next →</button>' +
+    '</div>';
+
+  // Update live score banner
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var sa = document.getElementById('score-a'), sb = document.getElementById('score-b');
+  if (sa) sa.textContent = mp.pointsA;
+  if (sb) sb.textContent = mp.pointsB;
 }
 
-function adjustScore(playerIdx, delta) {
-  const saved = playerIdx === 0 ? jackSaved : tomSaved;
-  if (saved[currentHole]) return;
-  const scores = playerIdx === 0 ? jackScores : tomScores;
-  const cur = scores[currentHole];
-  const newVal = cur === null ? scoringPars[currentHole] : Math.max(1, cur + delta);
-  if (playerIdx === 0) jackScores[currentHole] = newVal;
-  else tomScores[currentHole] = newVal;
-  buildHoleChips(); renderEntryCard(); renderScorecard();
+function adjustScore(pid, delta) {
+  if (!activeMatch || (activeMatch.saved[pid] && activeMatch.saved[pid][currentHole])) return;
+  var cur = activeMatch.scores[pid][currentHole];
+  activeMatch.scores[pid][currentHole] = cur === null ? scoringPars[currentHole] : Math.max(1, cur + delta);
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
 }
 
-function saveOrEdit() {
-  const bothSaved = jackSaved[currentHole] && tomSaved[currentHole];
-  if (bothSaved) {
-    jackSaved[currentHole] = false; tomSaved[currentHole] = false;
-  } else {
-    if (jackScores[currentHole] !== null) jackSaved[currentHole] = true;
-    if (tomScores[currentHole] !== null)  tomSaved[currentHole]  = true;
+function saveHoleScores() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    if (activeMatch.scores[pid] && activeMatch.scores[pid][currentHole] != null)
+      activeMatch.saved[pid][currentHole] = true;
+  });
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
+  var allPids = tA.playerIds.concat(tB.playerIds);
+  var next = -1;
+  for (var i = currentHole + 1; i < scoringPars.length; i++) {
+    if (allPids.some(function(pid){return !activeMatch.saved[pid][i];})) { next = i; break; }
   }
-  buildHoleChips(); renderEntryCard();
+  if (next !== -1) setTimeout(function(){goToHole(next);}, 300);
 }
 
-function goToHole(i) { currentHole = i; buildHoleChips(); renderEntryCard(); }
+function editHoleScores() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    activeMatch.saved[pid][currentHole] = false;
+  });
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB);
+}
+
+function goToHole(i) {
+  currentHole = i;
+  var tA = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamAId);});
+  var tB = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamBId);});
+  if (tA && tB) { buildHoleChips(tA, tB); renderEntryCard(tA, tB); }
+}
 function prevHole() { if (currentHole > 0) goToHole(currentHole - 1); }
 function nextHole() { if (currentHole < scoringPars.length - 1) goToHole(currentHole + 1); }
 
-function scoreCell(score, par) {
-  const S = 'font-size:11px;font-variant-numeric:tabular-nums;';
-  if (score === null || score === undefined) return `<span style="${S}color:#D1D5DB;font-weight:500">—</span>`;
-  const diff = score - par;
-  if (diff <= -2) return `<span style="${S}color:#7C3AED;font-weight:700">${score}</span>`;
-  if (diff === -1) return `<span style="${S}color:#16A34A;font-weight:700">${score}</span>`;
-  if (diff === 0)  return `<span style="${S}color:#374151;font-weight:500">${score}</span>`;
-  if (diff === 1)  return `<span style="${S}color:#DC2626;font-weight:600">${score}</span>`;
-  return              `<span style="${S}color:#991b1b;font-weight:700">${score}</span>`;
+function confirmEndMatch() {
+  if (confirm('End this match? Unsaved scores will be lost.')) {
+    activeMatch = null; currentHole = 0; showSection('dashboard');
+  }
 }
 
-function renderScorecard() {
-  const tbody = document.getElementById('scorecard-body');
-  if (!tbody) return;
-  const parTot = scoringPars.reduce((a,v)=>a+v,0);
-  function diffStr(scores) {
-    const d = scores.filter(s=>s!==null).reduce((a,s,i)=>a+(s-scoringPars[i]),0);
-    return `<span style="color:${d>0?'#DC2626':d<0?'#16A34A':'#6B7280'};font-weight:600">${d>0?'+':''}${d||0}</span>`;
+function submitRound() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var round = {
+    id: 'r' + Date.now(),
+    week: activeMatch.week,
+    teamAId: activeMatch.teamAId,
+    teamBId: activeMatch.teamBId,
+    scores: JSON.parse(JSON.stringify(activeMatch.scores)),
+    pointsA: mp.pointsA,
+    pointsB: mp.pointsB,
+    holeResults: mp.holeResults,
+    completedAt: new Date().toISOString()
+  };
+  if (!DATA.rounds) DATA.rounds = [];
+  DATA.rounds.push(round);
+  var week = DATA.schedule.find(function(w){return w.week === activeMatch.week;});
+  if (week) week.status = 'completed';
+  saveData();
+  activeMatch = null; currentHole = 0;
+  showToast('Round submitted! 🏌️');
+  showSection('leaderboard');
+}
+
+function scoreCell(score, par) {
+  var S = 'font-size:11px;font-variant-numeric:tabular-nums;';
+  if (score === null || score === undefined) return '<span style="'+S+'color:#D1D5DB;font-weight:500">—</span>';
+  var diff = score - par;
+  if (diff <= -2) return '<span style="'+S+'color:#7C3AED;font-weight:700">'+score+'</span>';
+  if (diff === -1) return '<span style="'+S+'color:#16A34A;font-weight:700">'+score+'</span>';
+  if (diff === 0)  return '<span style="'+S+'color:#374151;font-weight:500">'+score+'</span>';
+  if (diff === 1)  return '<span style="'+S+'color:#DC2626;font-weight:600">'+score+'</span>';
+  return '<span style="'+S+'color:#991b1b;font-weight:700">'+score+'</span>';
+}
+
+function renderScorecard(tA, tB) {
+  var tbody = document.getElementById('scorecard-body');
+  if (!tbody || !activeMatch) return;
+  var parTot = scoringPars.reduce(function(a,v){return a+v;}, 0);
+
+  function makePlayerRow(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    if (!p) return '';
+    var sc  = activeMatch.scores[pid] || [];
+    var tot = sc.reduce(function(a,s){return a+(s||0);}, 0);
+    var played = sc.filter(function(s){return s!=null;});
+    var totStr = played.length === 0 ? '—' : '<span style="color:'+(tot>parTot?'#DC2626':tot<parTot?'#16A34A':'#374151')+'">'+tot+'</span>';
+    return '<tr><td>'+p.name.split(' ')[0]+'('+( p.handicap||0)+')</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
   }
-  const parRow  = `<tr class="par-row"><td>Par</td>${scoringPars.map(p=>`<td>${p}</td>`).join('')}<td class="tot-cell">${parTot}</td></tr>`;
-  const p1name  = scoringPlayers[0] ? scoringPlayers[0].name.split(' ')[0]+'('+(scoringPlayers[0].handicap||0)+')' : 'P1';
-  const p2name  = scoringPlayers[1] ? scoringPlayers[1].name.split(' ')[0]+'('+(scoringPlayers[1].handicap||0)+')' : 'P2';
-  const jackRow = `<tr><td>${p1name}</td>${jackScores.map((s,i)=>`<td>${scoreCell(s,scoringPars[i])}</td>`).join('')}<td class="tot-cell">${diffStr(jackScores)}</td></tr>`;
-  const tomRow  = `<tr><td>${p2name}</td>${tomScores.map((s,i)=>`<td>${scoreCell(s,scoringPars[i])}</td>`).join('')}<td class="tot-cell">${diffStr(tomScores)}</td></tr>`;
-  tbody.innerHTML = parRow + jackRow + tomRow;
+
+  var numCols = scoringPars.length + 2;
+  var parRow  = '<tr class="par-row"><td>Par</td>'+scoringPars.map(function(p){return '<td>'+p+'</td>';}).join('')+'<td class="tot-cell">'+parTot+'</td></tr>';
+  var labelA  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#1B4332;background:#F0F7F3;padding:3px 6px;text-align:left">'+tA.name+'</td></tr>';
+  var labelB  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#DC2626;background:#FEF2F2;padding:3px 6px;text-align:left">'+tB.name+'</td></tr>';
+  tbody.innerHTML = parRow + labelA + tA.playerIds.map(makePlayerRow).join('') + labelB + tB.playerIds.map(makePlayerRow).join('');
 }
 
 // ============================================================
 // LEADERBOARD
 // ============================================================
 function buildLeaderboard() {
-  const el = document.getElementById('leaderboard-content');
-  if (!DATA.league || DATA.rounds.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Scores Yet</div><div class="empty-state-sub">Scores will appear here once the first round is played.</div></div>`;
+  var el = document.getElementById('leaderboard-content');
+  if (!DATA.league) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">Not Set Up</div><div class="empty-state-sub">Set up the league first.</div></div>';
     return;
   }
-  el.innerHTML = `<div class="section-title">Live Scoring Board</div><div class="section-sub">No rounds completed yet</div>`;
+  var rounds = DATA.rounds || [];
+
+  // If there's an active live match, show it
+  if (activeMatch) {
+    var tAL = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+    var tBL = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+    if (tAL && tBL) {
+      var mpL = computeMatchPoints(tAL.playerIds, tBL.playerIds, activeMatch.scores);
+      el.innerHTML = '<div class="section-title">Leaderboard</div>' + buildMatchCard(tAL, tBL, mpL.pointsA, mpL.pointsB, mpL.holeResults, true, 'Week ' + activeMatch.week);
+      if (rounds.length > 0) {
+        el.innerHTML += '<div style="padding:0 16px 4px;font-size:13px;font-weight:700;color:#6B7280;margin-top:8px">Past Results</div>';
+        el.innerHTML += rounds.slice().reverse().map(function(r) {
+          var tA2 = DATA.teams.find(function(t){return t.id === r.teamAId;});
+          var tB2 = DATA.teams.find(function(t){return t.id === r.teamBId;});
+          if (!tA2 || !tB2) return '';
+          return buildMatchCard(tA2, tB2, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
+        }).join('');
+      }
+      return;
+    }
+  }
+
+  if (rounds.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Rounds Yet</div><div class="empty-state-sub">Scores will appear here after the first round.</div></div>';
+    return;
+  }
+
+  var html = rounds.slice().reverse().map(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+    if (!tA || !tB) return '';
+    return buildMatchCard(tA, tB, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
+  }).join('');
+  el.innerHTML = '<div class="section-title">Results</div>' + html;
+}
+
+function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel) {
+  var winner = pointsA > pointsB ? tA.name : pointsB > pointsA ? tB.name : null;
+  var played = holeResults.filter(function(r){return r !== null;}).length;
+  var numHoles = holeResults.length;
+
+  function pname(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    return p ? p.name.split(' ')[0] : '';
+  }
+
+  var dotsA = holeResults.map(function(r) {
+    var bg = r==='A' ? '#2D6A4F' : r==='T' ? '#C9A84C' : '#E5E7EB';
+    return '<div style="width:10px;height:10px;border-radius:50%;background:'+bg+';flex-shrink:0"></div>';
+  }).join('');
+  var dotsB = holeResults.map(function(r) {
+    var bg = r==='B' ? '#DC2626' : r==='T' ? '#C9A84C' : '#E5E7EB';
+    return '<div style="width:10px;height:10px;border-radius:50%;background:'+bg+';flex-shrink:0"></div>';
+  }).join('');
+
+  var statusBadge = isLive
+    ? '<span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span>'
+    : (winner ? '<span class="badge-completed">✓ '+winner+'</span>' : '<span class="badge-inprogress">Tied</span>');
+
+  return '<div class="lb-match-card">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+      '<span style="font-size:11px;font-weight:700;color:#6B7280">'+weekLabel+'</span>' + statusBadge +
+    '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+      '<div style="flex:1">' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A1A">'+tA.name+'</div>' +
+        '<div style="font-size:11px;color:#6B7280">'+tA.playerIds.map(pname).join(' & ')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:0 10px">' +
+        '<div style="font-size:28px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">'+pointsA+'</div>' +
+        '<div style="font-size:14px;color:#9CA3AF">—</div>' +
+        '<div style="font-size:28px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">'+pointsB+'</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex:1">' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A1A">'+tB.name+'</div>' +
+        '<div style="font-size:11px;color:#6B7280">'+tB.playerIds.map(pname).join(' & ')+'</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-bottom:6px">' +
+      '<div style="display:flex;gap:3px;margin-bottom:3px;align-items:center"><span style="font-size:9px;font-weight:700;color:#1B4332;width:16px;flex-shrink:0">'+tA.name.slice(0,2)+'</span><div style="display:flex;gap:3px;flex-wrap:wrap">'+dotsA+'</div></div>' +
+      '<div style="display:flex;gap:3px;align-items:center"><span style="font-size:9px;font-weight:700;color:#DC2626;width:16px;flex-shrink:0">'+tB.name.slice(0,2)+'</span><div style="display:flex;gap:3px;flex-wrap:wrap">'+dotsB+'</div></div>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#9CA3AF">'+played+' of '+numHoles+' holes</div>' +
+  '</div>';
 }
 
 // ============================================================
 // SKINS
 // ============================================================
 function buildSkins() {
-  const el = document.getElementById('skins-content');
-  if (!DATA.league || !DATA.league.skinsEnabled) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">Skins Not Enabled</div><div class="empty-state-sub">Enable skins in the Admin → Scoring tab.</div></div>`;
+  var el = document.getElementById('skins-content');
+  if (!DATA.league || !(DATA.scoringConfig && DATA.scoringConfig.skinsEnabled)) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">Skins Not Enabled</div><div class="empty-state-sub">Enable skins in Admin → Scoring tab.</div></div>';
     return;
   }
-  if (DATA.rounds.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">No Skins Data Yet</div><div class="empty-state-sub">Skins results will appear after the first round.</div></div>`;
+  var rounds = DATA.rounds || [];
+  if (rounds.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">No Skins Data Yet</div><div class="empty-state-sub">Skins results will appear after the first round.</div></div>';
     return;
   }
-  el.innerHTML = `<div class="section-title">Skins Board</div>`;
+
+  var fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
+  var numHoles = scoringPars.length || 9;
+  var skinResults = [];
+  var carryover = 0;
+
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+    var allPids = (tA ? tA.playerIds : []).concat(tB ? tB.playerIds : []);
+    var potPerHole = allPids.length * fee;
+    for (var h = 0; h < numHoles; h++) {
+      var holeSc = allPids.map(function(pid){ return { pid: pid, gross: r.scores && r.scores[pid] && r.scores[pid][h] }; }).filter(function(s){return s.gross != null;});
+      if (holeSc.length === 0) continue;
+      var minScore = Math.min.apply(null, holeSc.map(function(s){return s.gross;}));
+      var winners  = holeSc.filter(function(s){return s.gross === minScore;});
+      carryover++;
+      if (winners.length === 1) {
+        var wp = DATA.players.find(function(p){return p.id === winners[0].pid;});
+        skinResults.push({ hole: h+1, winner: wp ? wp.name : '?', amount: potPerHole * carryover, carryover: carryover > 1 });
+        carryover = 0;
+      } else {
+        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? p.name.split(' ')[0] : '?'; }).join(' & ');
+        skinResults.push({ hole: h+1, winner: null, tied: tiedNames, amount: 0 });
+      }
+    }
+  });
+
+  var winnings = {};
+  skinResults.filter(function(s){return s.winner;}).forEach(function(s) {
+    winnings[s.winner] = (winnings[s.winner] || 0) + s.amount;
+  });
+  var topEarners = Object.entries(winnings).sort(function(a,b){return b[1]-a[1];}).slice(0, 5);
+
+  var earnerHtml = '';
+  if (topEarners.length > 0) {
+    earnerHtml = '<div class="card"><div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;letter-spacing:0.5px">TOP EARNERS</div>' +
+      topEarners.map(function(entry, i) {
+        var name = entry[0], amt = entry[1];
+        var bg = i === 0 ? '#FEF9EE' : '#E5E7EB', col = i === 0 ? '#C9A84C' : '#6B7280';
+        return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+          avatarHtml(initials(name), bg, col, 30) +
+          '<div style="flex:1;margin-left:10px"><div style="font-size:13px;font-weight:600;color:#1A1A1A">'+name+'</div></div>' +
+          '<div style="font-size:16px;font-weight:700;color:#16A34A">$'+amt+'</div></div>';
+      }).join('') + '</div>';
+  }
+
+  var rowsHtml = skinResults.map(function(s) {
+    return '<div class="skin-row">' +
+      '<div style="width:32px;height:32px;border-radius:10px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#6B7280;flex-shrink:0">H'+s.hole+'</div>' +
+      '<div style="flex:1">' + (s.winner
+        ? '<div style="font-size:13px;font-weight:600;color:#1A1A1A">'+s.winner+'</div>'
+        : '<div style="font-size:13px;font-weight:600;color:#9CA3AF">'+s.tied+' tied</div>') + '</div>' +
+      (s.winner
+        ? '<div style="font-size:14px;font-weight:700;color:#16A34A">$'+s.amount+'</div>'
+        : '<span class="badge-carryover">Carryover</span>') +
+    '</div>';
+  }).join('');
+
+  el.innerHTML = '<div class="section-title">Skins Board</div>' +
+    '<div class="section-sub">$'+fee+'/player per week · Carryover on ties</div>' +
+    earnerHtml +
+    '<div class="card" style="margin-top:0"><div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;letter-spacing:0.5px">HOLE RESULTS</div>' + rowsHtml + '</div>';
 }
 
 // ============================================================
 // STANDINGS
 // ============================================================
 function buildStandings() {
-  const el = document.getElementById('standings-content');
-  if (DATA.players.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">No Players Yet</div><div class="empty-state-sub">Add players in the Admin → Players tab to see standings here.</div></div>`;
+  var el = document.getElementById('standings-content');
+  if (DATA.teams.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">No Teams Yet</div><div class="empty-state-sub">Set up teams in Admin to see standings here.</div></div>';
     return;
   }
-  // Build standings from rounds data (currently empty)
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px">
-      <div class="section-title" style="padding:0">Standings</div>
-    </div>
-    <div class="card" style="margin:0 16px">
-      <table class="standings-table">
-        <thead><tr>
-          <th style="width:32px">#</th>
-          <th>Player</th>
-          <th>W</th><th>L</th><th>T</th>
-          <th>Pts</th>
-          ${DATA.scoringConfig && DATA.scoringConfig.skinsEnabled ? '<th>Skins</th>' : ''}
-          <th>Hcp</th>
-        </tr></thead>
-        <tbody>
-          ${DATA.players.map((p,i) => `
-            <tr>
-              <td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#9CA3AF">${i+1}</div></td>
-              <td><div class="player-cell">${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',28)}<div class="player-cell-info"><span style="font-size:12px;font-weight:600;color:#1A1A1A">${p.name}${p.id===DATA.currentUserId?'<span class="you-badge">You</span>':''}</span><span class="player-cell-sub">Hcp ${p.handicap||0}</span></div></div></td>
-              <td style="color:#16A34A;font-weight:600">0</td>
-              <td style="color:#DC2626;font-weight:600">0</td>
-              <td style="color:#6B7280;font-weight:600">0</td>
-              <td class="td-pts">0</td>
-              ${DATA.scoringConfig && DATA.scoringConfig.skinsEnabled ? '<td style="color:#C9A84C;font-weight:600">$0</td>' : ''}
-              <td style="color:#9CA3AF">${p.handicap||0}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+
+  // Tally team stats from rounds
+  var teamStats = {};
+  DATA.teams.forEach(function(t) {
+    teamStats[t.id] = { id: t.id, name: t.name, playerIds: t.playerIds, W: 0, L: 0, T: 0, pts: 0 };
+  });
+
+  (DATA.rounds || []).forEach(function(r) {
+    var sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
+    if (!sA || !sB) return;
+    sA.pts += r.pointsA; sB.pts += r.pointsB;
+    if (r.pointsA > r.pointsB) { sA.W++; sB.L++; }
+    else if (r.pointsB > r.pointsA) { sB.W++; sA.L++; }
+    else { sA.T++; sB.T++; }
+  });
+
+  var sorted = Object.values(teamStats).sort(function(a,b){ return b.pts - a.pts || b.W - a.W; });
+  var hasSkins = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
+  var myTeam   = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
+
+  function pname(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    return p ? p.name.split(' ')[0] : '';
+  }
+
+  var rows = sorted.map(function(s, i) {
+    var isMe = myTeam && myTeam.id === s.id;
+    var rank = i === 0 ? '🏆' : (i + 1).toString();
+    return '<tr'+(isMe?' style="background:#F0FFF4"':'')+'>' +
+      '<td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:'+(i===0?'14':'13')+'px;font-weight:600;color:'+(i===0?'#C9A84C':'#9CA3AF')+'">'+rank+'</div></td>' +
+      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+s.name+(isMe?'<span class="you-badge">You</span>':'')+'</div><div style="font-size:10px;color:#9CA3AF">'+s.playerIds.map(pname).join(' & ')+'</div></td>' +
+      '<td style="color:#16A34A;font-weight:600">'+s.W+'</td>' +
+      '<td style="color:#DC2626;font-weight:600">'+s.L+'</td>' +
+      '<td style="color:#6B7280;font-weight:600">'+s.T+'</td>' +
+      '<td class="td-pts">'+s.pts+'</td>' +
+      (hasSkins ? '<td style="color:#C9A84C;font-weight:600">—</td>' : '') +
+    '</tr>';
+  }).join('');
+
+  var recentHtml = '';
+  var rounds = DATA.rounds || [];
+  if (rounds.length > 0) {
+    recentHtml = '<div style="padding:12px 16px 4px"><div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:8px">Recent Results</div>' +
+      rounds.slice(-3).reverse().map(function(r) {
+        var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+        var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+        if (!tA || !tB) return '';
+        var winner = r.pointsA > r.pointsB ? tA.name : r.pointsB > r.pointsA ? tB.name : 'Tie';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+          '<span style="font-size:12px;color:#6B7280">Wk '+r.week+'</span>' +
+          '<span style="font-size:12px;font-weight:600;color:#1A1A1A">'+tA.name+' '+r.pointsA+' – '+r.pointsB+' '+tB.name+'</span>' +
+          '<span class="badge-completed">'+winner+'</span>' +
+        '</div>';
+      }).join('') + '</div>';
+  }
+
+  el.innerHTML =
+    '<div style="padding:16px 16px 8px"><div class="section-title" style="padding:0">Team Standings</div></div>' +
+    '<div class="card" style="margin:0 16px">' +
+      '<table class="standings-table">' +
+        '<thead><tr>' +
+          '<th style="width:28px">#</th>' +
+          '<th>Team</th>' +
+          '<th>W</th><th>L</th><th>T</th>' +
+          '<th>Pts</th>' +
+          (hasSkins ? '<th>Skins</th>' : '') +
+        '</tr></thead>' +
+        '<tbody>'+rows+'</tbody>' +
+      '</table>' +
+    '</div>' +
+    recentHtml;
 }
 
 // ============================================================
@@ -957,11 +1285,14 @@ function buildAdmin() {
 function renderHoleGrids() {
   const holes = parseInt(document.querySelector('input[name="cfg-holes"]:checked')?.value || 9);
   const labelsEl = document.getElementById('hcp-grid-labels');
-  const hcpGrid  = document.getElementById('hcp-grid');
-  if (!labelsEl || !hcpGrid) return;
+  const parGrid   = document.getElementById('par-grid');
+  const hcpGrid   = document.getElementById('hcp-grid');
+  if (!labelsEl || !hcpGrid || !parGrid) return;
+  const par = DATA.league?.par     || [];
   const hcp = DATA.league?.holeHcp || [];
   labelsEl.innerHTML = Array.from({length:holes},(_,i)=>`<div class="hole-grid-label">H${i+1}</div>`).join('');
-  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" value="${hcp[i]||i+1}" id="hcp-${i}">`).join('');
+  parGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="6" placeholder="—" value="${par[i]||''}" id="par-${i}">`).join('');
+  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" placeholder="—" value="${hcp[i]||''}" id="hcp-${i}">`).join('');
   document.querySelectorAll('input[name="cfg-holes"]').forEach(r => { r.onchange = () => renderHoleGrids(); });
 }
 
@@ -1050,8 +1381,8 @@ function saveLeagueConfig() {
   const weeks  = parseInt(document.getElementById('cfg-weeks').value) || 18;
   const format = document.querySelector('input[name="cfg-format"]:checked').value;
   if (!name) { showToast('Please enter a league name'); return; }
-  const par     = Array.from({length:holes}, () => 4); // default par 4 per hole
-  const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||i+1);
+  const par     = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||null);
+  const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
   DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, format, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
   generateSchedule();
   saveData();
@@ -1688,6 +2019,7 @@ function handleAuthState(user) {
 // INIT
 // ============================================================
 loadData();
+checkVersion();
 buildLandingLoading();
 
 if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
