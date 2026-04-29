@@ -279,6 +279,12 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- ===== STANDINGS ===== -->
   <section id="sec-standings">
+    <div style="padding:16px 16px 8px;flex-shrink:0">
+      <div style="display:flex;background:#F3F4F6;border-radius:10px;padding:3px;gap:2px">
+        <button id="standings-tab-mp" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('mp')">Match Play</button>
+        <button id="standings-tab-sf" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('sf')">Stableford</button>
+      </div>
+    </div>
     <div id="standings-content"></div>
   </section>
 
@@ -1362,7 +1368,21 @@ function buildSkins() {
 // ============================================================
 // STANDINGS
 // ============================================================
+var standingsTab = 'mp';
+
+function switchStandingsTab(tab) {
+  standingsTab = tab;
+  document.getElementById('standings-tab-mp').classList.toggle('active', tab === 'mp');
+  document.getElementById('standings-tab-sf').classList.toggle('active', tab === 'sf');
+  if (tab === 'mp') buildMatchPlayStandings();
+  else buildStablefordLeaderboard();
+}
+
 function buildStandings() {
+  standingsTab === 'sf' ? buildStablefordLeaderboard() : buildMatchPlayStandings();
+}
+
+function buildMatchPlayStandings() {
   var el = document.getElementById('standings-content');
   if (DATA.teams.length === 0) {
     el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">No Teams Yet</div><div class="empty-state-sub">Set up teams in Admin to see standings here.</div></div>';
@@ -1439,6 +1459,106 @@ function buildStandings() {
       '</table>' +
     '</div>' +
     recentHtml;
+}
+
+function buildStablefordLeaderboard() {
+  var el = document.getElementById('standings-content');
+  if (DATA.players.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏌️</div><div class="empty-state-title">No Players Yet</div><div class="empty-state-sub">Add players in Admin to see Stableford standings.</div></div>';
+    return;
+  }
+
+  var cfg = DATA.scoringConfig || {};
+  var variant = cfg.stablefordVariant || 'standard';
+  var rounds = DATA.rounds || [];
+  var holes = DATA.league && DATA.league.holes ? parseInt(DATA.league.holes) : 9;
+  var pars = (DATA.league && DATA.league.par) || Array(holes).fill(4);
+  var hcpRanks = (DATA.league && DATA.league.holeHcp) || Array.from({length:holes}, function(_,i){ return i+1; });
+
+  function stablefordPts(netVsPar) {
+    if (variant === 'modified') {
+      if (netVsPar >= 2) return -3;
+      if (netVsPar === 1) return -1;
+      if (netVsPar === 0) return 0;
+      if (netVsPar === -1) return 2;
+      if (netVsPar === -2) return 5;
+      return 8;
+    } else {
+      if (netVsPar >= 2) return 0;
+      if (netVsPar === 1) return 1;
+      if (netVsPar === 0) return 2;
+      if (netVsPar === -1) return 3;
+      if (netVsPar === -2) return 4;
+      return 5;
+    }
+  }
+
+  // Tally stableford points per player across all rounds
+  var playerTotals = {};
+  DATA.players.forEach(function(p) {
+    playerTotals[p.id] = { id: p.id, name: p.name, handicap: p.handicap || 0, total: 0, rounds: 0, best: null };
+  });
+
+  rounds.forEach(function(r) {
+    var rScores = r.scores || {};
+    DATA.players.forEach(function(p) {
+      var pScores = rScores[p.id];
+      if (!pScores) return;
+      var roundPts = 0;
+      var played = false;
+      for (var h = 0; h < holes; h++) {
+        var gross = pScores[h];
+        if (gross == null) continue;
+        played = true;
+        var rank = hcpRanks[h] || (h + 1);
+        var strokes = playerStrokesOnHole(p.handicap || 0, rank, holes);
+        var net = gross - strokes;
+        var par = pars[h] || 4;
+        roundPts += stablefordPts(net - par);
+      }
+      if (played) {
+        playerTotals[p.id].total += roundPts;
+        playerTotals[p.id].rounds++;
+        if (playerTotals[p.id].best === null || roundPts > playerTotals[p.id].best) {
+          playerTotals[p.id].best = roundPts;
+        }
+      }
+    });
+  });
+
+  var sorted = Object.values(playerTotals).sort(function(a,b){ return b.total - a.total; });
+  var myId = DATA.currentUserId;
+
+  var rows = sorted.map(function(s, i) {
+    var isMe = s.id === myId;
+    var rank = i === 0 ? '🏆' : (i + 1).toString();
+    var avg = s.rounds > 0 ? (s.total / s.rounds).toFixed(1) : '—';
+    var best = s.best !== null ? s.best : '—';
+    return '<tr' + (isMe ? ' style="background:#F0FFF4"' : '') + '>' +
+      '<td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:' + (i===0?'14':'13') + 'px;font-weight:600;color:' + (i===0?'#C9A84C':'#9CA3AF') + '">' + rank + '</div></td>' +
+      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">' + s.name + (isMe ? '<span class="you-badge">You</span>' : '') + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + s.handicap + ' · ' + s.rounds + ' round' + (s.rounds!==1?'s':'') + '</div></td>' +
+      '<td class="td-pts">' + s.total + '</td>' +
+      '<td style="color:#6B7280;font-weight:600">' + avg + '</td>' +
+      '<td style="color:#16A34A;font-weight:600">' + best + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var variantLabel = variant === 'modified' ? 'Modified Stableford' : 'Standard Stableford';
+
+  el.innerHTML =
+    '<div style="padding:0 16px 4px"><div style="font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:0.5px;text-transform:uppercase">' + variantLabel + '</div></div>' +
+    '<div class="card" style="margin:0 16px">' +
+      '<table class="standings-table">' +
+        '<thead><tr>' +
+          '<th style="width:28px">#</th>' +
+          '<th>Player</th>' +
+          '<th>Pts</th>' +
+          '<th>Avg</th>' +
+          '<th>Best</th>' +
+        '</tr></thead>' +
+        '<tbody>' + (rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9CA3AF">No rounds scored yet</td></tr>') + '</tbody>' +
+      '</table>' +
+    '</div>';
 }
 
 // ============================================================
