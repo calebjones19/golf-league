@@ -1491,12 +1491,9 @@ function buildLandingNotInLeague(user) {
 
 async function signInWithGoogle() {
   try {
-    await auth.signInWithPopup(googleProvider);
-    // onAuthStateChanged handles the rest
+    await auth.signInWithRedirect(googleProvider);
   } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') {
-      showToast('Sign-in failed. Try again.');
-    }
+    showToast('Sign-in failed. Try again.');
   }
 }
 
@@ -1623,6 +1620,11 @@ function handleAuthState(user) {
 // ============================================================
 loadData();
 buildLandingLoading();
+auth.getRedirectResult().catch(e => {
+  if (e.code && e.code !== 'auth/cancelled-popup-request') {
+    showToast('Sign-in error: ' + e.message);
+  }
+});
 auth.onAuthStateChanged(handleAuthState);
 </script>
 </body>
