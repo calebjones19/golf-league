@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Golf League</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh}
+#app{width:100%;max-width:430px;background:#F5F0E8;min-height:100vh;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.18)}
+/* Top bar */
+.top-bar{background:#1B4332;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;height:50px}
+.top-bar-title{font-size:15px;font-weight:700;letter-spacing:0.3px;color:#C9A84C;font-family:'Space Grotesk',sans-serif}
+.top-bar-sub{font-size:11px;color:#a0bfab;margin-top:1px}
+.avatar-btn{width:34px;height:34px;border-radius:50%;background:#2D6A4F;border:2px solid #C9A84C;color:#C9A84C;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.avatar-admin-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid #1B4332}
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#1B4332;display:flex;border-top:1px solid #2D6A4F;z-index:200;padding:4px 0 6px}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;cursor:pointer;border:none;background:none;color:#6b9e82;font-size:10px;font-weight:500;letter-spacing:0.2px;transition:color 0.15s;font-family:'DM Sans',sans-serif}
+.nav-tab.active{color:#C9A84C}
+.nav-tab svg{width:20px;height:20px}
+.nav-tab.admin-tab{color:#a0bfab}
+.nav-tab.admin-tab.active{color:#C9A84C}
+/* Sections */
+section{display:none}
+section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:#F5F0E8;-webkit-overflow-scrolling:touch;animation:fadeIn 0.2s ease}
+#sec-score.active{display:flex;flex-direction:column;overflow:hidden;animation:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* Section inner padding */
+#dashboard-content,#leaderboard-content,#skins-content,#standings-content{padding-bottom:24px}
+/* Cards */
+.card{background:#fff;border-radius:14px;padding:16px;margin:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.07);border:1px solid #E5E7EB}
+.card-dark{background:#1B4332;color:#fff;border-radius:14px;padding:18px 16px;margin:12px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.section-title{font-size:18px;font-weight:600;color:#1A1A1A;padding:16px 16px 4px;font-family:'Space Grotesk',sans-serif}
+.section-sub{font-size:12px;color:#6B7280;padding:0 16px 10px}
+/* Empty states */
+.empty-state{text-align:center;padding:48px 32px}
+.empty-state-icon{font-size:40px;margin-bottom:12px}
+.empty-state-title{font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:6px;font-family:'Space Grotesk',sans-serif}
+.empty-state-sub{font-size:13px;color:#6B7280;line-height:1.5}
+/* Buttons */
+.btn-green{background:#1B4332;color:#fff;border:none;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.15s;font-family:'DM Sans',sans-serif}
+.btn-green:hover{opacity:0.9}
+.btn-gold{background:#C9A84C;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.15s}
+.btn-gold:hover{opacity:0.9}
+.btn-outline{background:transparent;border:2px solid #1B4332;color:#1B4332;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.btn-outline:hover{background:#1B4332;color:#fff}
+.btn-sm{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid;transition:all 0.15s;font-family:'DM Sans',sans-serif}
+.btn-edit{background:#F0F7F3;color:#1B4332;border-color:#1B4332}
+.btn-delete{background:#FEF2F2;color:#DC2626;border-color:#DC2626}
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;display:block}
+.form-input{width:100%;padding:9px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A1A;background:#fff;outline:none;transition:border-color 0.15s;font-family:'DM Sans',sans-serif}
+.form-input:focus{border-color:#1B4332}
+.form-select{width:100%;padding:9px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A1A;background:#fff;outline:none;font-family:'DM Sans',sans-serif}
+.radio-group{display:flex;gap:12px;flex-wrap:wrap}
+.radio-label{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer}
+/* Toggle */
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+.toggle-label{font-size:13px;font-weight:500;color:#1A1A1A}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#D1D5DB;border-radius:12px;cursor:pointer;transition:background 0.2s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle input:checked~.toggle-slider{background:#1B4332}
+.toggle input:checked~.toggle-slider:before{transform:translateX(20px)}
+/* Stats */
+.stats-row{display:flex;gap:10px;padding:0 16px;margin-bottom:4px}
+.stat-card{flex:1;background:#fff;border-radius:12px;padding:12px 10px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);border:1px solid #E5E7EB}
+.stat-val{font-size:18px;font-weight:700;color:#1B4332;font-family:'Space Grotesk',sans-serif}
+.stat-lbl{font-size:10px;color:#6B7280;font-weight:600;margin-top:2px}
+/* Hero */
+.hero-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:1px;color:#a0bfab;margin-bottom:8px}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,0.4);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,0.5)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+.hero-title{font-size:18px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:4px;font-family:'Space Grotesk',sans-serif}
+.hero-sub{font-size:12px;color:#a0bfab;margin-bottom:16px}
+.hero-btns{display:flex;gap:8px}
+/* Scoring */
+.hole-chips{display:flex;gap:4px;overflow-x:auto;padding:10px 12px;border-bottom:1px solid #F3F4F6;border-radius:14px 14px 0 0;scrollbar-width:none;margin:0}
+.hole-chips::-webkit-scrollbar{display:none}
+.hole-chip{flex-shrink:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;border:2px solid #E5E7EB;background:#fff;color:#9CA3AF;transition:all 0.15s}
+.hole-chip.has-score{background:#FEF9EE;color:#C9A84C;border-color:#C9A84C}
+.hole-chip.saved{background:#F0F7F3;color:#1B4332;border-color:#2D6A4F}
+.hole-chip.active{border-color:#C9A84C;box-shadow:0 0 0 3px rgba(201,168,76,0.35)}
+.score-entry-card{background:#fff;border-radius:14px;margin:0 16px;box-shadow:0 1px 4px rgba(0,0,0,0.07);border:1px solid #E5E7EB;flex-shrink:0;padding:0}
+.score-btn{width:40px;height:40px;border-radius:50%;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:22px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;line-height:1}
+.score-btn:hover{background:#1B4332;color:#fff}
+.score-btn:disabled{border-color:#E5E7EB;color:#D1D5DB;cursor:not-allowed}
+.score-btn:disabled:hover{background:#fff;color:#D1D5DB}
+.score-display{font-size:32px;font-weight:700;color:#1A1A1A;min-width:36px;text-align:center;font-family:'Space Grotesk',sans-serif}
+.score-display.empty{color:#D1D5DB}
+.save-btn{width:100%;padding:10px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.save-btn.ready{background:#1B4332;color:#fff}
+.save-btn.submit{background:#C9A84C;color:#fff}
+.save-btn.edit{background:#F0F7F3;color:#1B4332;border:2px solid #1B4332}
+.save-btn.disabled{background:#F3F4F6;color:#9CA3AF;cursor:default}
+.hole-nav{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid #F3F4F6;margin-top:10px}
+.hole-nav-btn{padding:7px 14px;border-radius:8px;border:1px solid #E5E7EB;background:#fff;font-size:12px;font-weight:600;color:#1A1A1A;cursor:pointer;transition:all 0.15s}
+.hole-nav-btn:disabled{color:#D1D5DB;border-color:#F3F4F6;cursor:not-allowed}
+.hole-nav-btn:not(:disabled):hover{border-color:#1B4332;color:#1B4332}
+.hole-nav-info{font-size:11px;color:#6B7280;font-weight:600}
+/* Scorecard */
+.scorecard-wrap{flex:1;overflow:auto;margin:0 16px 8px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+.scorecard{border-collapse:collapse;width:100%;min-width:320px;font-size:11px;background:#fff;border-radius:10px;overflow:hidden}
+.scorecard th,.scorecard td{padding:5px 3px;text-align:center;border-bottom:1px solid #F3F4F6;font-variant-numeric:tabular-nums}
+.scorecard th{background:#1B4332;color:#fff;font-weight:700;font-size:10px}
+.scorecard td:first-child{font-weight:700;font-size:10px;text-align:left;padding-left:6px;white-space:nowrap}
+.scorecard tr:last-child td{border-bottom:none}
+.scorecard .par-row td{background:#F9FAFB;color:#6B7280;font-weight:600}
+.scorecard .tot-cell{font-weight:700;font-size:12px;color:#1B4332}
+/* Leaderboard */
+.lb-match-card{background:#fff;border-radius:14px;padding:14px;margin:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.07);border:1px solid #E5E7EB}
+.toggle-btns{display:flex;background:#F3F4F6;border-radius:8px;padding:3px;gap:3px;margin-bottom:12px}
+.toggle-btn{flex:1;padding:7px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#6B7280;transition:all 0.15s}
+.toggle-btn.active{background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+/* Standings */
+.standings-table{width:100%;border-collapse:collapse;font-size:12px}
+.standings-table th{padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#6B7280;border-bottom:2px solid #E5E7EB;cursor:pointer;white-space:nowrap}
+.standings-table th:first-child,.standings-table th:nth-child(2){text-align:left}
+.standings-table td{padding:10px 6px;text-align:center;border-bottom:1px solid #F3F4F6;vertical-align:middle;font-variant-numeric:tabular-nums}
+.standings-table td:first-child,.standings-table td:nth-child(2){text-align:left}
+.standings-table tr:last-child td{border-bottom:none}
+.td-pts{font-weight:700;color:#1B4332}
+.you-badge{background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;border:1px solid #C9A84C}
+/* Skins */
+.skin-row{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid #F3F4F6;gap:10px}
+.badge-carryover{background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.badge-live{display:inline-flex;align-items:center;gap:4px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:0.5px}
+/* Admin nav tabs */
+.admin-nav{display:flex;overflow-x:auto;background:#fff;border-bottom:2px solid #E5E7EB;scrollbar-width:none;flex-shrink:0}
+.admin-nav::-webkit-scrollbar{display:none}
+.admin-nav-tab{flex-shrink:0;padding:11px 14px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
+.admin-nav-tab.active{color:#1B4332;border-bottom-color:#C9A84C}
+.admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;overflow-x:hidden;flex:1;-webkit-overflow-scrolling:touch}
+.admin-panel.active{display:block}
+#sec-admin.active{display:flex;flex-direction:column;overflow:hidden}
+/* Par/hcp grid */
+.hole-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-top:6px}
+.hole-grid-18{grid-template-columns:repeat(9,1fr)}
+.hole-grid input{width:100%;padding:6px 2px;border:1.5px solid #E5E7EB;border-radius:6px;font-size:12px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:600;outline:none;transition:border-color 0.15s}
+.hole-grid input:focus{border-color:#1B4332}
+.hole-grid-label{font-size:9px;font-weight:700;color:#9CA3AF;text-align:center;margin-bottom:2px}
+/* Player / team rows */
+.player-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6;gap:10px}
+.player-row:last-child{border-bottom:none}
+.player-initials{width:32px;height:32px;border-radius:50%;background:#E5E7EB;color:#6B7280;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.team-card{background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:12px;padding:14px;margin-bottom:10px}
+.team-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+/* Schedule */
+.schedule-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6;gap:10px}
+.schedule-week{font-size:13px;font-weight:700;color:#1A1A1A;width:56px;flex-shrink:0}
+.schedule-info{flex:1}
+.schedule-date{font-size:12px;font-weight:600;color:#1A1A1A}
+.schedule-reason{font-size:11px;color:#6B7280}
+.badge-completed{background:#DCFCE7;color:#16A34A;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.badge-inprogress{background:#FEF9EE;color:#C9A84C;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.badge-upcoming{background:#F3F4F6;color:#6B7280;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
+.badge-cancelled{background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+/* Announcement rows */
+.announce-row{display:flex;align-items:flex-start;padding:12px 0;border-bottom:1px solid #F3F4F6;gap:10px}
+.announce-row:last-child{border-bottom:none}
+/* Modals */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex;animation:fadeIn 0.2s ease}
+.bottom-sheet{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:430px;animation:slideUp 0.3s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px}
+.sheet-title{font-size:20px;font-weight:700;color:#1A1A1A;margin-bottom:8px;font-family:'Space Grotesk',sans-serif}
+.sheet-body{font-size:14px;color:#374151;line-height:1.6;margin-bottom:24px}
+/* Admin login modal */
+.center-modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.center-modal.open{display:flex;animation:fadeIn 0.2s ease}
+.modal-card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.2)}
+.modal-title{font-size:18px;font-weight:700;color:#1A1A1A;margin-bottom:6px;font-family:'Space Grotesk',sans-serif}
+.modal-sub{font-size:13px;color:#6B7280;margin-bottom:20px;line-height:1.5}
+/* Toast */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+/* Landing */
+.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;transition:opacity 0.35s ease}
+.landing-overlay.hidden{opacity:0;pointer-events:none}
+.landing-inner{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 24px}
+.landing-top{text-align:center;width:100%;padding-bottom:28px}
+.landing-icon{font-size:52px;margin-bottom:16px;display:block}
+.landing-league{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#C9A84C;line-height:1.2;margin-bottom:6px}
+.landing-meta{font-size:13px;color:#a0bfab;font-weight:500}
+.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin-bottom:28px;width:100%}
+.landing-body{width:100%}
+.landing-prompt{font-size:12px;font-weight:700;letter-spacing:1px;color:#6b9e82;margin-bottom:14px;text-transform:uppercase}
+.player-pill{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;width:100%}
+.player-pill:hover,.player-pill:active{background:rgba(201,168,76,0.15);border-color:#C9A84C}
+.player-pill-name{font-size:15px;font-weight:600;color:#fff;font-family:'DM Sans',sans-serif}
+.player-pill-sub{font-size:11px;color:#6b9e82;margin-top:1px}
+.landing-admin-link{text-align:center;padding:8px 0 4px;margin-top:4px}
+.landing-admin-link button{background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;padding:8px 16px}
+.landing-admin-link button:hover{color:#C9A84C}
+.landing-setup-msg{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:24px;text-align:center;margin-bottom:16px}
+.landing-setup-msg p{font-size:14px;color:#a0bfab;line-height:1.6;margin-bottom:16px}
+.landing-setup-msg .btn-gold{width:100%}
+.google-signin-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:auto;padding:14px 28px;background:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#1A1A1A;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);margin:0 auto}
+.google-signin-btn:hover{background:#f8f8f8;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.landing-spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,0.2);border-top-color:#C9A84C;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.not-in-league-wrap{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:14px;padding:24px;text-align:center}
+.not-in-league-email{font-size:12px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:8px}
+.not-in-league-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:8px;font-family:'Space Grotesk',sans-serif}
+.not-in-league-sub{font-size:13px;color:#a0bfab;line-height:1.5;margin-bottom:20px}
+/* Player cell */
+.player-cell{display:flex;align-items:center;gap:8px}
+.player-cell-info{display:flex;flex-direction:column}
+.player-cell-sub{font-size:10px;color:#9CA3AF}
+/* Course search */
+.course-search-wrap{position:relative}
+.course-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #E5E7EB;border-top:none;border-radius:0 0 10px 10px;z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);display:none}
+.course-dropdown.open{display:block}
+.course-option{padding:11px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;transition:background 0.1s}
+.course-option:last-child{border-bottom:none}
+.course-option:hover,.course-option:active{background:#F0F7F3}
+.course-option-name{font-size:13px;font-weight:600;color:#1A1A1A}
+.course-option-loc{font-size:11px;color:#6B7280;margin-top:2px}
+.course-searching{padding:12px 14px;font-size:12px;color:#6B7280;text-align:center}
+/* Divider */
+.divider{height:1px;background:#F3F4F6;margin:0 16px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LANDING OVERLAY -->
+  <div id="landing-overlay" class="landing-overlay">
+    <div class="landing-inner">
+      <div class="landing-top">
+        <span class="landing-icon">⛳</span>
+        <div class="landing-league" id="landing-league-name">Golf League</div>
+        <div class="landing-meta" id="landing-meta"></div>
+      </div>
+      <div class="landing-divider"></div>
+      <div class="landing-body" id="landing-body"></div>
+    </div>
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div>
+      <div class="top-bar-title" id="top-bar-title">Golf League</div>
+      <div class="top-bar-sub" id="top-bar-sub">Loading...</div>
+    </div>
+    <button class="avatar-btn" id="avatar-btn" onclick="openAdminLogin()" title="Admin Sign In">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </button>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <section id="sec-dashboard" class="active">
+    <div id="dashboard-content"></div>
+  </section>
+
+  <!-- ===== LIVE SCORING ===== -->
+  <section id="sec-score">
+    <div id="score-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden;padding-bottom:0"></div>
+  </section>
+
+  <!-- ===== LEADERBOARD ===== -->
+  <section id="sec-leaderboard">
+    <div id="leaderboard-content"></div>
+  </section>
+
+  <!-- ===== SKINS BOARD ===== -->
+  <section id="sec-skins">
+    <div id="skins-content"></div>
+  </section>
+
+  <!-- ===== STANDINGS ===== -->
+  <section id="sec-standings">
+    <div id="standings-content"></div>
+  </section>
+
+  <!-- ===== ADMIN ===== -->
+  <section id="sec-admin">
+    <!-- Admin sub-nav -->
+    <div class="admin-nav" id="admin-nav">
+      <button class="admin-nav-tab active" onclick="switchAdminTab('league',this)">League</button>
+      <button class="admin-nav-tab" onclick="switchAdminTab('players',this)">Players</button>
+      <button class="admin-nav-tab" onclick="switchAdminTab('teams',this)">Teams</button>
+      <button class="admin-nav-tab" onclick="switchAdminTab('scoring',this)">Scoring</button>
+      <button class="admin-nav-tab" onclick="switchAdminTab('announce',this)">Announce</button>
+    </div>
+
+    <!-- League Setup -->
+    <div class="admin-panel active" id="admin-league">
+      <div class="form-group">
+        <label class="form-label">League Name</label>
+        <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Golf Course</label>
+        <div class="course-search-wrap">
+          <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)">
+          <div class="course-dropdown" id="course-dropdown"></div>
+        </div>
+        <div id="course-selected" style="display:none;margin-top:6px;font-size:12px;color:#16A34A;font-weight:600"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Holes</label>
+        <div class="radio-group">
+          <label class="radio-label"><input type="radio" name="cfg-holes" value="9" checked> 9 Holes</label>
+          <label class="radio-label"><input type="radio" name="cfg-holes" value="18"> 18 Holes</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Course Setup</label>
+        <div id="hcp-grid-labels" class="hole-grid" style="margin-bottom:6px"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">Par</div>
+          <div id="par-grid" class="hole-grid" style="margin:0;flex:1"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">HCP</div>
+          <div id="hcp-grid" class="hole-grid" style="margin:0;flex:1"></div>
+        </div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
+      </div>
+      <div class="form-group">
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <label class="form-label">Start Date</label>
+            <input class="form-input" type="date" id="cfg-start">
+          </div>
+          <div style="width:100px">
+            <label class="form-label">Weeks</label>
+            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label class="form-label" style="margin:0">Cancellations</label>
+          <button class="btn-sm btn-outline" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
+        </div>
+        <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
+        <div id="schedule-list"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">League Format</label>
+        <div class="radio-group">
+          <label class="radio-label"><input type="radio" name="cfg-format" value="match_play" checked> Match Play</label>
+          <label class="radio-label"><input type="radio" name="cfg-format" value="stroke_play"> Stroke Play</label>
+          <label class="radio-label"><input type="radio" name="cfg-format" value="stableford"> Stableford</label>
+        </div>
+      </div>
+      <button class="btn-green" style="width:100%;margin-top:4px" onclick="saveLeagueConfig()">Save League Settings</button>
+    </div>
+
+    <!-- Players -->
+    <div class="admin-panel" id="admin-players">
+      <div id="players-list"></div>
+      <div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">
+        <div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Player</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1"><input class="form-input" id="new-player-name" placeholder="Full name"></div>
+          <div style="width:70px"><input class="form-input" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>
+        </div>
+        <input class="form-input" id="new-player-email" placeholder="Google email (required for sign-in)" style="margin-bottom:8px">
+        <button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>
+      </div>
+    </div>
+
+    <!-- Teams -->
+    <div class="admin-panel" id="admin-teams">
+      <button class="btn-outline" style="width:100%;margin-bottom:14px" onclick="addTeam()">+ Create Team</button>
+      <div id="teams-list"></div>
+      <div id="unassigned-section"></div>
+    </div>
+
+    <!-- Scoring -->
+    <div class="admin-panel" id="admin-scoring">
+      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Match Play Scoring</div>
+      <div class="form-group">
+        <label class="form-label">Points per hole win</label>
+        <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0.5" step="0.5" style="max-width:120px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Points for a tied hole</label>
+        <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:120px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Match win bonus points</label>
+        <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:120px">
+      </div>
+      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
+      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Skins</div>
+      <div class="toggle-wrap">
+        <span class="toggle-label">Skins enabled</span>
+        <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="skins-fee-row" style="display:none">
+        <div class="form-group" style="margin-top:10px">
+          <label class="form-label">Entry fee per player per week ($)</label>
+          <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:120px">
+        </div>
+      </div>
+      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
+      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Tee Times</div>
+      <div class="form-group">
+        <label class="form-label">Default tee time</label>
+        <input class="form-input" type="time" id="cfg-tee-default" value="17:30" style="max-width:140px">
+      </div>
+      <div id="tee-overrides"></div>
+      <button class="btn-outline" style="margin-top:8px" onclick="addTeeOverride()">+ Add weekly override</button>
+      <div style="margin-top:16px">
+        <button class="btn-green" style="width:100%" onclick="saveScoringConfig()">Save Scoring Settings</button>
+      </div>
+    </div>
+
+    <!-- Announcements -->
+    <div class="admin-panel" id="admin-announce">
+      <div id="announce-list"></div>
+      <div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">
+        <div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">New Announcement</div>
+        <div class="form-group">
+          <input class="form-input" id="new-announce-title" placeholder="Title">
+        </div>
+        <div class="form-group">
+          <textarea class="form-input" id="new-announce-body" rows="4" placeholder="Message..." style="resize:none;line-height:1.5"></textarea>
+        </div>
+        <button class="btn-green" style="width:100%" onclick="createAnnouncement()">Send Announcement</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+
+  <!-- ANNOUNCEMENT BOTTOM SHEET -->
+  <div class="modal-overlay" id="announce-overlay" onclick="dismissAnnouncement(event)">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="sheet-title"></div>
+      <div class="sheet-body" id="sheet-body"></div>
+      <button class="btn-green" style="width:100%" onclick="dismissAnnouncement()">Got it</button>
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN MODAL -->
+  <div class="center-modal" id="admin-login-modal" onclick="closeAdminLogin(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-title" id="admin-modal-title">Admin Sign In</div>
+      <div class="modal-sub" id="admin-modal-sub">Enter your admin email to access league management.</div>
+      <div class="form-group">
+        <input class="form-input" type="email" id="admin-email-input" placeholder="your@email.com">
+      </div>
+      <div id="admin-modal-error" style="color:#DC2626;font-size:12px;margin-bottom:10px;display:none">Incorrect email. Try again.</div>
+      <button class="btn-green" style="width:100%;margin-bottom:10px" onclick="submitAdminLogin()">Sign In</button>
+      <button style="width:100%;background:none;border:none;color:#6B7280;font-size:13px;cursor:pointer;padding:8px" onclick="closeAdminLogin()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ADD WEEK OFF MODAL -->
+  <div class="center-modal" id="weekoff-modal" onclick="closeWeekOff(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-title">Add Cancellation</div>
+      <div class="modal-sub">This week will be marked cancelled and all following dates will shift forward by one week.</div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="weekoff-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <select class="form-select" id="weekoff-reason">
+          <option>Weather</option>
+          <option>Holiday</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <button class="btn-green" style="width:100%;margin-bottom:10px" onclick="addWeekOff()">Add Cancellation</button>
+      <button style="width:100%;background:none;border:none;color:#6B7280;font-size:13px;cursor:pointer;padding:8px" onclick="closeWeekOff()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- PROFILE BOTTOM SHEET -->
+  <div class="modal-overlay" id="profile-overlay" onclick="closeProfileSheet(event)">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div id="profile-avatar-large" style="width:52px;height:52px;border-radius:50%;background:#1B4332;color:#C9A84C;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:'Space Grotesk',sans-serif;flex-shrink:0"></div>
+        <div>
+          <div id="profile-name" style="font-size:17px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif"></div>
+          <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
+        </div>
+      </div>
+      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();showSection('admin')">Admin Panel</button>
+      <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB6--pa_Yd9gHGXDuEWGq_5fNESzoLJaz8",
+  authDomain: "golf-league-e3b70.firebaseapp.com",
+  projectId: "golf-league-e3b70",
+  storageBucket: "golf-league-e3b70.firebasestorage.app",
+  messagingSenderId: "351472730476",
+  appId: "1:351472730476:web:d8da408be6efa81c1fb349",
+  measurementId: "G-VD857GPCGE"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// ============================================================
+// VERSION
+// ============================================================
+const APP_VERSION = '1.0';
+
+function checkVersion() {
+  // No-op for now — version number shown in the update footer on the home screen.
+  // A service worker would be needed to intercept stale cached PWA installs.
+}
+
+// ============================================================
+// DATA LAYER
+// ============================================================
+const STORAGE_KEY = 'golf_league_data';
+const SEEN_KEY    = 'golf_league_seen';
+
+let DATA = {
+  adminEmail:    null,
+  currentUserId: null,
+  league:        null,
+  players:       [],
+  teams:         [],
+  schedule:      [],
+  rounds:        [],
+  announcements: [],
+  scoringConfig: { pointsPerHole: 1, tiePoints: 0.5, matchBonus: 2, skinsEnabled: false, skinsFee: 5, teeTimeDefault: '17:30', teeOverrides: [] }
+};
+
+let seenAnnouncements = [];
+let isAdmin = false;
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) DATA = { ...DATA, ...JSON.parse(raw) };
+    const seen = localStorage.getItem(SEEN_KEY);
+    if (seen) seenAnnouncements = JSON.parse(seen);
+    isAdmin = sessionStorage.getItem('golf_is_admin') === 'true';
+  } catch(e) {}
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+}
+
+function markSeen(id) {
+  if (!seenAnnouncements.includes(id)) {
+    seenAnnouncements.push(id);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seenAnnouncements));
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+const ALL_SECTIONS = ['dashboard','score','leaderboard','skins','standings','admin'];
+
+function showSection(id) {
+  ALL_SECTIONS.forEach(s => {
+    const sec = document.getElementById('sec-'+s);
+    const nav = document.getElementById('nav-'+s);
+    if (sec) sec.classList.remove('active');
+    if (nav) nav.classList.remove('active');
+  });
+  const sec = document.getElementById('sec-'+id);
+  const nav = document.getElementById('nav-'+id);
+  if (sec) { sec.classList.add('active'); sec.scrollTop = 0; }
+  if (nav) nav.classList.add('active');
+  if (id === 'dashboard')   buildDashboard();
+  if (id === 'score')       buildScoring();
+  if (id === 'leaderboard') buildLeaderboard();
+  if (id === 'skins')       buildSkins();
+  if (id === 'standings')   buildStandings();
+  if (id === 'admin')       buildAdmin();
+}
+
+function buildBottomNav() {
+  const tabs = [
+    { id:'dashboard',   label:'Home',      icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+    { id:'score',       label:'Score',     icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
+    { id:'leaderboard', label:'Board',     icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
+    { id:'skins',       label:'Skins',     icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
+    { id:'standings',   label:'Standings', icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>' },
+  ];
+  if (isAdmin) {
+    tabs.push({ id:'admin', label:'Admin', icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', adminTab: true });
+  }
+  const nav = document.getElementById('bottom-nav');
+  nav.innerHTML = tabs.map(t => `
+    <button class="nav-tab${t.adminTab?' admin-tab':''}" id="nav-${t.id}" onclick="showSection('${t.id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${t.icon}</svg>
+      ${t.label}
+    </button>
+  `).join('');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+const UPDATE_FOOTER = `
+  <div style="text-align:center;padding:20px 16px 8px">
+    <button onclick="hardRefresh()" style="display:inline-flex;align-items:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s" onmouseover="this.style.borderColor='#1B4332';this.style.color='#1B4332'" onmouseout="this.style.borderColor='#E5E7EB';this.style.color='#6B7280'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Update to latest version
+    </button>
+    <div style="font-size:10px;color:#D1D5DB;margin-top:6px">v${APP_VERSION}</div>
+  </div>`;
+
+function hardRefresh() {
+  // Clear caches then reload for PWA / service worker installs
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(n => caches.delete(n))).finally(() => location.reload(true));
+  } else {
+    location.reload(true);
+  }
+}
+
+function buildDashboard() {
+  const el = document.getElementById('dashboard-content');
+  if (!DATA.league) {
+    el.style.cssText = 'display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 124px);padding:0';
+    el.innerHTML = `
+      <div style="padding:0 16px">
+        <div class="card-dark">
+          <div class="hero-badge">WELCOME</div>
+          <div class="hero-title">Set Up Your Golf League</div>
+          <div class="hero-sub">Get started by configuring your league details, adding players, and creating your schedule.</div>
+          <div class="hero-btns">
+            ${isAdmin ? `<button class="btn-gold" onclick="showSection('admin')">League Setup →</button>` : `<div style="font-size:12px;color:#a0bfab">Ask your league admin to finish setup.</div>`}
+          </div>
+        </div>
+      </div>
+      ${UPDATE_FOOTER}
+    `;
+    return;
+  }
+  el.style.cssText = '';
+  const league = DATA.league;
+  const hasRounds = DATA.rounds && DATA.rounds.length > 0;
+  el.innerHTML = `
+    <div style="margin:14px 16px">
+      <div class="card-dark">
+        ${hasRounds ? `<div class="hero-badge"><div class="pulse-dot"></div> ROUND IN PROGRESS</div>` : `<div class="hero-badge">⛳ ${league.name.toUpperCase()}</div>`}
+        <div class="hero-title">${league.course || league.name}</div>
+        <div class="hero-sub">${league.season || new Date().getFullYear()} Season · ${league.holes || 9} Holes</div>
+        <div class="hero-btns">
+          <button class="btn-gold" onclick="showSection('score')">Enter Scores</button>
+          <button class="btn-outline-white" style="background:transparent;color:#fff;border:2px solid #fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="showSection('leaderboard')">Leaderboard</button>
+        </div>
+      </div>
+    </div>
+    ${DATA.players.length > 0 ? `
+    <div class="stats-row" style="margin-top:4px">
+      <div class="stat-card"><div class="stat-val">${DATA.players.length}</div><div class="stat-lbl">Players</div></div>
+      <div class="stat-card"><div class="stat-val">${DATA.teams.length}</div><div class="stat-lbl">Teams</div></div>
+      <div class="stat-card"><div class="stat-val">${DATA.schedule.filter(w=>w.status==='upcoming').length}</div><div class="stat-lbl">Weeks Left</div></div>
+    </div>` : ''}
+    ${!hasRounds ? `<div class="card" style="text-align:center;color:#6B7280;font-size:13px;padding:24px">No rounds played yet this season.</div>` : ''}
+    ${UPDATE_FOOTER}
+  `;
+}
+
+// ============================================================
+// SCORING ENGINE
+// ============================================================
+function playerStrokesOnHole(playerHcp, holeRank, numHoles) {
+  if (!playerHcp || playerHcp <= 0) return 0;
+  return Math.floor(playerHcp / numHoles) + (holeRank <= (playerHcp % numHoles) ? 1 : 0);
+}
+
+function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
+  const numHoles = scoringPars.length;
+  let bestNet = null;
+  for (const pid of teamPlayerIds) {
+    const player = DATA.players.find(p => p.id === pid);
+    if (!player) continue;
+    const gross = scores[pid] && scores[pid][holeIdx];
+    if (gross == null) continue;
+    const rank    = scoringHoleHcp[holeIdx];
+    const strokes = playerStrokesOnHole(player.handicap || 0, rank, numHoles);
+    const net     = gross - strokes;
+    if (bestNet === null || net < bestNet) bestNet = net;
+  }
+  return bestNet;
+}
+
+function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores) {
+  const netA = teamBestBallNet(teamAIds, holeIdx, scores);
+  const netB = teamBestBallNet(teamBIds, holeIdx, scores);
+  if (netA === null || netB === null) return null;
+  if (netA < netB) return 'A';
+  if (netB < netA) return 'B';
+  return 'T';
+}
+
+function computeMatchPoints(teamAIds, teamBIds, scores) {
+  const numHoles = scoringPars.length;
+  const cfg      = DATA.scoringConfig || {};
+  const ptsWin   = cfg.pointsPerHole != null ? cfg.pointsPerHole : 1;
+  const ptsTie   = cfg.tiePoints != null ? cfg.tiePoints : 0.5;
+  let pointsA = 0, pointsB = 0;
+  const holeResults = [];
+  let allPlayed = true;
+  for (let h = 0; h < numHoles; h++) {
+    const result = computeHoleWinner(teamAIds, teamBIds, h, scores);
+    holeResults.push(result);
+    if (result === null) { allPlayed = false; continue; }
+    if (result === 'A')      pointsA += ptsWin;
+    else if (result === 'B') pointsB += ptsWin;
+    else                   { pointsA += ptsTie; pointsB += ptsTie; }
+  }
+  const bonus = cfg.matchBonus != null ? cfg.matchBonus : 2;
+  if (allPlayed && pointsA > pointsB) pointsA += bonus;
+  else if (allPlayed && pointsB > pointsA) pointsB += bonus;
+  return { pointsA, pointsB, holeResults, allPlayed };
+}
+
+function getCurrentWeek() {
+  if (!DATA.schedule || !DATA.schedule.length) return 1;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = DATA.schedule.find(w => {
+    const d = new Date(w.date + 'T12:00:00');
+    return d >= today && w.status !== 'cancelled';
+  });
+  return upcoming ? upcoming.week : DATA.schedule.filter(w => w.status === 'completed').length + 1;
+}
+
+// ============================================================
+// SCORING
+// ============================================================
+let currentHole = 0;
+let scoringPars = [], scoringHoleHcp = [];
+let activeMatch = null; // { teamAId, teamBId, week, scores:{pid:[...]}, saved:{pid:[...]} }
+
+function buildScoring() {
+  const el = document.getElementById('score-content');
+  const holes = DATA.league ? (DATA.league.holes || 9) : 9;
+  scoringPars    = (DATA.league && DATA.league.par)     || Array(holes).fill(4);
+  scoringHoleHcp = (DATA.league && DATA.league.holeHcp) || Array(holes).fill(1).map(function(_,i){return i+1;});
+
+  if (!DATA.league || DATA.teams.filter(function(t){return t.playerIds.length >= 2;}).length < 2) {
+    el.innerHTML = '<div class="empty-state" style="margin-top:40px"><div class="empty-state-icon">⛳</div><div class="empty-state-title">No Teams Ready</div><div class="empty-state-sub">Set up at least 2 teams with 2 players each in Admin → Teams.</div></div>';
+    return;
+  }
+  if (!activeMatch) { renderMatchPicker(el); return; }
+  renderScoringUI(el);
+}
+
+function renderMatchPicker(el) {
+  const readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
+  const opts = readyTeams.map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
+  el.innerHTML = '<div style="padding:16px;padding-top:8px"><div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="showSection(\'dashboard\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button><span style="font-size:15px;font-weight:700;color:#1A1A1A">Score Entry</span><div style="width:48px"></div></div><div class="card"><div style="font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:4px;font-family:\'Space Grotesk\',sans-serif">⛳ Start Match</div><div style="font-size:12px;color:#6B7280;margin-bottom:16px">Select today\'s matchup</div><div class="form-group"><label class="form-label">Team A</label><select class="form-select" id="pick-teamA">'+opts+'</select></div><div class="form-group" style="margin-bottom:16px"><label class="form-label">Team B</label><select class="form-select" id="pick-teamB">'+opts+'</select></div><button class="btn-green" style="width:100%" onclick="startMatch()">Start Match →</button></div></div>';
+  var selB = document.getElementById('pick-teamB');
+  if (selB && readyTeams.length > 1) selB.selectedIndex = 1;
+}
+
+function startMatch() {
+  var teamAId = document.getElementById('pick-teamA').value;
+  var teamBId = document.getElementById('pick-teamB').value;
+  if (teamAId === teamBId) { showToast('Select two different teams'); return; }
+  var readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
+  var tA = readyTeams.find(function(t){return t.id === teamAId;});
+  var tB = readyTeams.find(function(t){return t.id === teamBId;});
+  if (!tA || !tB) { showToast('Invalid team selection'); return; }
+  var numHoles = scoringPars.length;
+  var scores = {}, saved = {};
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    scores[pid] = Array(numHoles).fill(null);
+    saved[pid]  = Array(numHoles).fill(false);
+  });
+  activeMatch = { teamAId: teamAId, teamBId: teamBId, week: getCurrentWeek(), scores: scores, saved: saved };
+  currentHole = 0;
+  renderScoringUI(document.getElementById('score-content'));
+}
+
+function renderScoringUI(el) {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  if (!tA || !tB) { activeMatch = null; buildScoring(); return; }
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var numHoles = scoringPars.length;
+  var holeCols = scoringPars.map(function(_,i){return '<th>'+(i+1)+'</th>';}).join('');
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0;flex-shrink:0"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="confirmEndMatch()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> End Match</button><span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span></div><div style="padding:4px 16px 0;flex-shrink:0"><div id="match-banner" style="background:#1B4332;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tA.name+'</div><div id="score-a" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsA+'</div></div><div style="font-size:11px;font-weight:700;color:#6b9e82;padding:0 8px">vs</div><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tB.name+'</div><div id="score-b" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsB+'</div></div></div><div class="hole-chips" id="hole-chips"></div><div class="score-entry-card" id="score-card-wrap" style="margin:8px 0 0"><div id="entry-inner" style="padding:12px 14px 10px"></div></div></div><div style="padding:4px 16px 2px;font-size:13px;font-weight:600;color:#6B7280;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">Scorecard</div><div class="scorecard-wrap"><table class="scorecard" id="scorecard-table" style="box-shadow:none;border-radius:0"><thead><tr><th style="text-align:left;padding-left:6px">Player</th>'+holeCols+'<th>Tot</th></tr></thead><tbody id="scorecard-body"></tbody></table></div>';
+  buildHoleChips(tA, tB);
+  renderEntryCard(tA, tB);
+  renderScorecard(tA, tB);
+}
+
+function buildHoleChips(tA, tB) {
+  var wrap = document.getElementById('hole-chips');
+  if (!wrap || !activeMatch) return;
+  var allPids = tA.playerIds.concat(tB.playerIds);
+  wrap.innerHTML = scoringPars.map(function(_,i) {
+    var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][i];});
+    var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][i] != null;});
+    var cls = 'hole-chip';
+    if (allSaved)   cls += ' saved';
+    else if (hasAny) cls += ' has-score';
+    if (i === currentHole) cls += ' active';
+    return '<div class="'+cls+'" onclick="goToHole('+i+')">H'+(i+1)+'</div>';
+  }).join('');
+}
+
+function renderEntryCard(tA, tB) {
+  var inner = document.getElementById('entry-inner');
+  if (!inner || !activeMatch) return;
+  var h        = currentHole;
+  var par      = scoringPars[h];
+  var holeRank = scoringHoleHcp[h];
+  var numHoles = scoringPars.length;
+  var winner   = computeHoleWinner(tA.playerIds, tB.playerIds, h, activeMatch.scores);
+  var winColor = winner==='A' ? '#2D6A4F' : winner==='B' ? '#DC2626' : '#C9A84C';
+  var winLabel = winner==='A' ? tA.name+' wins hole' : winner==='B' ? tB.name+' wins hole' : winner==='T' ? 'Hole tied' : '';
+
+  function makePlayerRows(teamObj) {
+    return teamObj.playerIds.map(function(pid) {
+      var p = DATA.players.find(function(pl){return pl.id === pid;});
+      if (!p) return '';
+      var strokes = playerStrokesOnHole(p.handicap || 0, holeRank, numHoles);
+      var gross   = activeMatch.scores[pid] && activeMatch.scores[pid][h];
+      var isSaved = activeMatch.saved[pid]  && activeMatch.saved[pid][h];
+      var net     = gross != null ? gross - strokes : null;
+      var relPar  = net  != null ? net - par : null;
+      var netHtml = '';
+      if (net != null) {
+        var col = relPar < 0 ? '#16A34A' : relPar === 0 ? '#374151' : '#DC2626';
+        netHtml = ' · <span style="font-size:10px;color:'+col+';font-weight:700">Net '+net+' ('+(relPar>0?'+':'')+relPar+')</span>';
+      }
+      var strokePill = strokes > 0
+        ? '<span style="font-size:10px;color:#16A34A;font-weight:700">+'+strokes+' stroke'+(strokes>1?'s':'')+'</span>'
+        : '<span style="font-size:10px;color:#9CA3AF">No strokes</span>';
+      var dispVal = gross != null ? gross : '—';
+      var dispCls = gross != null ? 'score-display' : 'score-display empty';
+      var disAttr = isSaved ? 'disabled' : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+p.name.split(' ')[0]+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+(p.handicap||0)+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
+    }).join('');
+  }
+
+  var allPids  = tA.playerIds.concat(tB.playerIds);
+  var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][h];});
+  var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][h] != null;});
+  var allDone  = scoringPars.every(function(_,hi){return allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][hi];});});
+
+  var saveBtnHtml = '';
+  if (allDone)       saveBtnHtml = '<button class="save-btn submit" onclick="submitRound()" style="margin-top:8px;width:100%">Submit Round →</button>';
+  else if (allSaved) saveBtnHtml = '<button class="save-btn edit"   onclick="editHoleScores()" style="margin-top:8px;width:100%">Edit Hole Scores</button>';
+  else if (hasAny)   saveBtnHtml = '<button class="save-btn ready"  onclick="saveHoleScores()" style="margin-top:8px;width:100%">Save Hole Scores</button>';
+  else               saveBtnHtml = '<button class="save-btn disabled" style="margin-top:8px;width:100%">Save Hole Scores</button>';
+
+  inner.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+      '<div style="width:32px;height:32px;background:#C9A84C;color:#fff;border-radius:10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">'+(h+1)+'</div>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+'</div>' +
+      (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
+      '</div></div>' +
+    '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+'</div>' +
+    makePlayerRows(tA) +
+    '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+'</div>' +
+    makePlayerRows(tB) +
+    saveBtnHtml +
+    '<div class="hole-nav" style="margin-top:8px">' +
+      '<button class="hole-nav-btn" '+(h===0?'disabled':'')+' onclick="prevHole()">← Prev</button>' +
+      '<span class="hole-nav-info">'+(h+1)+' of '+numHoles+'</span>' +
+      '<button class="hole-nav-btn" '+(h===scoringPars.length-1?'disabled':'')+' onclick="nextHole()">Next →</button>' +
+    '</div>';
+
+  // Update live score banner
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var sa = document.getElementById('score-a'), sb = document.getElementById('score-b');
+  if (sa) sa.textContent = mp.pointsA;
+  if (sb) sb.textContent = mp.pointsB;
+}
+
+function adjustScore(pid, delta) {
+  if (!activeMatch || (activeMatch.saved[pid] && activeMatch.saved[pid][currentHole])) return;
+  var cur = activeMatch.scores[pid][currentHole];
+  activeMatch.scores[pid][currentHole] = cur === null ? scoringPars[currentHole] : Math.max(1, cur + delta);
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
+}
+
+function saveHoleScores() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    if (activeMatch.scores[pid] && activeMatch.scores[pid][currentHole] != null)
+      activeMatch.saved[pid][currentHole] = true;
+  });
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
+  var allPids = tA.playerIds.concat(tB.playerIds);
+  var next = -1;
+  for (var i = currentHole + 1; i < scoringPars.length; i++) {
+    if (allPids.some(function(pid){return !activeMatch.saved[pid][i];})) { next = i; break; }
+  }
+  if (next !== -1) setTimeout(function(){goToHole(next);}, 300);
+}
+
+function editHoleScores() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+    activeMatch.saved[pid][currentHole] = false;
+  });
+  buildHoleChips(tA, tB); renderEntryCard(tA, tB);
+}
+
+function goToHole(i) {
+  currentHole = i;
+  var tA = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamAId);});
+  var tB = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamBId);});
+  if (tA && tB) { buildHoleChips(tA, tB); renderEntryCard(tA, tB); }
+}
+function prevHole() { if (currentHole > 0) goToHole(currentHole - 1); }
+function nextHole() { if (currentHole < scoringPars.length - 1) goToHole(currentHole + 1); }
+
+function confirmEndMatch() {
+  if (confirm('End this match? Unsaved scores will be lost.')) {
+    activeMatch = null; currentHole = 0; showSection('dashboard');
+  }
+}
+
+function submitRound() {
+  if (!activeMatch) return;
+  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var round = {
+    id: 'r' + Date.now(),
+    week: activeMatch.week,
+    teamAId: activeMatch.teamAId,
+    teamBId: activeMatch.teamBId,
+    scores: JSON.parse(JSON.stringify(activeMatch.scores)),
+    pointsA: mp.pointsA,
+    pointsB: mp.pointsB,
+    holeResults: mp.holeResults,
+    completedAt: new Date().toISOString()
+  };
+  if (!DATA.rounds) DATA.rounds = [];
+  DATA.rounds.push(round);
+  var week = DATA.schedule.find(function(w){return w.week === activeMatch.week;});
+  if (week) week.status = 'completed';
+  saveData();
+  activeMatch = null; currentHole = 0;
+  showToast('Round submitted! 🏌️');
+  showSection('leaderboard');
+}
+
+function scoreCell(score, par) {
+  var S = 'font-size:11px;font-variant-numeric:tabular-nums;';
+  if (score === null || score === undefined) return '<span style="'+S+'color:#D1D5DB;font-weight:500">—</span>';
+  var diff = score - par;
+  if (diff <= -2) return '<span style="'+S+'color:#7C3AED;font-weight:700">'+score+'</span>';
+  if (diff === -1) return '<span style="'+S+'color:#16A34A;font-weight:700">'+score+'</span>';
+  if (diff === 0)  return '<span style="'+S+'color:#374151;font-weight:500">'+score+'</span>';
+  if (diff === 1)  return '<span style="'+S+'color:#DC2626;font-weight:600">'+score+'</span>';
+  return '<span style="'+S+'color:#991b1b;font-weight:700">'+score+'</span>';
+}
+
+function renderScorecard(tA, tB) {
+  var tbody = document.getElementById('scorecard-body');
+  if (!tbody || !activeMatch) return;
+  var parTot = scoringPars.reduce(function(a,v){return a+v;}, 0);
+
+  function makePlayerRow(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    if (!p) return '';
+    var sc  = activeMatch.scores[pid] || [];
+    var tot = sc.reduce(function(a,s){return a+(s||0);}, 0);
+    var played = sc.filter(function(s){return s!=null;});
+    var totStr = played.length === 0 ? '—' : '<span style="color:'+(tot>parTot?'#DC2626':tot<parTot?'#16A34A':'#374151')+'">'+tot+'</span>';
+    return '<tr><td>'+p.name.split(' ')[0]+'('+( p.handicap||0)+')</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
+  }
+
+  var numCols = scoringPars.length + 2;
+  var parRow  = '<tr class="par-row"><td>Par</td>'+scoringPars.map(function(p){return '<td>'+p+'</td>';}).join('')+'<td class="tot-cell">'+parTot+'</td></tr>';
+  var labelA  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#1B4332;background:#F0F7F3;padding:3px 6px;text-align:left">'+tA.name+'</td></tr>';
+  var labelB  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#DC2626;background:#FEF2F2;padding:3px 6px;text-align:left">'+tB.name+'</td></tr>';
+  tbody.innerHTML = parRow + labelA + tA.playerIds.map(makePlayerRow).join('') + labelB + tB.playerIds.map(makePlayerRow).join('');
+}
+
+// ============================================================
+// LEADERBOARD
+// ============================================================
+function buildLeaderboard() {
+  var el = document.getElementById('leaderboard-content');
+  if (!DATA.league) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">Not Set Up</div><div class="empty-state-sub">Set up the league first.</div></div>';
+    return;
+  }
+  var rounds = DATA.rounds || [];
+
+  // If there's an active live match, show it
+  if (activeMatch) {
+    var tAL = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
+    var tBL = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
+    if (tAL && tBL) {
+      var mpL = computeMatchPoints(tAL.playerIds, tBL.playerIds, activeMatch.scores);
+      el.innerHTML = '<div class="section-title">Leaderboard</div>' + buildMatchCard(tAL, tBL, mpL.pointsA, mpL.pointsB, mpL.holeResults, true, 'Week ' + activeMatch.week);
+      if (rounds.length > 0) {
+        el.innerHTML += '<div style="padding:0 16px 4px;font-size:13px;font-weight:700;color:#6B7280;margin-top:8px">Past Results</div>';
+        el.innerHTML += rounds.slice().reverse().map(function(r) {
+          var tA2 = DATA.teams.find(function(t){return t.id === r.teamAId;});
+          var tB2 = DATA.teams.find(function(t){return t.id === r.teamBId;});
+          if (!tA2 || !tB2) return '';
+          return buildMatchCard(tA2, tB2, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
+        }).join('');
+      }
+      return;
+    }
+  }
+
+  if (rounds.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Rounds Yet</div><div class="empty-state-sub">Scores will appear here after the first round.</div></div>';
+    return;
+  }
+
+  var html = rounds.slice().reverse().map(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+    if (!tA || !tB) return '';
+    return buildMatchCard(tA, tB, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
+  }).join('');
+  el.innerHTML = '<div class="section-title">Results</div>' + html;
+}
+
+function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel) {
+  var winner = pointsA > pointsB ? tA.name : pointsB > pointsA ? tB.name : null;
+  var played = holeResults.filter(function(r){return r !== null;}).length;
+  var numHoles = holeResults.length;
+
+  function pname(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    return p ? p.name.split(' ')[0] : '';
+  }
+
+  var dotsA = holeResults.map(function(r) {
+    var bg = r==='A' ? '#2D6A4F' : r==='T' ? '#C9A84C' : '#E5E7EB';
+    return '<div style="width:10px;height:10px;border-radius:50%;background:'+bg+';flex-shrink:0"></div>';
+  }).join('');
+  var dotsB = holeResults.map(function(r) {
+    var bg = r==='B' ? '#DC2626' : r==='T' ? '#C9A84C' : '#E5E7EB';
+    return '<div style="width:10px;height:10px;border-radius:50%;background:'+bg+';flex-shrink:0"></div>';
+  }).join('');
+
+  var statusBadge = isLive
+    ? '<span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span>'
+    : (winner ? '<span class="badge-completed">✓ '+winner+'</span>' : '<span class="badge-inprogress">Tied</span>');
+
+  return '<div class="lb-match-card">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+      '<span style="font-size:11px;font-weight:700;color:#6B7280">'+weekLabel+'</span>' + statusBadge +
+    '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+      '<div style="flex:1">' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A1A">'+tA.name+'</div>' +
+        '<div style="font-size:11px;color:#6B7280">'+tA.playerIds.map(pname).join(' & ')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:0 10px">' +
+        '<div style="font-size:28px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">'+pointsA+'</div>' +
+        '<div style="font-size:14px;color:#9CA3AF">—</div>' +
+        '<div style="font-size:28px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">'+pointsB+'</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex:1">' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A1A">'+tB.name+'</div>' +
+        '<div style="font-size:11px;color:#6B7280">'+tB.playerIds.map(pname).join(' & ')+'</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-bottom:6px">' +
+      '<div style="display:flex;gap:3px;margin-bottom:3px;align-items:center"><span style="font-size:9px;font-weight:700;color:#1B4332;width:16px;flex-shrink:0">'+tA.name.slice(0,2)+'</span><div style="display:flex;gap:3px;flex-wrap:wrap">'+dotsA+'</div></div>' +
+      '<div style="display:flex;gap:3px;align-items:center"><span style="font-size:9px;font-weight:700;color:#DC2626;width:16px;flex-shrink:0">'+tB.name.slice(0,2)+'</span><div style="display:flex;gap:3px;flex-wrap:wrap">'+dotsB+'</div></div>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#9CA3AF">'+played+' of '+numHoles+' holes</div>' +
+  '</div>';
+}
+
+// ============================================================
+// SKINS
+// ============================================================
+function buildSkins() {
+  var el = document.getElementById('skins-content');
+  if (!DATA.league || !(DATA.scoringConfig && DATA.scoringConfig.skinsEnabled)) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">Skins Not Enabled</div><div class="empty-state-sub">Enable skins in Admin → Scoring tab.</div></div>';
+    return;
+  }
+  var rounds = DATA.rounds || [];
+  if (rounds.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🚩</div><div class="empty-state-title">No Skins Data Yet</div><div class="empty-state-sub">Skins results will appear after the first round.</div></div>';
+    return;
+  }
+
+  var fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
+  var numHoles = scoringPars.length || 9;
+  var skinResults = [];
+  var carryover = 0;
+
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+    var allPids = (tA ? tA.playerIds : []).concat(tB ? tB.playerIds : []);
+    var potPerHole = allPids.length * fee;
+    for (var h = 0; h < numHoles; h++) {
+      var holeSc = allPids.map(function(pid){ return { pid: pid, gross: r.scores && r.scores[pid] && r.scores[pid][h] }; }).filter(function(s){return s.gross != null;});
+      if (holeSc.length === 0) continue;
+      var minScore = Math.min.apply(null, holeSc.map(function(s){return s.gross;}));
+      var winners  = holeSc.filter(function(s){return s.gross === minScore;});
+      carryover++;
+      if (winners.length === 1) {
+        var wp = DATA.players.find(function(p){return p.id === winners[0].pid;});
+        skinResults.push({ hole: h+1, winner: wp ? wp.name : '?', amount: potPerHole * carryover, carryover: carryover > 1 });
+        carryover = 0;
+      } else {
+        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? p.name.split(' ')[0] : '?'; }).join(' & ');
+        skinResults.push({ hole: h+1, winner: null, tied: tiedNames, amount: 0 });
+      }
+    }
+  });
+
+  var winnings = {};
+  skinResults.filter(function(s){return s.winner;}).forEach(function(s) {
+    winnings[s.winner] = (winnings[s.winner] || 0) + s.amount;
+  });
+  var topEarners = Object.entries(winnings).sort(function(a,b){return b[1]-a[1];}).slice(0, 5);
+
+  var earnerHtml = '';
+  if (topEarners.length > 0) {
+    earnerHtml = '<div class="card"><div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;letter-spacing:0.5px">TOP EARNERS</div>' +
+      topEarners.map(function(entry, i) {
+        var name = entry[0], amt = entry[1];
+        var bg = i === 0 ? '#FEF9EE' : '#E5E7EB', col = i === 0 ? '#C9A84C' : '#6B7280';
+        return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+          avatarHtml(initials(name), bg, col, 30) +
+          '<div style="flex:1;margin-left:10px"><div style="font-size:13px;font-weight:600;color:#1A1A1A">'+name+'</div></div>' +
+          '<div style="font-size:16px;font-weight:700;color:#16A34A">$'+amt+'</div></div>';
+      }).join('') + '</div>';
+  }
+
+  var rowsHtml = skinResults.map(function(s) {
+    return '<div class="skin-row">' +
+      '<div style="width:32px;height:32px;border-radius:10px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#6B7280;flex-shrink:0">H'+s.hole+'</div>' +
+      '<div style="flex:1">' + (s.winner
+        ? '<div style="font-size:13px;font-weight:600;color:#1A1A1A">'+s.winner+'</div>'
+        : '<div style="font-size:13px;font-weight:600;color:#9CA3AF">'+s.tied+' tied</div>') + '</div>' +
+      (s.winner
+        ? '<div style="font-size:14px;font-weight:700;color:#16A34A">$'+s.amount+'</div>'
+        : '<span class="badge-carryover">Carryover</span>') +
+    '</div>';
+  }).join('');
+
+  el.innerHTML = '<div class="section-title">Skins Board</div>' +
+    '<div class="section-sub">$'+fee+'/player per week · Carryover on ties</div>' +
+    earnerHtml +
+    '<div class="card" style="margin-top:0"><div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;letter-spacing:0.5px">HOLE RESULTS</div>' + rowsHtml + '</div>';
+}
+
+// ============================================================
+// STANDINGS
+// ============================================================
+function buildStandings() {
+  var el = document.getElementById('standings-content');
+  if (DATA.teams.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">No Teams Yet</div><div class="empty-state-sub">Set up teams in Admin to see standings here.</div></div>';
+    return;
+  }
+
+  // Tally team stats from rounds
+  var teamStats = {};
+  DATA.teams.forEach(function(t) {
+    teamStats[t.id] = { id: t.id, name: t.name, playerIds: t.playerIds, W: 0, L: 0, T: 0, pts: 0 };
+  });
+
+  (DATA.rounds || []).forEach(function(r) {
+    var sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
+    if (!sA || !sB) return;
+    sA.pts += r.pointsA; sB.pts += r.pointsB;
+    if (r.pointsA > r.pointsB) { sA.W++; sB.L++; }
+    else if (r.pointsB > r.pointsA) { sB.W++; sA.L++; }
+    else { sA.T++; sB.T++; }
+  });
+
+  var sorted = Object.values(teamStats).sort(function(a,b){ return b.pts - a.pts || b.W - a.W; });
+  var hasSkins = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
+  var myTeam   = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
+
+  function pname(pid) {
+    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    return p ? p.name.split(' ')[0] : '';
+  }
+
+  var rows = sorted.map(function(s, i) {
+    var isMe = myTeam && myTeam.id === s.id;
+    var rank = i === 0 ? '🏆' : (i + 1).toString();
+    return '<tr'+(isMe?' style="background:#F0FFF4"':'')+'>' +
+      '<td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:'+(i===0?'14':'13')+'px;font-weight:600;color:'+(i===0?'#C9A84C':'#9CA3AF')+'">'+rank+'</div></td>' +
+      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+s.name+(isMe?'<span class="you-badge">You</span>':'')+'</div><div style="font-size:10px;color:#9CA3AF">'+s.playerIds.map(pname).join(' & ')+'</div></td>' +
+      '<td style="color:#16A34A;font-weight:600">'+s.W+'</td>' +
+      '<td style="color:#DC2626;font-weight:600">'+s.L+'</td>' +
+      '<td style="color:#6B7280;font-weight:600">'+s.T+'</td>' +
+      '<td class="td-pts">'+s.pts+'</td>' +
+      (hasSkins ? '<td style="color:#C9A84C;font-weight:600">—</td>' : '') +
+    '</tr>';
+  }).join('');
+
+  var recentHtml = '';
+  var rounds = DATA.rounds || [];
+  if (rounds.length > 0) {
+    recentHtml = '<div style="padding:12px 16px 4px"><div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:8px">Recent Results</div>' +
+      rounds.slice(-3).reverse().map(function(r) {
+        var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+        var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+        if (!tA || !tB) return '';
+        var winner = r.pointsA > r.pointsB ? tA.name : r.pointsB > r.pointsA ? tB.name : 'Tie';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+          '<span style="font-size:12px;color:#6B7280">Wk '+r.week+'</span>' +
+          '<span style="font-size:12px;font-weight:600;color:#1A1A1A">'+tA.name+' '+r.pointsA+' – '+r.pointsB+' '+tB.name+'</span>' +
+          '<span class="badge-completed">'+winner+'</span>' +
+        '</div>';
+      }).join('') + '</div>';
+  }
+
+  el.innerHTML =
+    '<div style="padding:16px 16px 8px"><div class="section-title" style="padding:0">Team Standings</div></div>' +
+    '<div class="card" style="margin:0 16px">' +
+      '<table class="standings-table">' +
+        '<thead><tr>' +
+          '<th style="width:28px">#</th>' +
+          '<th>Team</th>' +
+          '<th>W</th><th>L</th><th>T</th>' +
+          '<th>Pts</th>' +
+          (hasSkins ? '<th>Skins</th>' : '') +
+        '</tr></thead>' +
+        '<tbody>'+rows+'</tbody>' +
+      '</table>' +
+    '</div>' +
+    recentHtml;
+}
+
+// ============================================================
+// ADMIN PANEL
+// ============================================================
+function switchAdminTab(id, btn) {
+  document.querySelectorAll('.admin-nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('admin-'+id).classList.add('active');
+}
+
+function buildAdmin() {
+  if (!isAdmin) { showSection('dashboard'); return; }
+  renderHoleGrids();
+  loadLeagueForm();
+  renderScheduleList();
+  renderPlayersList();
+  renderTeamsList();
+  loadScoringForm();
+  renderAnnounceList();
+}
+
+function renderHoleGrids() {
+  const holes = parseInt(document.querySelector('input[name="cfg-holes"]:checked')?.value || 9);
+  const labelsEl = document.getElementById('hcp-grid-labels');
+  const parGrid   = document.getElementById('par-grid');
+  const hcpGrid   = document.getElementById('hcp-grid');
+  if (!labelsEl || !hcpGrid || !parGrid) return;
+  const par = DATA.league?.par     || [];
+  const hcp = DATA.league?.holeHcp || [];
+  labelsEl.innerHTML = Array.from({length:holes},(_,i)=>`<div class="hole-grid-label">H${i+1}</div>`).join('');
+  parGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="6" placeholder="—" value="${par[i]||''}" id="par-${i}">`).join('');
+  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" placeholder="—" value="${hcp[i]||''}" id="hcp-${i}">`).join('');
+  document.querySelectorAll('input[name="cfg-holes"]').forEach(r => { r.onchange = () => renderHoleGrids(); });
+}
+
+// Course search via Nominatim (OpenStreetMap)
+let courseSearchTimer;
+function searchCourse(val) {
+  const dd = document.getElementById('course-dropdown');
+  clearTimeout(courseSearchTimer);
+  if (val.length < 3) { dd.classList.remove('open'); return; }
+  dd.classList.add('open');
+  dd.innerHTML = '<div class="course-searching">Searching...</div>';
+  courseSearchTimer = setTimeout(async () => {
+    try {
+      const q = encodeURIComponent(val + ' golf course');
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=6&addressdetails=1`, {
+        headers: { 'Accept-Language': 'en' }
+      });
+      const results = await res.json();
+      const courses = results.filter(r => r.display_name);
+      if (courses.length === 0) {
+        dd.innerHTML = '<div class="course-searching">No courses found</div>';
+        return;
+      }
+      dd.innerHTML = courses.map((c,i) => {
+        const parts = c.display_name.split(',');
+        const name  = parts[0].trim();
+        const loc   = parts.slice(1,3).join(',').trim();
+        return `<div class="course-option" onclick="selectCourse(${i})">
+          <div class="course-option-name">${name}</div>
+          <div class="course-option-loc">${loc}</div>
+        </div>`;
+      }).join('');
+      dd._results = courses;
+    } catch(e) {
+      dd.innerHTML = '<div class="course-searching">Search unavailable</div>';
+    }
+  }, 400);
+}
+
+function selectCourse(idx) {
+  const dd = document.getElementById('course-dropdown');
+  const course = dd._results?.[idx];
+  if (!course) return;
+  const parts = course.display_name.split(',');
+  const name  = parts[0].trim();
+  const loc   = parts.slice(1,3).join(',').trim();
+  document.getElementById('cfg-course').value = name;
+  const sel = document.getElementById('course-selected');
+  sel.textContent = '✓ ' + loc;
+  sel.style.display = 'block';
+  dd.classList.remove('open');
+}
+
+// Close dropdown when tapping outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.course-search-wrap')) {
+    document.getElementById('course-dropdown')?.classList.remove('open');
+  }
+});
+
+function loadLeagueForm() {
+  if (!DATA.league) return;
+  const L = DATA.league;
+  const nameEl   = document.getElementById('cfg-name');
+  const courseEl = document.getElementById('cfg-course');
+  const startEl  = document.getElementById('cfg-start');
+  const weeksEl  = document.getElementById('cfg-weeks');
+  const selEl    = document.getElementById('course-selected');
+  if (nameEl) nameEl.value = L.name || '';
+  if (courseEl) courseEl.value = L.course || '';
+  if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
+  if (startEl) startEl.value = L.startDate || '';
+  if (weeksEl) weeksEl.value = L.weeks || 18;
+  const holesRadio = document.querySelector(`input[name="cfg-holes"][value="${L.holes||9}"]`);
+  if (holesRadio) holesRadio.checked = true;
+  const fmtRadio = document.querySelector(`input[name="cfg-format"][value="${L.format||'match_play'}"]`);
+  if (fmtRadio) fmtRadio.checked = true;
+  renderHoleGrids();
+}
+
+function saveLeagueConfig() {
+  const name   = document.getElementById('cfg-name').value.trim();
+  const course = document.getElementById('cfg-course').value.trim();
+  const holes  = parseInt(document.querySelector('input[name="cfg-holes"]:checked').value);
+  const start  = document.getElementById('cfg-start').value;
+  const weeks  = parseInt(document.getElementById('cfg-weeks').value) || 18;
+  const format = document.querySelector('input[name="cfg-format"]:checked').value;
+  if (!name) { showToast('Please enter a league name'); return; }
+  const par     = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||null);
+  const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
+  DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, format, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
+  generateSchedule();
+  saveData();
+  updateTopBar();
+  showToast('League settings saved ✓');
+}
+
+function generateSchedule() {
+  if (!DATA.league.startDate) return;
+  const start = new Date(DATA.league.startDate + 'T12:00:00');
+  const weeks = DATA.league.weeks;
+  // Keep existing cancellations
+  const cancelled = (DATA.schedule||[]).filter(w=>w.status==='cancelled');
+  DATA.schedule = [];
+  let date = new Date(start);
+  let weekNum = 1;
+  while (weekNum <= weeks) {
+    const dateStr = date.toISOString().split('T')[0];
+    const wasCancelled = cancelled.find(c => c.week === weekNum);
+    DATA.schedule.push({
+      week: weekNum,
+      date: dateStr,
+      status: wasCancelled ? 'cancelled' : (date < new Date() ? 'completed' : 'upcoming'),
+      reason: wasCancelled?.reason || null
+    });
+    date.setDate(date.getDate() + 7);
+    weekNum++;
+  }
+}
+
+function renderScheduleList() {
+  const list = document.getElementById('schedule-list');
+  const endEl = document.getElementById('schedule-end-date');
+  if (!DATA.league || !DATA.league.startDate) {
+    if (list) list.innerHTML = `<div style="color:#6B7280;font-size:13px;text-align:center;padding:24px">Save league settings with a start date first.</div>`;
+    if (endEl) endEl.textContent = '';
+    return;
+  }
+  if (DATA.schedule.length === 0) generateSchedule();
+  const lastWeek = DATA.schedule[DATA.schedule.length - 1];
+  if (endEl && lastWeek) {
+    const endDate = new Date(lastWeek.date + 'T12:00:00');
+    endEl.textContent = `Season ends: ${endDate.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+  }
+  if (!list) return;
+  list.innerHTML = DATA.schedule.map(w => {
+    const d = new Date(w.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    let badge;
+    if (w.status==='cancelled') badge = `<span class="badge-cancelled">${w.reason||'Cancelled'}</span>`;
+    else if (w.status==='completed') badge = `<span class="badge-completed">Done</span>`;
+    else badge = `<span class="badge-upcoming">Upcoming</span>`;
+    return `<div class="schedule-row">
+      <div class="schedule-week">Wk ${w.week}</div>
+      <div class="schedule-info">
+        <div class="schedule-date">${dateStr}</div>
+        ${w.reason?`<div class="schedule-reason">${w.reason}</div>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${badge}
+        ${w.status==='cancelled'?`<button class="btn-sm btn-edit" onclick="undoCancellation(${w.week})">Undo</button>`:`<button class="btn-sm btn-delete" onclick="cancelWeek(${w.week})">Cancel</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cancelWeek(weekNum) {
+  const w = DATA.schedule.find(s=>s.week===weekNum);
+  if (!w) return;
+  const reason = prompt('Reason for cancellation (Weather / Holiday / Other):','Weather');
+  if (reason === null) return;
+  w.status  = 'cancelled';
+  w.reason  = reason || 'Cancelled';
+  // Push all subsequent dates back 1 week
+  DATA.schedule.filter(s=>s.week>weekNum).forEach(s=>{
+    const d = new Date(s.date+'T12:00:00');
+    d.setDate(d.getDate()+7);
+    s.date = d.toISOString().split('T')[0];
+  });
+  // Add an extra week at the end
+  const last  = DATA.schedule[DATA.schedule.length-1];
+  const lastD = new Date(last.date+'T12:00:00');
+  lastD.setDate(lastD.getDate()+7);
+  DATA.schedule.push({ week: last.week+1, date: lastD.toISOString().split('T')[0], status:'upcoming', reason:null });
+  saveData();
+  renderScheduleList();
+  showToast('Week cancelled. Season extended by 1 week.');
+}
+
+function undoCancellation(weekNum) {
+  const w = DATA.schedule.find(s=>s.week===weekNum);
+  if (!w) return;
+  w.status = 'upcoming'; w.reason = null;
+  // Remove the extra week that was added
+  if (DATA.schedule.length > DATA.league.weeks) DATA.schedule.pop();
+  // Shift subsequent dates back
+  DATA.schedule.filter(s=>s.week>weekNum && s.status!=='cancelled').forEach(s=>{
+    const d = new Date(s.date+'T12:00:00');
+    d.setDate(d.getDate()-7);
+    s.date = d.toISOString().split('T')[0];
+  });
+  saveData();
+  renderScheduleList();
+  showToast('Cancellation removed.');
+}
+
+function showAddWeekOff() { document.getElementById('weekoff-modal').classList.add('open'); }
+function closeWeekOff(e) { if (!e || e.target===document.getElementById('weekoff-modal')) document.getElementById('weekoff-modal').classList.remove('open'); }
+
+function addWeekOff() {
+  const date   = document.getElementById('weekoff-date').value;
+  const reason = document.getElementById('weekoff-reason').value;
+  if (!date) { showToast('Please select a date'); return; }
+  // Find the week closest to this date
+  const target = new Date(date+'T12:00:00');
+  let closest = DATA.schedule.reduce((prev,curr) => {
+    const pd = Math.abs(new Date(prev.date+'T12:00:00')-target);
+    const cd = Math.abs(new Date(curr.date+'T12:00:00')-target);
+    return cd < pd ? curr : prev;
+  }, DATA.schedule[0]);
+  if (closest) cancelWeekByObj(closest, reason);
+  closeWeekOff();
+}
+
+function cancelWeekByObj(w, reason) {
+  w.status = 'cancelled'; w.reason = reason;
+  DATA.schedule.filter(s=>s.week>w.week).forEach(s=>{
+    const d = new Date(s.date+'T12:00:00');
+    d.setDate(d.getDate()+7);
+    s.date = d.toISOString().split('T')[0];
+  });
+  const last = DATA.schedule[DATA.schedule.length-1];
+  const lastD = new Date(last.date+'T12:00:00');
+  lastD.setDate(lastD.getDate()+7);
+  DATA.schedule.push({ week: last.week+1, date: lastD.toISOString().split('T')[0], status:'upcoming', reason:null });
+  saveData();
+  renderScheduleList();
+  showToast('Cancellation added. Season extended.');
+}
+
+// ============================================================
+// PLAYERS
+// ============================================================
+function initials(name) {
+  return (name||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+function avatarHtml(init, bg, color, size=32) {
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${color};font-weight:700;font-size:${Math.round(size*0.38)}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${init}</div>`;
+}
+
+function renderPlayersList() {
+  const list = document.getElementById('players-list');
+  if (!list) return;
+  if (DATA.players.length === 0) {
+    list.innerHTML = `<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet. Add your first player below.</div>`;
+    return;
+  }
+  list.innerHTML = DATA.players.map((p,i) => {
+    const team = DATA.teams.find(t=>t.playerIds.includes(p.id));
+    return `<div class="player-row">
+      ${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',32)}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#1A1A1A">${p.name}</div>
+        <div style="font-size:11px;color:#6B7280">Hcp ${p.handicap||0}${team?` · ${team.name}`:' · Unassigned'}${p.email===DATA.adminEmail?' · Admin':''}</div>
+      </div>
+      <button class="btn-sm btn-delete" onclick="removePlayer('${p.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function addPlayer() {
+  const name  = document.getElementById('new-player-name').value.trim();
+  const hcp   = parseInt(document.getElementById('new-player-hcp').value) || 0;
+  const email = document.getElementById('new-player-email').value.trim();
+  if (!name) { showToast('Please enter a player name'); return; }
+  const player = { id: 'p' + Date.now(), name, handicap: hcp, email: email || null };
+  DATA.players.push(player);
+  saveData();
+  document.getElementById('new-player-name').value = '';
+  document.getElementById('new-player-hcp').value  = '';
+  document.getElementById('new-player-email').value = '';
+  renderPlayersList();
+  renderTeamsList();
+  showToast(`${name} added ✓`);
+}
+
+function removePlayer(id) {
+  DATA.players = DATA.players.filter(p=>p.id!==id);
+  DATA.teams.forEach(t=>{ t.playerIds = t.playerIds.filter(pid=>pid!==id); });
+  saveData();
+  renderPlayersList();
+  renderTeamsList();
+}
+
+// ============================================================
+// TEAMS
+// ============================================================
+function renderTeamsList() {
+  const list  = document.getElementById('teams-list');
+  const unass = document.getElementById('unassigned-section');
+  if (!list) return;
+  const assignedIds = DATA.teams.flatMap(t=>t.playerIds);
+  const unassigned  = DATA.players.filter(p=>!assignedIds.includes(p.id));
+  list.innerHTML = DATA.teams.map(t => {
+    const members = t.playerIds.map(id=>DATA.players.find(p=>p.id===id)).filter(Boolean);
+    const warn = members.length !== 2 ? `<span style="color:#DC2626;font-size:11px">Needs 2 players</span>` : '';
+    return `<div class="team-card">
+      <div class="team-card-header">
+        <input class="form-input" style="max-width:160px;font-weight:700" value="${t.name}" onchange="renameTeam('${t.id}',this.value)" placeholder="Team name">
+        <button class="btn-sm btn-delete" onclick="removeTeam('${t.id}')">Remove</button>
+      </div>
+      ${warn}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        ${[0,1].map(slot => {
+          const member = members[slot];
+          return `<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 10px">
+            ${member ? `${avatarHtml(initials(member.name),'#d1e7d8','#1B4332',26)}<span style="flex:1;font-size:12px;font-weight:600">${member.name} <span style="color:#6B7280;font-weight:400">Hcp ${member.handicap||0}</span></span><button class="btn-sm btn-delete" style="padding:3px 8px" onclick="removeFromTeam('${t.id}','${member.id}')">×</button>` :
+              `<select class="form-select" style="font-size:12px;padding:4px 8px;border:none;background:none;color:#6B7280" onchange="addToTeam('${t.id}',this.value)"><option value="">+ Add player</option>${unassigned.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>`
+            }
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  if (unass) {
+    unass.innerHTML = unassigned.length > 0 ? `
+      <div style="margin-top:14px;border-top:1px solid #E5E7EB;padding-top:14px">
+        <div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:8px">UNASSIGNED (${unassigned.length})</div>
+        ${unassigned.map(p=>`<div class="player-row">${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',28)}<span style="flex:1;font-size:13px;font-weight:500">${p.name}</span><span style="font-size:11px;color:#9CA3AF">Hcp ${p.handicap||0}</span></div>`).join('')}
+      </div>` : '';
+  }
+}
+
+function addTeam() {
+  DATA.teams.push({ id:'t'+Date.now(), name:`Team ${DATA.teams.length+1}`, playerIds:[] });
+  saveData(); renderTeamsList();
+}
+
+function removeTeam(id) {
+  const t = DATA.teams.find(t=>t.id===id);
+  DATA.teams = DATA.teams.filter(t=>t.id!==id);
+  saveData(); renderTeamsList();
+}
+
+function renameTeam(id, name) {
+  const t = DATA.teams.find(t=>t.id===id);
+  if (t) { t.name = name; saveData(); }
+}
+
+function addToTeam(teamId, playerId) {
+  if (!playerId) return;
+  const t = DATA.teams.find(t=>t.id===teamId);
+  if (t && t.playerIds.length < 2 && !t.playerIds.includes(playerId)) {
+    t.playerIds.push(playerId); saveData(); renderTeamsList();
+  }
+}
+
+function removeFromTeam(teamId, playerId) {
+  const t = DATA.teams.find(t=>t.id===teamId);
+  if (t) { t.playerIds = t.playerIds.filter(id=>id!==playerId); saveData(); renderTeamsList(); }
+}
+
+// ============================================================
+// SCORING CONFIG
+// ============================================================
+function toggleSkinsSection(el) {
+  document.getElementById('skins-fee-row').style.display = el.checked ? 'block' : 'none';
+}
+
+function loadScoringForm() {
+  const cfg = DATA.scoringConfig || {};
+  const el1 = document.getElementById('cfg-pts-hole');
+  const el2 = document.getElementById('cfg-pts-tie');
+  const el3 = document.getElementById('cfg-pts-match');
+  const el4 = document.getElementById('cfg-skins-on');
+  const el5 = document.getElementById('cfg-skins-fee');
+  const el6 = document.getElementById('cfg-tee-default');
+  if (el1) el1.value = cfg.pointsPerHole ?? 1;
+  if (el2) el2.value = cfg.tiePoints ?? 0.5;
+  if (el3) el3.value = cfg.matchBonus ?? 2;
+  if (el4) { el4.checked = cfg.skinsEnabled || false; toggleSkinsSection(el4); }
+  if (el5) el5.value = cfg.skinsFee ?? 5;
+  if (el6) el6.value = cfg.teeTimeDefault || '17:30';
+}
+
+function saveScoringConfig() {
+  DATA.scoringConfig = {
+    pointsPerHole:  parseFloat(document.getElementById('cfg-pts-hole').value) || 1,
+    tiePoints:      parseFloat(document.getElementById('cfg-pts-tie').value)  || 0.5,
+    matchBonus:     parseFloat(document.getElementById('cfg-pts-match').value)|| 2,
+    skinsEnabled:   document.getElementById('cfg-skins-on').checked,
+    skinsFee:       parseFloat(document.getElementById('cfg-skins-fee').value)|| 5,
+    teeTimeDefault: document.getElementById('cfg-tee-default').value || '17:30',
+    teeOverrides:   DATA.scoringConfig?.teeOverrides || []
+  };
+  if (DATA.league) DATA.league.skinsEnabled = DATA.scoringConfig.skinsEnabled;
+  saveData();
+  showToast('Scoring settings saved ✓');
+}
+
+function addTeeOverride() {
+  const wrap = document.getElementById('tee-overrides');
+  const row  = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:8px;align-items:center';
+  row.innerHTML = `<input class="form-input" type="number" placeholder="Wk" style="width:60px" min="1"><input class="form-input" type="time" style="flex:1"><button class="btn-sm btn-delete" onclick="this.parentElement.remove()">×</button>`;
+  wrap.appendChild(row);
+}
+
+// ============================================================
+// ANNOUNCEMENTS
+// ============================================================
+function renderAnnounceList() {
+  const list = document.getElementById('announce-list');
+  if (!list) return;
+  if (DATA.announcements.length === 0) {
+    list.innerHTML = `<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No announcements yet.</div>`;
+    return;
+  }
+  list.innerHTML = DATA.announcements.slice().reverse().map(a => {
+    const d = new Date(a.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return `<div class="announce-row">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#1A1A1A">${a.title}</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:2px">${d}</div>
+      </div>
+      <button class="btn-sm btn-delete" onclick="deleteAnnouncement('${a.id}')">Delete</button>
+    </div>`;
+  }).join('');
+}
+
+function createAnnouncement() {
+  const title = document.getElementById('new-announce-title').value.trim();
+  const body  = document.getElementById('new-announce-body').value.trim();
+  if (!title) { showToast('Please enter a title'); return; }
+  DATA.announcements.push({ id:'a'+Date.now(), title, body, createdAt: new Date().toISOString() });
+  saveData();
+  document.getElementById('new-announce-title').value = '';
+  document.getElementById('new-announce-body').value  = '';
+  renderAnnounceList();
+  showToast('Announcement sent ✓');
+}
+
+function deleteAnnouncement(id) {
+  DATA.announcements = DATA.announcements.filter(a=>a.id!==id);
+  saveData(); renderAnnounceList();
+}
+
+function checkAnnouncements() {
+  const unseen = DATA.announcements.filter(a=>!seenAnnouncements.includes(a.id));
+  if (unseen.length === 0) return;
+  const a = unseen[unseen.length - 1]; // show most recent
+  document.getElementById('sheet-title').textContent = a.title;
+  document.getElementById('sheet-body').textContent  = a.body;
+  document.getElementById('announce-overlay').classList.add('open');
+  document.getElementById('announce-overlay').dataset.announceId = a.id;
+}
+
+function dismissAnnouncement(e) {
+  const overlay = document.getElementById('announce-overlay');
+  if (e && e.target !== overlay) return;
+  const id = overlay.dataset.announceId;
+  if (id) markSeen(id);
+  overlay.classList.remove('open');
+}
+
+// ============================================================
+// ADMIN LOGIN
+// ============================================================
+function openAdminLogin() {
+  if (isAdmin) { showSection('admin'); return; }
+  const modal = document.getElementById('admin-login-modal');
+  if (!DATA.adminEmail) {
+    document.getElementById('admin-modal-title').textContent = 'Claim Admin';
+    document.getElementById('admin-modal-sub').textContent   = 'Enter your email to become the league admin.';
+  } else {
+    document.getElementById('admin-modal-title').textContent = 'Admin Sign In';
+    document.getElementById('admin-modal-sub').textContent   = 'Enter your admin email to manage the league.';
+  }
+  document.getElementById('admin-modal-error').style.display = 'none';
+  document.getElementById('admin-email-input').value = '';
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('admin-email-input').focus(), 300);
+}
+
+function closeAdminLogin(e) {
+  if (e && e.target!==document.getElementById('admin-login-modal')) return;
+  document.getElementById('admin-login-modal').classList.remove('open');
+}
+
+function submitAdminLogin() {
+  const email = document.getElementById('admin-email-input').value.trim().toLowerCase();
+  if (!email) return;
+  if (!DATA.adminEmail) {
+    DATA.adminEmail = email;
+    saveData();
+    setAdmin(true);
+    document.getElementById('admin-login-modal').classList.remove('open');
+    showToast('You are now the league admin ✓');
+    showSection('admin');
+    return;
+  }
+  if (email === DATA.adminEmail.toLowerCase()) {
+    setAdmin(true);
+    document.getElementById('admin-login-modal').classList.remove('open');
+    showSection('admin');
+  } else {
+    document.getElementById('admin-modal-error').style.display = 'block';
+  }
+}
+
+function setAdmin(val) {
+  isAdmin = val;
+  sessionStorage.setItem('golf_is_admin', val ? 'true' : 'false');
+  buildBottomNav();
+  updateAvatarBtn();
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function updateTopBar() {
+  const title = document.getElementById('top-bar-title');
+  const sub   = document.getElementById('top-bar-sub');
+  if (DATA.league) {
+    title.textContent = DATA.league.name;
+    const season = DATA.league.season || new Date().getFullYear();
+    const weeks = DATA.schedule.filter(w=>w.status!=='cancelled').length;
+    sub.textContent = `${season} Season · ${weeks} Weeks`;
+  } else {
+    title.textContent = 'Golf League';
+    sub.textContent   = 'Setup required';
+  }
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// LANDING PAGE
+// ============================================================
+function buildLandingTop() {
+  const nameEl = document.getElementById('landing-league-name');
+  const metaEl = document.getElementById('landing-meta');
+  if (DATA.league) {
+    nameEl.textContent = DATA.league.name;
+    metaEl.textContent = `${DATA.league.season || new Date().getFullYear()} Season · ${DATA.league.course || ''}`;
+  } else {
+    nameEl.textContent = 'Golf League';
+    metaEl.textContent = '';
+  }
+  document.getElementById('landing-overlay').classList.remove('hidden');
+}
+
+function buildLandingLoading() {
+  buildLandingTop();
+  document.getElementById('landing-body').innerHTML = `
+    <div style="text-align:center;padding:40px 0">
+      <div class="landing-spinner"></div>
+      <div style="font-size:13px;color:#6b9e82">Loading...</div>
+    </div>`;
+}
+
+function buildLandingSignIn() {
+  buildLandingTop();
+  document.getElementById('landing-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+      <button class="google-signin-btn" onclick="signInWithGoogle()">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        Sign in with Google
+      </button>
+      <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
+        Sign in to access the league.<br>Your Google account must be registered by the admin.
+      </div>
+    </div>`;
+}
+
+function buildLandingNotInLeague(user) {
+  buildLandingTop();
+  const noAdmin = !DATA.adminEmail;
+  document.getElementById('landing-body').innerHTML = `
+    <div class="not-in-league-wrap">
+      <div class="not-in-league-email">${user.email}</div>
+      <div class="not-in-league-title">You're not in this league</div>
+      <div class="not-in-league-sub">${noAdmin ? 'Be the first to set up this league as admin.' : 'Contact your league admin to be added as a player.'}</div>
+      ${noAdmin ? `<button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>` : ''}
+      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+    </div>`;
+}
+
+function signInWithGoogle() {
+  auth.signInWithPopup(googleProvider)
+    .then(result => {
+      // Handle result directly — don't rely on onAuthStateChanged firing correctly after popup
+      handleAuthState(result.user);
+    })
+    .catch(e => {
+      if (e.code === 'auth/popup-blocked') {
+        showToast('Popup blocked — please allow popups and try again.');
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        showToast('Sign-in failed: ' + (e.code || e.message));
+      }
+    });
+}
+
+function claimAdmin() {
+  const user = auth.currentUser;
+  if (!user) return;
+  DATA.adminEmail = user.email.toLowerCase();
+  saveData();
+  setAdmin(true);
+  closeLanding();
+  showSection('admin');
+  showToast('You are now the league admin ✓');
+}
+
+function closeLanding() {
+  document.getElementById('landing-overlay').classList.add('hidden');
+}
+
+async function signOut() {
+  signingOut = true;
+  DATA.currentUserId = null;
+  saveData();
+  closeProfileSheet();
+  isAdmin = false;
+  sessionStorage.removeItem('golf_is_admin');
+  initialAuthChecked = false; // Allow onAuthStateChanged to fire fresh next time
+  await auth.signOut();
+  signingOut = false;
+  buildBottomNav();
+  updateAvatarBtn();
+  buildLandingSignIn();
+}
+
+function openProfileSheet() {
+  const player = DATA.players.find(p => p.id === DATA.currentUserId);
+  if (!player) return;
+  document.getElementById('profile-avatar-large').textContent = initials(player.name);
+  document.getElementById('profile-name').textContent = player.name;
+  document.getElementById('profile-sub').textContent = `Handicap ${player.handicap || 0}${isAdmin ? ' · League Admin' : ''}`;
+  const adminBtn = document.getElementById('profile-admin-btn');
+  if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('profile-overlay').classList.add('open');
+}
+
+function closeProfileSheet(e) {
+  if (e && e.target !== document.getElementById('profile-overlay')) return;
+  document.getElementById('profile-overlay').classList.remove('open');
+}
+
+function updateAvatarBtn() {
+  const btn = document.getElementById('avatar-btn');
+  const player = DATA.players.find(p => p.id === DATA.currentUserId);
+  if (player) {
+    btn.innerHTML = `<span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">${initials(player.name)}</span>`;
+    if (isAdmin) {
+      const dot = document.createElement('div');
+      dot.className = 'avatar-admin-dot';
+      btn.appendChild(dot);
+    }
+    btn.onclick = openProfileSheet;
+    btn.title = player.name;
+  } else {
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    btn.onclick = null;
+    btn.title = '';
+  }
+}
+
+// ============================================================
+// AUTH STATE HANDLER
+// ============================================================
+function handleAuthState(user) {
+  loadData();
+  buildBottomNav();
+  updateTopBar();
+
+  if (!user) {
+    // Not signed in — show sign-in landing
+    DATA.currentUserId = null;
+    saveData();
+    isAdmin = false;
+    sessionStorage.removeItem('golf_is_admin');
+    buildBottomNav();
+    updateAvatarBtn();
+    buildLandingSignIn();
+    showSection('dashboard');
+    return;
+  }
+
+  const email = user.email.toLowerCase();
+
+  // Check admin
+  if (DATA.adminEmail && email === DATA.adminEmail.toLowerCase()) {
+    isAdmin = true;
+    sessionStorage.setItem('golf_is_admin', 'true');
+    buildBottomNav();
+  }
+
+  // Match to player by email
+  const player = DATA.players.find(p => p.email && p.email.toLowerCase() === email);
+  if (player) {
+    DATA.currentUserId = player.id;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('dashboard');
+    checkAnnouncements();
+  } else if (isAdmin) {
+    // Admin but not a player — let them in to admin panel
+    DATA.currentUserId = null;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('admin');
+  } else {
+    // Signed in but not in league
+    DATA.currentUserId = null;
+    saveData();
+    updateAvatarBtn();
+    buildLandingNotInLeague(user);
+    showSection('dashboard');
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+checkVersion();
+buildLandingLoading();
+
+if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
+  document.getElementById('landing-body').innerHTML = `
+    <div style="background:rgba(220,38,38,0.15);border:1.5px solid rgba(220,38,38,0.4);border-radius:12px;padding:16px;text-align:center">
+      <div style="color:#fca5a5;font-size:13px;font-weight:600">Firebase failed to load</div>
+      <div style="color:#fca5a5;font-size:11px;margin-top:4px">Check your connection and reload.</div>
+    </div>`;
+  throw new Error('Firebase not loaded');
+}
+
+// onAuthStateChanged only used for initial page-load auth check.
+// Popup results are handled directly in signInWithGoogle().
+let initialAuthChecked = false;
+let signingOut = false;
+
+// Fallback: if auth doesn't resolve in 6s show sign-in
+setTimeout(() => {
+  if (!initialAuthChecked) { initialAuthChecked = true; buildLandingSignIn(); }
+}, 6000);
+
+auth.onAuthStateChanged(user => {
+  if (signingOut) return;         // Handled by signOut() directly
+  if (initialAuthChecked) return; // Ignore subsequent fires (popup intermediate states)
+  initialAuthChecked = true;
+  try { handleAuthState(user); } catch(e) { console.error(e); buildLandingSignIn(); }
+});
+</script>
+</body>
+</html>
