@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh}
@@ -198,6 +200,14 @@ section.active{display:block}
 .landing-setup-msg{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:24px;text-align:center;margin-bottom:16px}
 .landing-setup-msg p{font-size:14px;color:#a0bfab;line-height:1.6;margin-bottom:16px}
 .landing-setup-msg .btn-gold{width:100%}
+.google-signin-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 20px;background:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#1A1A1A;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.google-signin-btn:hover{background:#f8f8f8;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.landing-spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,0.2);border-top-color:#C9A84C;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.not-in-league-wrap{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:14px;padding:24px;text-align:center}
+.not-in-league-email{font-size:12px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:8px}
+.not-in-league-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:8px;font-family:'Space Grotesk',sans-serif}
+.not-in-league-sub{font-size:13px;color:#a0bfab;line-height:1.5;margin-bottom:20px}
 /* Player cell */
 .player-cell{display:flex;align-items:center;gap:8px}
 .player-cell-info{display:flex;flex-direction:column}
@@ -461,8 +471,7 @@ section.active{display:block}
           <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
         </div>
       </div>
-      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();openAdminLogin()">Admin Panel</button>
-      <button class="btn-outline" style="width:100%;margin-bottom:10px" onclick="switchPlayer()">Switch Player</button>
+      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();showSection('admin')">Admin Panel</button>
       <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="signOut()">Sign Out</button>
     </div>
   </div>
@@ -472,6 +481,22 @@ section.active{display:block}
 </div>
 
 <script>
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB6--pa_Yd9gHGXDuEWGq_5fNESzoLJaz8",
+  authDomain: "golf-league-e3b70.firebaseapp.com",
+  projectId: "golf-league-e3b70",
+  storageBucket: "golf-league-e3b70.firebasestorage.app",
+  messagingSenderId: "351472730476",
+  appId: "1:351472730476:web:d8da408be6efa81c1fb349",
+  measurementId: "G-VD857GPCGE"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
 // ============================================================
 // DATA LAYER
 // ============================================================
@@ -1335,12 +1360,7 @@ function dismissAnnouncement(e) {
 // ADMIN LOGIN
 // ============================================================
 function openAdminLogin() {
-  if (isAdmin) {
-    // If no player selected yet, just close landing and go to admin
-    if (!DATA.currentUserId) closeLanding();
-    showSection('admin');
-    return;
-  }
+  if (isAdmin) { showSection('admin'); return; }
   const modal = document.getElementById('admin-login-modal');
   if (!DATA.adminEmail) {
     document.getElementById('admin-modal-title').textContent = 'Claim Admin';
@@ -1364,12 +1384,10 @@ function submitAdminLogin() {
   const email = document.getElementById('admin-email-input').value.trim().toLowerCase();
   if (!email) return;
   if (!DATA.adminEmail) {
-    // First time — claim admin
     DATA.adminEmail = email;
     saveData();
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
-    closeLanding();
     showToast('You are now the league admin ✓');
     showSection('admin');
     return;
@@ -1377,7 +1395,6 @@ function submitAdminLogin() {
   if (email === DATA.adminEmail.toLowerCase()) {
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
-    closeLanding();
     showSection('admin');
   } else {
     document.getElementById('admin-modal-error').style.display = 'block';
@@ -1420,89 +1437,97 @@ function showToast(msg) {
 // ============================================================
 // LANDING PAGE
 // ============================================================
-function buildLanding() {
-  const overlay = document.getElementById('landing-overlay');
-  const nameEl  = document.getElementById('landing-league-name');
-  const metaEl  = document.getElementById('landing-meta');
-  const body    = document.getElementById('landing-body');
-
+function buildLandingTop() {
+  const nameEl = document.getElementById('landing-league-name');
+  const metaEl = document.getElementById('landing-meta');
   if (DATA.league) {
     nameEl.textContent = DATA.league.name;
-    const weeksLeft = DATA.schedule.filter(w=>w.status==='upcoming').length;
     metaEl.textContent = `${DATA.league.season || new Date().getFullYear()} Season · ${DATA.league.course || ''}`;
   } else {
     nameEl.textContent = 'Golf League';
     metaEl.textContent = '';
   }
-
-  if (DATA.players.length === 0) {
-    // No players yet — show setup message
-    body.innerHTML = `
-      <div class="landing-setup-msg">
-        <p>The league is being set up. Check back soon, or sign in as admin to get started.</p>
-        <button class="btn-gold" onclick="closeLanding();openAdminLogin()">Admin Sign In</button>
-      </div>
-    `;
-  } else {
-    body.innerHTML = `
-      <div class="landing-prompt">Who are you?</div>
-      <div id="player-pill-list">
-        ${DATA.players.map(p => {
-          const ini = initials(p.name);
-          return `<button class="player-pill" onclick="selectPlayer('${p.id}')">
-            <div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.2);border:1.5px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#C9A84C;flex-shrink:0;font-family:'Space Grotesk',sans-serif">${ini}</div>
-            <div style="text-align:left">
-              <div class="player-pill-name">${p.name}</div>
-              <div class="player-pill-sub">Hcp ${p.handicap || 0}</div>
-            </div>
-          </button>`;
-        }).join('')}
-      </div>
-      <div class="landing-admin-link">
-        <button onclick="closeLanding();openAdminLogin()">Admin Sign In</button>
-      </div>
-    `;
-  }
-
-  overlay.classList.remove('hidden');
+  document.getElementById('landing-overlay').classList.remove('hidden');
 }
 
-function selectPlayer(id) {
-  DATA.currentUserId = id;
+function buildLandingLoading() {
+  buildLandingTop();
+  document.getElementById('landing-body').innerHTML = `
+    <div style="text-align:center;padding:40px 0">
+      <div class="landing-spinner"></div>
+      <div style="font-size:13px;color:#6b9e82">Loading...</div>
+    </div>`;
+}
+
+function buildLandingSignIn() {
+  buildLandingTop();
+  document.getElementById('landing-body').innerHTML = `
+    <div style="margin-bottom:32px">
+      <button class="google-signin-btn" onclick="signInWithGoogle()">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
+      Sign in to access the league.<br>Your Google account must be registered by the admin.
+    </div>`;
+}
+
+function buildLandingNotInLeague(user) {
+  buildLandingTop();
+  const noAdmin = !DATA.adminEmail;
+  document.getElementById('landing-body').innerHTML = `
+    <div class="not-in-league-wrap">
+      <div class="not-in-league-email">${user.email}</div>
+      <div class="not-in-league-title">You're not in this league</div>
+      <div class="not-in-league-sub">${noAdmin ? 'Be the first to set up this league as admin.' : 'Contact your league admin to be added as a player.'}</div>
+      ${noAdmin ? `<button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>` : ''}
+      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+    </div>`;
+}
+
+async function signInWithGoogle() {
+  try {
+    await auth.signInWithPopup(googleProvider);
+    // onAuthStateChanged handles the rest
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user') {
+      showToast('Sign-in failed. Try again.');
+    }
+  }
+}
+
+function claimAdmin() {
+  const user = auth.currentUser;
+  if (!user) return;
+  DATA.adminEmail = user.email.toLowerCase();
   saveData();
+  setAdmin(true);
   closeLanding();
-  updateAvatarBtn();
-  showSection('dashboard');
-  checkAnnouncements();
+  showSection('admin');
+  showToast('You are now the league admin ✓');
 }
 
 function closeLanding() {
   document.getElementById('landing-overlay').classList.add('hidden');
 }
 
-function signOut() {
+async function signOut() {
   DATA.currentUserId = null;
   saveData();
   closeProfileSheet();
-  // Also sign out of admin
   if (isAdmin) {
     isAdmin = false;
     sessionStorage.removeItem('golf_is_admin');
-    buildBottomNav();
   }
-  setTimeout(() => buildLanding(), 200);
-}
-
-function switchPlayer() {
-  closeProfileSheet();
-  setTimeout(() => buildLanding(), 200);
+  await auth.signOut();
+  // onAuthStateChanged will fire and show sign-in screen
 }
 
 function openProfileSheet() {
   const player = DATA.players.find(p => p.id === DATA.currentUserId);
-  if (!player) { buildLanding(); return; }
-  const ini = initials(player.name);
-  document.getElementById('profile-avatar-large').textContent = ini;
+  if (!player) return;
+  document.getElementById('profile-avatar-large').textContent = initials(player.name);
   document.getElementById('profile-name').textContent = player.name;
   document.getElementById('profile-sub').textContent = `Handicap ${player.handicap || 0}${isAdmin ? ' · League Admin' : ''}`;
   const adminBtn = document.getElementById('profile-admin-btn');
@@ -1520,17 +1545,73 @@ function updateAvatarBtn() {
   const player = DATA.players.find(p => p.id === DATA.currentUserId);
   if (player) {
     btn.innerHTML = `<span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">${initials(player.name)}</span>`;
-    btn.onclick = openProfileSheet;
-    btn.title = player.name;
     if (isAdmin) {
       const dot = document.createElement('div');
       dot.className = 'avatar-admin-dot';
       btn.appendChild(dot);
     }
+    btn.onclick = openProfileSheet;
+    btn.title = player.name;
   } else {
     btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-    btn.onclick = openAdminLogin;
-    btn.title = 'Sign In';
+    btn.onclick = null;
+    btn.title = '';
+  }
+}
+
+// ============================================================
+// AUTH STATE HANDLER
+// ============================================================
+function handleAuthState(user) {
+  loadData();
+  buildBottomNav();
+  updateTopBar();
+
+  if (!user) {
+    // Not signed in — show sign-in landing
+    DATA.currentUserId = null;
+    saveData();
+    isAdmin = false;
+    sessionStorage.removeItem('golf_is_admin');
+    buildBottomNav();
+    updateAvatarBtn();
+    buildLandingSignIn();
+    showSection('dashboard');
+    return;
+  }
+
+  const email = user.email.toLowerCase();
+
+  // Check admin
+  if (DATA.adminEmail && email === DATA.adminEmail.toLowerCase()) {
+    isAdmin = true;
+    sessionStorage.setItem('golf_is_admin', 'true');
+    buildBottomNav();
+  }
+
+  // Match to player by email
+  const player = DATA.players.find(p => p.email && p.email.toLowerCase() === email);
+  if (player) {
+    DATA.currentUserId = player.id;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('dashboard');
+    checkAnnouncements();
+  } else if (isAdmin) {
+    // Admin but not a player — let them in to admin panel
+    DATA.currentUserId = null;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('admin');
+  } else {
+    // Signed in but not in league
+    DATA.currentUserId = null;
+    saveData();
+    updateAvatarBtn();
+    buildLandingNotInLeague(user);
+    showSection('dashboard');
   }
 }
 
@@ -1540,18 +1621,9 @@ function updateAvatarBtn() {
 loadData();
 buildBottomNav();
 updateTopBar();
-updateAvatarBtn();
-if (isAdmin) setAdmin(true);
-
-// Show landing if no player is selected
-if (!DATA.currentUserId) {
-  buildLanding();
-  // Still show the main app behind it
-  showSection('dashboard');
-} else {
-  showSection('dashboard');
-  checkAnnouncements();
-}
+buildLandingLoading();
+showSection('dashboard');
+auth.onAuthStateChanged(handleAuthState);
 </script>
 </body>
 </html>
