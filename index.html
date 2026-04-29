@@ -181,14 +181,14 @@ section.active{display:block}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 /* Landing */
-.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;max-width:430px;left:50%;transform:translateX(-50%);overflow-y:auto;transition:opacity 0.35s ease,transform 0.35s ease}
+.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:430px;left:50%;transform:translateX(-50%);overflow-y:auto;transition:opacity 0.35s ease,transform 0.35s ease}
 .landing-overlay.hidden{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(-16px)}
-.landing-top{padding:52px 28px 28px;text-align:center}
+.landing-top{padding:0 28px 28px;text-align:center;width:100%}
 .landing-icon{font-size:52px;margin-bottom:16px;display:block}
 .landing-league{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#C9A84C;line-height:1.2;margin-bottom:6px}
 .landing-meta{font-size:13px;color:#a0bfab;font-weight:500}
-.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin:0 28px 28px}
-.landing-body{padding:0 20px 40px;flex:1}
+.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin:0 28px 28px;width:100%}
+.landing-body{padding:0 20px 40px;width:100%}
 .landing-prompt{font-size:12px;font-weight:700;letter-spacing:1px;color:#6b9e82;margin-bottom:14px;text-transform:uppercase}
 .player-pill{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;width:100%}
 .player-pill:hover,.player-pill:active{background:rgba(201,168,76,0.15);border-color:#C9A84C}
@@ -200,7 +200,7 @@ section.active{display:block}
 .landing-setup-msg{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:24px;text-align:center;margin-bottom:16px}
 .landing-setup-msg p{font-size:14px;color:#a0bfab;line-height:1.6;margin-bottom:16px}
 .landing-setup-msg .btn-gold{width:100%}
-.google-signin-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 20px;background:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#1A1A1A;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.google-signin-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:auto;padding:14px 28px;background:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#1A1A1A;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);margin:0 auto}
 .google-signin-btn:hover{background:#f8f8f8;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
 .landing-spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,0.2);border-top-color:#C9A84C;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1462,14 +1462,14 @@ function buildLandingLoading() {
 function buildLandingSignIn() {
   buildLandingTop();
   document.getElementById('landing-body').innerHTML = `
-    <div style="margin-bottom:32px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
       <button class="google-signin-btn" onclick="signInWithGoogle()">
         <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
         Sign in with Google
       </button>
-    </div>
-    <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
-      Sign in to access the league.<br>Your Google account must be registered by the admin.
+      <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
+        Sign in to access the league.<br>Your Google account must be registered by the admin.
+      </div>
     </div>`;
 }
 
