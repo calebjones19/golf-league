@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Golf League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -134,12 +134,13 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
 .badge-carryover{background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
 .badge-live{display:inline-flex;align-items:center;gap:4px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:0.5px}
 /* Admin nav tabs */
-.admin-nav{display:flex;overflow-x:auto;background:#fff;border-bottom:2px solid #E5E7EB;scrollbar-width:none;position:sticky;top:0;z-index:50}
+.admin-nav{display:flex;overflow-x:auto;background:#fff;border-bottom:2px solid #E5E7EB;scrollbar-width:none;flex-shrink:0}
 .admin-nav::-webkit-scrollbar{display:none}
 .admin-nav-tab{flex-shrink:0;padding:11px 14px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
 .admin-nav-tab.active{color:#1B4332;border-bottom-color:#C9A84C}
-.admin-panel{display:none;padding:14px 16px 32px}
+.admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
 .admin-panel.active{display:block}
+#sec-admin.active{display:flex;flex-direction:column;overflow:hidden}
 /* Par/hcp grid */
 .hole-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-top:6px}
 .hole-grid-18{grid-template-columns:repeat(9,1fr)}
@@ -215,6 +216,16 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
 .player-cell{display:flex;align-items:center;gap:8px}
 .player-cell-info{display:flex;flex-direction:column}
 .player-cell-sub{font-size:10px;color:#9CA3AF}
+/* Course search */
+.course-search-wrap{position:relative}
+.course-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #E5E7EB;border-top:none;border-radius:0 0 10px 10px;z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);display:none}
+.course-dropdown.open{display:block}
+.course-option{padding:11px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;transition:background 0.1s}
+.course-option:last-child{border-bottom:none}
+.course-option:hover,.course-option:active{background:#F0F7F3}
+.course-option-name{font-size:13px;font-weight:600;color:#1A1A1A}
+.course-option-loc{font-size:11px;color:#6B7280;margin-top:2px}
+.course-searching{padding:12px 14px;font-size:12px;color:#6B7280;text-align:center}
 /* Divider */
 .divider{height:1px;background:#F3F4F6;margin:0 16px}
 </style>
@@ -291,7 +302,11 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
       </div>
       <div class="form-group">
         <label class="form-label">Golf Course</label>
-        <input class="form-input" id="cfg-course" placeholder="Course name">
+        <div class="course-search-wrap">
+          <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)">
+          <div class="course-dropdown" id="course-dropdown"></div>
+        </div>
+        <div id="course-selected" style="display:none;margin-top:6px;font-size:12px;color:#16A34A;font-weight:600"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Holes</label>
@@ -301,25 +316,18 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Par per hole</label>
-        <div id="par-grid-wrap">
-          <div id="par-grid-labels" class="hole-grid"></div>
-          <div id="par-grid" class="hole-grid"></div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Handicap stroke index per hole</label>
+        <label class="form-label">Stroke Index per Hole</label>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:6px">Order holes by difficulty (1 = hardest)</div>
+        <div id="hcp-grid-labels" class="hole-grid"></div>
         <div id="hcp-grid" class="hole-grid"></div>
       </div>
-      <div class="form-group" style="display:flex;gap:10px">
-        <div style="flex:1">
-          <label class="form-label">Start Date</label>
-          <input class="form-input" type="date" id="cfg-start">
-        </div>
-        <div style="flex:1">
-          <label class="form-label">Number of Weeks</label>
-          <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
-        </div>
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input class="form-input" type="date" id="cfg-start">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Number of Weeks</label>
+        <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
       </div>
       <div class="form-group">
         <label class="form-label">League Format</label>
@@ -348,7 +356,7 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
           <div style="flex:1"><input class="form-input" id="new-player-name" placeholder="Full name"></div>
           <div style="width:70px"><input class="form-input" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>
         </div>
-        <input class="form-input" id="new-player-email" placeholder="Email (optional)" style="margin-bottom:8px">
+        <input class="form-input" id="new-player-email" placeholder="Google email (required for sign-in)" style="margin-bottom:8px">
         <button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>
       </div>
     </div>
@@ -952,29 +960,83 @@ function buildAdmin() {
 
 function renderHoleGrids() {
   const holes = parseInt(document.querySelector('input[name="cfg-holes"]:checked')?.value || 9);
-  const labels = document.getElementById('par-grid-labels');
-  const parGrid = document.getElementById('par-grid');
-  const hcpGrid = document.getElementById('hcp-grid');
-  const par = DATA.league?.par || [];
+  const labelsEl = document.getElementById('hcp-grid-labels');
+  const hcpGrid  = document.getElementById('hcp-grid');
+  if (!labelsEl || !hcpGrid) return;
   const hcp = DATA.league?.holeHcp || [];
-  labels.innerHTML = Array.from({length:holes},(_,i)=>`<div class="hole-grid-label">H${i+1}</div>`).join('');
-  parGrid.innerHTML = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="5" value="${par[i]||4}" id="par-${i}">`).join('');
-  hcpGrid.innerHTML = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" value="${hcp[i]||i+1}" id="hcp-${i}">`).join('');
-  // Re-render on holes change
-  document.querySelectorAll('input[name="cfg-holes"]').forEach(r => {
-    r.onchange = () => renderHoleGrids();
-  });
+  labelsEl.innerHTML = Array.from({length:holes},(_,i)=>`<div class="hole-grid-label">H${i+1}</div>`).join('');
+  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" value="${hcp[i]||i+1}" id="hcp-${i}">`).join('');
+  document.querySelectorAll('input[name="cfg-holes"]').forEach(r => { r.onchange = () => renderHoleGrids(); });
 }
+
+// Course search via Nominatim (OpenStreetMap)
+let courseSearchTimer;
+function searchCourse(val) {
+  const dd = document.getElementById('course-dropdown');
+  clearTimeout(courseSearchTimer);
+  if (val.length < 3) { dd.classList.remove('open'); return; }
+  dd.classList.add('open');
+  dd.innerHTML = '<div class="course-searching">Searching...</div>';
+  courseSearchTimer = setTimeout(async () => {
+    try {
+      const q = encodeURIComponent(val + ' golf course');
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=6&addressdetails=1`, {
+        headers: { 'Accept-Language': 'en' }
+      });
+      const results = await res.json();
+      const courses = results.filter(r => r.display_name);
+      if (courses.length === 0) {
+        dd.innerHTML = '<div class="course-searching">No courses found</div>';
+        return;
+      }
+      dd.innerHTML = courses.map((c,i) => {
+        const parts = c.display_name.split(',');
+        const name  = parts[0].trim();
+        const loc   = parts.slice(1,3).join(',').trim();
+        return `<div class="course-option" onclick="selectCourse(${i})">
+          <div class="course-option-name">${name}</div>
+          <div class="course-option-loc">${loc}</div>
+        </div>`;
+      }).join('');
+      dd._results = courses;
+    } catch(e) {
+      dd.innerHTML = '<div class="course-searching">Search unavailable</div>';
+    }
+  }, 400);
+}
+
+function selectCourse(idx) {
+  const dd = document.getElementById('course-dropdown');
+  const course = dd._results?.[idx];
+  if (!course) return;
+  const parts = course.display_name.split(',');
+  const name  = parts[0].trim();
+  const loc   = parts.slice(1,3).join(',').trim();
+  document.getElementById('cfg-course').value = name;
+  const sel = document.getElementById('course-selected');
+  sel.textContent = '✓ ' + loc;
+  sel.style.display = 'block';
+  dd.classList.remove('open');
+}
+
+// Close dropdown when tapping outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.course-search-wrap')) {
+    document.getElementById('course-dropdown')?.classList.remove('open');
+  }
+});
 
 function loadLeagueForm() {
   if (!DATA.league) return;
   const L = DATA.league;
-  const nameEl = document.getElementById('cfg-name');
+  const nameEl   = document.getElementById('cfg-name');
   const courseEl = document.getElementById('cfg-course');
-  const startEl = document.getElementById('cfg-start');
-  const weeksEl = document.getElementById('cfg-weeks');
+  const startEl  = document.getElementById('cfg-start');
+  const weeksEl  = document.getElementById('cfg-weeks');
+  const selEl    = document.getElementById('course-selected');
   if (nameEl) nameEl.value = L.name || '';
   if (courseEl) courseEl.value = L.course || '';
+  if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
   if (startEl) startEl.value = L.startDate || '';
   if (weeksEl) weeksEl.value = L.weeks || 18;
   const holesRadio = document.querySelector(`input[name="cfg-holes"][value="${L.holes||9}"]`);
@@ -992,8 +1054,8 @@ function saveLeagueConfig() {
   const weeks  = parseInt(document.getElementById('cfg-weeks').value) || 18;
   const format = document.querySelector('input[name="cfg-format"]:checked').value;
   if (!name) { showToast('Please enter a league name'); return; }
-  const par    = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||4);
-  const holeHcp= Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||i+1);
+  const par     = Array.from({length:holes}, () => 4); // default par 4 per hole
+  const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||i+1);
   DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, format, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
   generateSchedule();
   saveData();
