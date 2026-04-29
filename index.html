@@ -178,6 +178,26 @@ section.active{display:block}
 /* Toast */
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
+/* Landing */
+.landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;max-width:430px;left:50%;transform:translateX(-50%);overflow-y:auto;transition:opacity 0.35s ease,transform 0.35s ease}
+.landing-overlay.hidden{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(-16px)}
+.landing-top{padding:52px 28px 28px;text-align:center}
+.landing-icon{font-size:52px;margin-bottom:16px;display:block}
+.landing-league{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#C9A84C;line-height:1.2;margin-bottom:6px}
+.landing-meta{font-size:13px;color:#a0bfab;font-weight:500}
+.landing-divider{height:1px;background:rgba(255,255,255,0.1);margin:0 28px 28px}
+.landing-body{padding:0 20px 40px;flex:1}
+.landing-prompt{font-size:12px;font-weight:700;letter-spacing:1px;color:#6b9e82;margin-bottom:14px;text-transform:uppercase}
+.player-pill{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;width:100%}
+.player-pill:hover,.player-pill:active{background:rgba(201,168,76,0.15);border-color:#C9A84C}
+.player-pill-name{font-size:15px;font-weight:600;color:#fff;font-family:'DM Sans',sans-serif}
+.player-pill-sub{font-size:11px;color:#6b9e82;margin-top:1px}
+.landing-admin-link{text-align:center;padding:8px 0 4px;margin-top:4px}
+.landing-admin-link button{background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;padding:8px 16px}
+.landing-admin-link button:hover{color:#C9A84C}
+.landing-setup-msg{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:24px;text-align:center;margin-bottom:16px}
+.landing-setup-msg p{font-size:14px;color:#a0bfab;line-height:1.6;margin-bottom:16px}
+.landing-setup-msg .btn-gold{width:100%}
 /* Player cell */
 .player-cell{display:flex;align-items:center;gap:8px}
 .player-cell-info{display:flex;flex-direction:column}
@@ -188,6 +208,17 @@ section.active{display:block}
 </head>
 <body>
 <div id="app">
+
+  <!-- LANDING OVERLAY -->
+  <div id="landing-overlay" class="landing-overlay">
+    <div class="landing-top">
+      <span class="landing-icon">⛳</span>
+      <div class="landing-league" id="landing-league-name">Golf League</div>
+      <div class="landing-meta" id="landing-meta"></div>
+    </div>
+    <div class="landing-divider"></div>
+    <div class="landing-body" id="landing-body"></div>
+  </div>
 
   <!-- TOP BAR -->
   <div class="top-bar">
@@ -419,6 +450,23 @@ section.active{display:block}
     </div>
   </div>
 
+  <!-- PROFILE BOTTOM SHEET -->
+  <div class="modal-overlay" id="profile-overlay" onclick="closeProfileSheet(event)">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div id="profile-avatar-large" style="width:52px;height:52px;border-radius:50%;background:#1B4332;color:#C9A84C;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:'Space Grotesk',sans-serif;flex-shrink:0"></div>
+        <div>
+          <div id="profile-name" style="font-size:17px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif"></div>
+          <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
+        </div>
+      </div>
+      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();openAdminLogin()">Admin Panel</button>
+      <button class="btn-outline" style="width:100%;margin-bottom:10px" onclick="switchPlayer()">Switch Player</button>
+      <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
 </div>
@@ -431,12 +479,13 @@ const STORAGE_KEY = 'golf_league_data';
 const SEEN_KEY    = 'golf_league_seen';
 
 let DATA = {
-  adminEmail: null,
-  league:     null,
-  players:    [],
-  teams:      [],
-  schedule:   [],
-  rounds:     [],
+  adminEmail:    null,
+  currentUserId: null,
+  league:        null,
+  players:       [],
+  teams:         [],
+  schedule:      [],
+  rounds:        [],
   announcements: [],
   scoringConfig: { pointsPerHole: 1, tiePoints: 0.5, matchBonus: 2, skinsEnabled: false, skinsFee: 5, teeTimeDefault: '17:30', teeOverrides: [] }
 };
@@ -832,7 +881,7 @@ function buildStandings() {
           ${DATA.players.map((p,i) => `
             <tr>
               <td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#9CA3AF">${i+1}</div></td>
-              <td><div class="player-cell">${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',28)}<div class="player-cell-info"><span style="font-size:12px;font-weight:600;color:#1A1A1A">${p.name}${p.email===DATA.adminEmail?'<span class="you-badge">You</span>':''}</span><span class="player-cell-sub">Hcp ${p.handicap||0}</span></div></div></td>
+              <td><div class="player-cell">${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',28)}<div class="player-cell-info"><span style="font-size:12px;font-weight:600;color:#1A1A1A">${p.name}${p.id===DATA.currentUserId?'<span class="you-badge">You</span>':''}</span><span class="player-cell-sub">Hcp ${p.handicap||0}</span></div></div></td>
               <td style="color:#16A34A;font-weight:600">0</td>
               <td style="color:#DC2626;font-weight:600">0</td>
               <td style="color:#6B7280;font-weight:600">0</td>
@@ -1286,7 +1335,12 @@ function dismissAnnouncement(e) {
 // ADMIN LOGIN
 // ============================================================
 function openAdminLogin() {
-  if (isAdmin) { showSection('admin'); return; }
+  if (isAdmin) {
+    // If no player selected yet, just close landing and go to admin
+    if (!DATA.currentUserId) closeLanding();
+    showSection('admin');
+    return;
+  }
   const modal = document.getElementById('admin-login-modal');
   if (!DATA.adminEmail) {
     document.getElementById('admin-modal-title').textContent = 'Claim Admin';
@@ -1315,6 +1369,7 @@ function submitAdminLogin() {
     saveData();
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
+    closeLanding();
     showToast('You are now the league admin ✓');
     showSection('admin');
     return;
@@ -1322,6 +1377,7 @@ function submitAdminLogin() {
   if (email === DATA.adminEmail.toLowerCase()) {
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
+    closeLanding();
     showSection('admin');
   } else {
     document.getElementById('admin-modal-error').style.display = 'block';
@@ -1332,17 +1388,7 @@ function setAdmin(val) {
   isAdmin = val;
   sessionStorage.setItem('golf_is_admin', val ? 'true' : 'false');
   buildBottomNav();
-  // Update avatar
-  const avatarBtn = document.getElementById('avatar-btn');
-  if (val) {
-    const dot = document.createElement('div');
-    dot.className = 'avatar-admin-dot';
-    if (!avatarBtn.querySelector('.avatar-admin-dot')) avatarBtn.appendChild(dot);
-    avatarBtn.title = 'Admin Panel';
-  } else {
-    const dot = avatarBtn.querySelector('.avatar-admin-dot');
-    if (dot) dot.remove();
-  }
+  updateAvatarBtn();
 }
 
 // ============================================================
@@ -1372,14 +1418,140 @@ function showToast(msg) {
 }
 
 // ============================================================
+// LANDING PAGE
+// ============================================================
+function buildLanding() {
+  const overlay = document.getElementById('landing-overlay');
+  const nameEl  = document.getElementById('landing-league-name');
+  const metaEl  = document.getElementById('landing-meta');
+  const body    = document.getElementById('landing-body');
+
+  if (DATA.league) {
+    nameEl.textContent = DATA.league.name;
+    const weeksLeft = DATA.schedule.filter(w=>w.status==='upcoming').length;
+    metaEl.textContent = `${DATA.league.season || new Date().getFullYear()} Season · ${DATA.league.course || ''}`;
+  } else {
+    nameEl.textContent = 'Golf League';
+    metaEl.textContent = '';
+  }
+
+  if (DATA.players.length === 0) {
+    // No players yet — show setup message
+    body.innerHTML = `
+      <div class="landing-setup-msg">
+        <p>The league is being set up. Check back soon, or sign in as admin to get started.</p>
+        <button class="btn-gold" onclick="closeLanding();openAdminLogin()">Admin Sign In</button>
+      </div>
+    `;
+  } else {
+    body.innerHTML = `
+      <div class="landing-prompt">Who are you?</div>
+      <div id="player-pill-list">
+        ${DATA.players.map(p => {
+          const ini = initials(p.name);
+          return `<button class="player-pill" onclick="selectPlayer('${p.id}')">
+            <div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.2);border:1.5px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#C9A84C;flex-shrink:0;font-family:'Space Grotesk',sans-serif">${ini}</div>
+            <div style="text-align:left">
+              <div class="player-pill-name">${p.name}</div>
+              <div class="player-pill-sub">Hcp ${p.handicap || 0}</div>
+            </div>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="landing-admin-link">
+        <button onclick="closeLanding();openAdminLogin()">Admin Sign In</button>
+      </div>
+    `;
+  }
+
+  overlay.classList.remove('hidden');
+}
+
+function selectPlayer(id) {
+  DATA.currentUserId = id;
+  saveData();
+  closeLanding();
+  updateAvatarBtn();
+  showSection('dashboard');
+  checkAnnouncements();
+}
+
+function closeLanding() {
+  document.getElementById('landing-overlay').classList.add('hidden');
+}
+
+function signOut() {
+  DATA.currentUserId = null;
+  saveData();
+  closeProfileSheet();
+  // Also sign out of admin
+  if (isAdmin) {
+    isAdmin = false;
+    sessionStorage.removeItem('golf_is_admin');
+    buildBottomNav();
+  }
+  setTimeout(() => buildLanding(), 200);
+}
+
+function switchPlayer() {
+  closeProfileSheet();
+  setTimeout(() => buildLanding(), 200);
+}
+
+function openProfileSheet() {
+  const player = DATA.players.find(p => p.id === DATA.currentUserId);
+  if (!player) { buildLanding(); return; }
+  const ini = initials(player.name);
+  document.getElementById('profile-avatar-large').textContent = ini;
+  document.getElementById('profile-name').textContent = player.name;
+  document.getElementById('profile-sub').textContent = `Handicap ${player.handicap || 0}${isAdmin ? ' · League Admin' : ''}`;
+  const adminBtn = document.getElementById('profile-admin-btn');
+  if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('profile-overlay').classList.add('open');
+}
+
+function closeProfileSheet(e) {
+  if (e && e.target !== document.getElementById('profile-overlay')) return;
+  document.getElementById('profile-overlay').classList.remove('open');
+}
+
+function updateAvatarBtn() {
+  const btn = document.getElementById('avatar-btn');
+  const player = DATA.players.find(p => p.id === DATA.currentUserId);
+  if (player) {
+    btn.innerHTML = `<span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">${initials(player.name)}</span>`;
+    btn.onclick = openProfileSheet;
+    btn.title = player.name;
+    if (isAdmin) {
+      const dot = document.createElement('div');
+      dot.className = 'avatar-admin-dot';
+      btn.appendChild(dot);
+    }
+  } else {
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    btn.onclick = openAdminLogin;
+    btn.title = 'Sign In';
+  }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 loadData();
 buildBottomNav();
 updateTopBar();
+updateAvatarBtn();
 if (isAdmin) setAdmin(true);
-showSection('dashboard');
-checkAnnouncements();
+
+// Show landing if no player is selected
+if (!DATA.currentUserId) {
+  buildLanding();
+  // Still show the main app behind it
+  showSection('dashboard');
+} else {
+  showSection('dashboard');
+  checkAnnouncements();
+}
 </script>
 </body>
 </html>
