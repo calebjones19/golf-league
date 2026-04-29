@@ -58,9 +58,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .form-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;display:block}
 .form-input{width:100%;padding:11px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A1A;background:#fff;outline:none;transition:border-color 0.15s;font-family:'DM Sans',sans-serif}
 .form-input:focus{border-color:#1B4332}
+.form-input:disabled,.form-select:disabled{opacity:0.55;cursor:not-allowed;background:#F9FAFB}
 .form-select{width:100%;padding:11px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A1A;background:#fff;outline:none;font-family:'DM Sans',sans-serif}
 .radio-group{display:flex;gap:12px;flex-wrap:wrap}
 .radio-label{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer}
+/* Panel edit mode header */
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px solid #F3F4F6}
+.panel-title{font-size:15px;font-weight:700;color:#1A1A1A}
 /* Toggle */
 .toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
 .toggle-label{font-size:13px;font-weight:500;color:#1A1A1A}
@@ -302,6 +306,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
     <!-- League Setup -->
     <div class="admin-panel active" id="admin-league">
+      <div class="panel-header">
+        <span class="panel-title">League Setup</span>
+        <div style="display:flex;gap:8px">
+          <button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
+          <button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">League Name</label>
         <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League">
@@ -347,9 +358,21 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </div>
       </div>
       <div class="form-group">
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <label class="form-label">Start Time</label>
+            <input class="form-input" type="time" id="cfg-start-time" value="17:30">
+          </div>
+          <div style="width:120px">
+            <label class="form-label">Interval (min)</label>
+            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <label class="form-label" style="margin:0">Cancellations</label>
-          <button class="btn-sm btn-outline" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
+          <button class="btn-sm btn-outline" id="btn-add-cancellation" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
         </div>
         <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
         <div id="schedule-list"></div>
@@ -362,59 +385,33 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           <label class="radio-label"><input type="radio" name="cfg-format" value="stableford"> Stableford</label>
         </div>
       </div>
-      <button class="btn-green" style="width:100%;margin-top:4px" onclick="saveLeagueConfig()">Save League Settings</button>
     </div>
 
     <!-- Players -->
     <div class="admin-panel" id="admin-players">
-      <div id="players-list"></div>
-      <div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">
-        <div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Player</div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="flex:1"><input class="form-input" id="new-player-name" placeholder="Full name"></div>
-          <div style="width:70px"><input class="form-input" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>
-        </div>
-        <input class="form-input" id="new-player-email" placeholder="Google email (required for sign-in)" style="margin-bottom:8px">
-        <button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>
-      </div>
+      <div id="players-panel-content"></div>
     </div>
 
     <!-- Teams -->
     <div class="admin-panel" id="admin-teams">
-      <div id="pairing-section"></div>
-      <div id="teams-list"></div>
+      <div id="teams-panel-content"></div>
     </div>
 
     <!-- Matchups -->
     <div class="admin-panel" id="admin-matchups">
-      <div id="matchups-list"></div>
-      <div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">
-        <div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Matchup</div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="width:72px">
-            <label class="form-label">Week</label>
-            <input class="form-input" type="number" id="new-mu-week" min="1" placeholder="1">
-          </div>
-          <div style="flex:1">
-            <label class="form-label">Tee Time</label>
-            <input class="form-input" type="time" id="new-mu-tee" value="17:30">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Team A</label>
-          <select class="form-select" id="new-mu-teamA"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Team B</label>
-          <select class="form-select" id="new-mu-teamB"></select>
-        </div>
-        <button class="btn-green" style="width:100%" onclick="addMatchup()">Add Matchup</button>
-      </div>
+      <div id="matchups-panel-content"></div>
     </div>
 
     <!-- Scoring -->
     <div class="admin-panel" id="admin-scoring">
-      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Match Play Scoring</div>
+      <div class="panel-header">
+        <span class="panel-title">Scoring</span>
+        <div style="display:flex;gap:8px">
+          <button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode('scoring')">Edit</button>
+          <button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
       <div class="form-group">
         <label class="form-label">Points per hole win</label>
         <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0.5" step="0.5" style="max-width:120px">
@@ -427,15 +424,15 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <label class="form-label">Match win bonus points</label>
         <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:120px">
       </div>
-      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
-      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Stableford</div>
+      <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">STABLEFORD</div>
       <div class="radio-group" style="margin-bottom:14px">
         <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()"> Standard</label>
         <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()"> Modified</label>
       </div>
       <div id="stableford-table"></div>
-      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
-      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Skins</div>
+      <div class="divider" style="margin:16px 0;background:#E5E7EB"></div>
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SKINS</div>
       <div class="toggle-wrap">
         <span class="toggle-label">Skins enabled</span>
         <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)"><span class="toggle-slider"></span></label>
@@ -446,32 +443,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:120px">
         </div>
       </div>
-      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
-      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Tee Times</div>
-      <div class="form-group">
-        <label class="form-label">Default tee time</label>
-        <input class="form-input" type="time" id="cfg-tee-default" value="17:30" style="max-width:140px">
-      </div>
-      <div id="tee-overrides"></div>
-      <button class="btn-outline" style="margin-top:8px" onclick="addTeeOverride()">+ Add weekly override</button>
-      <div style="margin-top:16px">
-        <button class="btn-green" style="width:100%" onclick="saveScoringConfig()">Save Scoring Settings</button>
-      </div>
     </div>
 
     <!-- Announcements -->
     <div class="admin-panel" id="admin-announce">
-      <div id="announce-list"></div>
-      <div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">
-        <div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">New Announcement</div>
-        <div class="form-group">
-          <input class="form-input" id="new-announce-title" placeholder="Title">
-        </div>
-        <div class="form-group">
-          <textarea class="form-input" id="new-announce-body" rows="4" placeholder="Message..." style="resize:none;line-height:1.5"></textarea>
-        </div>
-        <button class="btn-green" style="width:100%" onclick="createAnnouncement()">Send Announcement</button>
-      </div>
+      <div id="announce-panel-content"></div>
     </div>
   </section>
 
@@ -567,6 +543,66 @@ const googleProvider = new firebase.auth.GoogleAuthProvider();
 // VERSION
 // ============================================================
 const APP_VERSION = '1.0';
+
+// ============================================================
+// ADMIN EDIT MODE
+// ============================================================
+const adminEditModes = { league: false, players: false, teams: false, matchups: false, scoring: false, announce: false };
+
+function enterEditMode(panel) {
+  adminEditModes[panel] = true;
+  refreshEditModeUI(panel);
+  // Re-render dynamic panels so they pick up edit state
+  if (panel === 'players')  renderPlayersList();
+  if (panel === 'teams')    renderTeamsList();
+  if (panel === 'matchups') renderMatchupsList();
+  if (panel === 'announce') renderAnnounceList();
+}
+
+function exitEditMode(panel) {
+  adminEditModes[panel] = false;
+  refreshEditModeUI(panel);
+  if (panel === 'players')  renderPlayersList();
+  if (panel === 'teams')    renderTeamsList();
+  if (panel === 'matchups') renderMatchupsList();
+  if (panel === 'announce') renderAnnounceList();
+}
+
+function refreshEditModeUI(panel) {
+  const on = adminEditModes[panel];
+  const editBtn = document.getElementById('edit-btn-' + panel);
+  const saveBtn = document.getElementById('save-btn-' + panel);
+  if (editBtn) { editBtn.disabled = on; editBtn.style.opacity = on ? '0.35' : '1'; editBtn.style.cursor = on ? 'not-allowed' : ''; }
+  if (saveBtn) { saveBtn.disabled = !on; saveBtn.style.opacity = !on ? '0.35' : '1'; saveBtn.style.cursor = !on ? 'not-allowed' : ''; }
+  // For static-HTML panels, toggle all inputs
+  if (panel === 'league' || panel === 'scoring') {
+    const panelEl = document.getElementById('admin-' + panel);
+    if (panelEl) panelEl.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
+  }
+}
+
+function editModeBar(panel, title, saveFn) {
+  const on = adminEditModes[panel] || false;
+  return '<div class="panel-header">' +
+    '<span class="panel-title">' + title + '</span>' +
+    '<div style="display:flex;gap:8px">' +
+    '<button id="edit-btn-' + panel + '" class="btn-sm btn-outline" onclick="enterEditMode(\'' + panel + '\')"' +
+      (on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>' +
+    '<button id="save-btn-' + panel + '" class="btn-sm btn-green" onclick="' + saveFn + '"' +
+      (!on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Done</button>' +
+    '</div>' +
+    '</div>';
+}
+
+function calcTeeTime(matchupIndexInWeek) {
+  const startTime = (DATA.league && DATA.league.startTime) || '17:30';
+  const interval  = parseInt((DATA.league && DATA.league.teeInterval) || 8);
+  const [h, m]    = startTime.split(':').map(Number);
+  const totalMins = h * 60 + m + matchupIndexInWeek * interval;
+  const rh = Math.floor(totalMins / 60) % 24;
+  const rm = totalMins % 60;
+  return (rh % 12 || 12) + ':' + String(rm).padStart(2, '0') + ' ' + (rh < 12 ? 'AM' : 'PM');
+}
 
 function checkVersion() {
   // No-op for now — version number shown in the update footer on the home screen.
@@ -1574,12 +1610,12 @@ function switchAdminTab(id, btn) {
 function buildAdmin() {
   if (!isAdmin) { showSection('dashboard'); return; }
   renderHoleGrids();
-  loadLeagueForm();
+  loadLeagueForm();    // calls refreshEditModeUI('league') at end
   renderScheduleList();
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
-  loadScoringForm();
+  loadScoringForm();   // calls refreshEditModeUI('scoring') at end
   renderAnnounceList();
 }
 
@@ -1595,6 +1631,11 @@ function renderHoleGrids() {
   parGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="6" placeholder="—" value="${par[i]||''}" id="par-${i}">`).join('');
   hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" placeholder="—" value="${hcp[i]||''}" id="hcp-${i}">`).join('');
   document.querySelectorAll('input[name="cfg-holes"]').forEach(r => { r.onchange = () => renderHoleGrids(); });
+  // Re-apply disabled state if not in edit mode
+  if (!adminEditModes['league']) {
+    parGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
+    hcpGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
+  }
 }
 
 // Course search via Nominatim (OpenStreetMap)
@@ -1657,37 +1698,45 @@ document.addEventListener('click', e => {
 function loadLeagueForm() {
   if (!DATA.league) return;
   const L = DATA.league;
-  const nameEl   = document.getElementById('cfg-name');
-  const courseEl = document.getElementById('cfg-course');
-  const startEl  = document.getElementById('cfg-start');
-  const weeksEl  = document.getElementById('cfg-weeks');
-  const selEl    = document.getElementById('course-selected');
+  const nameEl      = document.getElementById('cfg-name');
+  const courseEl    = document.getElementById('cfg-course');
+  const startEl     = document.getElementById('cfg-start');
+  const weeksEl     = document.getElementById('cfg-weeks');
+  const startTimeEl = document.getElementById('cfg-start-time');
+  const intervalEl  = document.getElementById('cfg-tee-interval');
+  const selEl       = document.getElementById('course-selected');
   if (nameEl) nameEl.value = L.name || '';
   if (courseEl) courseEl.value = L.course || '';
   if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
   if (startEl) startEl.value = L.startDate || '';
   if (weeksEl) weeksEl.value = L.weeks || 18;
+  if (startTimeEl) startTimeEl.value = L.startTime || '17:30';
+  if (intervalEl) intervalEl.value = L.teeInterval || 8;
   const holesRadio = document.querySelector(`input[name="cfg-holes"][value="${L.holes||9}"]`);
   if (holesRadio) holesRadio.checked = true;
   const fmtRadio = document.querySelector(`input[name="cfg-format"][value="${L.format||'match_play'}"]`);
   if (fmtRadio) fmtRadio.checked = true;
   renderHoleGrids();
+  refreshEditModeUI('league');
 }
 
 function saveLeagueConfig() {
-  const name   = document.getElementById('cfg-name').value.trim();
-  const course = document.getElementById('cfg-course').value.trim();
-  const holes  = parseInt(document.querySelector('input[name="cfg-holes"]:checked').value);
-  const start  = document.getElementById('cfg-start').value;
-  const weeks  = parseInt(document.getElementById('cfg-weeks').value) || 18;
-  const format = document.querySelector('input[name="cfg-format"]:checked').value;
+  const name      = document.getElementById('cfg-name').value.trim();
+  const course    = document.getElementById('cfg-course').value.trim();
+  const holes     = parseInt(document.querySelector('input[name="cfg-holes"]:checked').value);
+  const start     = document.getElementById('cfg-start').value;
+  const weeks     = parseInt(document.getElementById('cfg-weeks').value) || 18;
+  const format    = document.querySelector('input[name="cfg-format"]:checked').value;
+  const startTime = document.getElementById('cfg-start-time').value || '17:30';
+  const teeInterval = parseInt(document.getElementById('cfg-tee-interval').value) || 8;
   if (!name) { showToast('Please enter a league name'); return; }
   const par     = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||null);
   const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
-  DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, format, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
+  DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, format, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
   generateSchedule();
   saveData();
   updateTopBar();
+  exitEditMode('league');
   showToast('League settings saved ✓');
 }
 
@@ -1836,23 +1885,37 @@ function avatarHtml(init, bg, color, size=32) {
 }
 
 function renderPlayersList() {
-  const list = document.getElementById('players-list');
-  if (!list) return;
-  if (DATA.players.length === 0) {
-    list.innerHTML = `<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet. Add your first player below.</div>`;
-    return;
-  }
-  list.innerHTML = DATA.players.map((p,i) => {
-    const team = DATA.teams.find(t=>t.playerIds.includes(p.id));
-    return `<div class="player-row">
-      ${avatarHtml(initials(p.name),'#E5E7EB','#6B7280',32)}
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:#1A1A1A">${p.name}</div>
-        <div style="font-size:11px;color:#6B7280">Hcp ${p.handicap||0}${team?` · ${team.name}`:' · Unassigned'}${p.email===DATA.adminEmail?' · Admin':''}</div>
-      </div>
-      <button class="btn-sm btn-delete" onclick="removePlayer('${p.id}')">Remove</button>
-    </div>`;
-  }).join('');
+  const wrap = document.getElementById('players-panel-content');
+  if (!wrap) return;
+  const on = adminEditModes['players'] || false;
+
+  const listHtml = DATA.players.length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet.</div>'
+    : DATA.players.map(p => {
+        const team = DATA.teams.find(t => t.playerIds.includes(p.id));
+        return '<div class="player-row">' +
+          avatarHtml(initials(p.name), '#E5E7EB', '#6B7280', 32) +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + p.name + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + (p.handicap||0) + (team ? ' · ' + team.name : ' · Unassigned') + (p.email === DATA.adminEmail ? ' · Admin' : '') + '</div>' +
+          '</div>' +
+          (on ? '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button>' : '') +
+        '</div>';
+      }).join('');
+
+  const addFormHtml = on ? (
+    '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
+      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Player</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+        '<div style="flex:1"><input class="form-input" id="new-player-name" placeholder="Full name"></div>' +
+        '<div style="width:70px"><input class="form-input" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>' +
+      '</div>' +
+      '<input class="form-input" id="new-player-email" placeholder="Google email (required for sign-in)" style="margin-bottom:10px">' +
+      '<button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>' +
+    '</div>'
+  ) : '';
+
+  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml;
 }
 
 function addPlayer() {
@@ -1885,64 +1948,60 @@ function removePlayer(id) {
 let pairingSelection = null; // playerId of first selected player
 
 function renderTeamsList() {
-  const pairing = document.getElementById('pairing-section');
-  const list    = document.getElementById('teams-list');
-  if (!list) return;
+  const wrap = document.getElementById('teams-panel-content');
+  if (!wrap) return;
+  const on = adminEditModes['teams'] || false;
 
   const assignedIds = DATA.teams.flatMap(t => t.playerIds);
   const unassigned  = DATA.players.filter(p => !assignedIds.includes(p.id));
 
-  // --- Unassigned / pairing section ---
-  if (pairing) {
-    if (unassigned.length === 0 && DATA.teams.length > 0) {
-      pairing.innerHTML = '';
-    } else if (DATA.players.length === 0) {
-      pairing.innerHTML = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">Add players in the Players tab first.</div>';
-    } else {
+  let pairingHtml = '';
+  if (on) {
+    if (DATA.players.length === 0) {
+      pairingHtml = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">Add players in the Players tab first.</div>';
+    } else if (unassigned.length > 0) {
       const hint = pairingSelection
         ? '<div style="font-size:12px;color:#C9A84C;font-weight:600;margin-bottom:10px">Now tap a second player to pair them ↓</div>'
         : '<div style="font-size:12px;color:#6B7280;margin-bottom:10px">Tap any two players to pair them into a team</div>';
-
       const playerCards = unassigned.map(p => {
         const isSelected = pairingSelection === p.id;
-        return '<div onclick="tapPlayerForPairing(\'' + p.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid ' + (isSelected ? '#C9A84C' : '#E5E7EB') + ';background:' + (isSelected ? '#FEF9EE' : '#fff') + ';cursor:pointer;transition:all 0.15s;margin-bottom:8px">' +
+        return '<div onclick="tapPlayerForPairing(\'' + p.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid ' + (isSelected ? '#C9A84C' : '#E5E7EB') + ';background:' + (isSelected ? '#FEF9EE' : '#fff') + ';cursor:pointer;margin-bottom:8px">' +
           avatarHtml(initials(p.name), isSelected ? '#FEF9EE' : '#E5E7EB', isSelected ? '#C9A84C' : '#6B7280', 34) +
           '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">' + p.name + '</div><div style="font-size:11px;color:#9CA3AF">Hcp ' + (p.handicap||0) + '</div></div>' +
           (isSelected ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
         '</div>';
       }).join('');
-
-      pairing.innerHTML = (unassigned.length > 0
-        ? '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">UNASSIGNED (' + unassigned.length + ')</div>' + hint + playerCards
-        : '') +
-        (DATA.teams.length > 0 && unassigned.length > 0 ? '<div style="height:1px;background:#F3F4F6;margin:8px 0 14px"></div>' : '');
+      pairingHtml = '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">UNASSIGNED (' + unassigned.length + ')</div>' + hint + playerCards +
+        (DATA.teams.length > 0 ? '<div style="height:1px;background:#F3F4F6;margin:8px 0 14px"></div>' : '');
     }
   }
 
-  // --- Teams list ---
-  if (DATA.teams.length === 0) {
-    list.innerHTML = '';
-    return;
+  let teamsHtml = '';
+  if (DATA.teams.length === 0 && !on) {
+    teamsHtml = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No teams yet. Tap Edit to start pairing players.</div>';
+  } else if (DATA.teams.length > 0) {
+    teamsHtml = '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">TEAMS</div>' +
+      DATA.teams.map(t => {
+        const members = t.playerIds.map(id => DATA.players.find(p => p.id === id)).filter(Boolean);
+        return '<div class="team-card">' +
+          '<div class="team-card-header">' +
+            '<input class="form-input" style="max-width:160px;font-weight:700" value="' + t.name + '"' + (!on ? ' disabled' : '') + ' onchange="renameTeam(\'' + t.id + '\',this.value)" placeholder="Team name">' +
+            (on ? '<button class="btn-sm btn-delete" onclick="removeTeam(\'' + t.id + '\')">Remove</button>' : '') +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:8px">' +
+            members.map(m =>
+              '<div style="display:flex;align-items:center;gap:8px;flex:1;background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 10px">' +
+                avatarHtml(initials(m.name), '#d1e7d8', '#1B4332', 26) +
+                '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + m.name + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + (m.handicap||0) + '</div></div>' +
+                (on ? '<button class="btn-sm btn-delete" style="padding:3px 8px;flex-shrink:0" onclick="removeFromTeam(\'' + t.id + '\',\'' + m.id + '\')">×</button>' : '') +
+              '</div>'
+            ).join('') +
+          '</div>' +
+        '</div>';
+      }).join('');
   }
-  list.innerHTML = (DATA.teams.length > 0 ? '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">TEAMS</div>' : '') +
-    DATA.teams.map(t => {
-      const members = t.playerIds.map(id => DATA.players.find(p => p.id === id)).filter(Boolean);
-      return '<div class="team-card">' +
-        '<div class="team-card-header">' +
-          '<input class="form-input" style="max-width:160px;font-weight:700" value="' + t.name + '" onchange="renameTeam(\'' + t.id + '\',this.value)" placeholder="Team name">' +
-          '<button class="btn-sm btn-delete" onclick="removeTeam(\'' + t.id + '\')">Remove</button>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px;margin-top:8px">' +
-          members.map(m =>
-            '<div style="display:flex;align-items:center;gap:8px;flex:1;background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 10px">' +
-              avatarHtml(initials(m.name), '#d1e7d8', '#1B4332', 26) +
-              '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + m.name + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + (m.handicap||0) + '</div></div>' +
-              '<button class="btn-sm btn-delete" style="padding:3px 8px;flex-shrink:0" onclick="removeFromTeam(\'' + t.id + '\',\'' + m.id + '\')">×</button>' +
-            '</div>'
-          ).join('') +
-        '</div>' +
-      '</div>';
-    }).join('');
+
+  wrap.innerHTML = editModeBar('teams', 'Teams', 'exitEditMode(\'teams\')') + pairingHtml + teamsHtml;
 }
 
 function tapPlayerForPairing(pid) {
@@ -1990,54 +2049,63 @@ function removeFromTeam(teamId, playerId) {
 // MATCHUPS ADMIN
 // ============================================================
 function renderMatchupsList() {
-  const list = document.getElementById('matchups-list');
-  if (!list) return;
-
-  // Populate team dropdowns
-  const opts = DATA.teams.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('');
-  const selA = document.getElementById('new-mu-teamA');
-  const selB = document.getElementById('new-mu-teamB');
-  if (selA) selA.innerHTML = opts;
-  if (selB) { selB.innerHTML = opts; if (DATA.teams.length > 1) selB.selectedIndex = 1; }
-
-  // Default week to current
-  const wkEl = document.getElementById('new-mu-week');
-  if (wkEl && !wkEl.value) wkEl.value = getCurrentWeek();
-
-  if (!DATA.matchups || DATA.matchups.length === 0) {
-    list.innerHTML = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No matchups scheduled yet.</div>';
-    return;
-  }
+  const wrap = document.getElementById('matchups-panel-content');
+  if (!wrap) return;
+  const on = adminEditModes['matchups'] || false;
 
   const grouped = {};
-  DATA.matchups.forEach(m => { if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
+  (DATA.matchups || []).forEach(m => { if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
 
-  list.innerHTML = Object.keys(grouped).sort((a,b) => a-b).map(week => {
-    return '<div style="margin-bottom:14px">' +
-      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:6px">WEEK ' + week + '</div>' +
-      grouped[week].map(m => {
-        const tA = DATA.teams.find(t => t.id === m.teamAId);
-        const tB = DATA.teams.find(t => t.id === m.teamBId);
-        if (!tA || !tB) return '';
-        return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;gap:8px">' +
-          '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
-          '<div style="font-size:11px;color:#6B7280">' + formatTeeTime(m.teeTime) + '</div></div>' +
-          '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">Remove</button>' +
+  const listHtml = Object.keys(grouped).length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No matchups scheduled yet.</div>'
+    : Object.keys(grouped).sort((a,b) => a-b).map(week => {
+        return '<div style="margin-bottom:14px">' +
+          '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:6px">WEEK ' + week + '</div>' +
+          grouped[week].map((m, idx) => {
+            const tA = DATA.teams.find(t => t.id === m.teamAId);
+            const tB = DATA.teams.find(t => t.id === m.teamBId);
+            if (!tA || !tB) return '';
+            return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;gap:8px">' +
+              '<div style="flex:1">' +
+                '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
+                '<div style="font-size:11px;color:#6B7280">' + calcTeeTime(idx) + '</div>' +
+              '</div>' +
+              (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">Remove</button>' : '') +
+            '</div>';
+          }).join('') +
         '</div>';
-      }).join('') +
-    '</div>';
-  }).join('');
+      }).join('');
+
+  const addFormHtml = on ? (
+    '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
+      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Matchup</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+        '<div style="width:80px"><label class="form-label">Week</label>' +
+          '<input class="form-input" type="number" id="new-mu-week" min="1" placeholder="1" value="' + getCurrentWeek() + '"></div>' +
+      '</div>' +
+      '<div class="form-group"><label class="form-label">Team A</label>' +
+        '<select class="form-select" id="new-mu-teamA">' +
+          DATA.teams.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('') +
+        '</select></div>' +
+      '<div class="form-group"><label class="form-label">Team B</label>' +
+        '<select class="form-select" id="new-mu-teamB">' +
+          DATA.teams.map((t,i) => '<option value="' + t.id + '"' + (i===1?' selected':'') + '>' + t.name + '</option>').join('') +
+        '</select></div>' +
+      '<button class="btn-green" style="width:100%" onclick="addMatchup()">Add Matchup</button>' +
+    '</div>'
+  ) : '';
+
+  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + listHtml + addFormHtml;
 }
 
 function addMatchup() {
   const week   = parseInt(document.getElementById('new-mu-week').value);
-  const teeTime= document.getElementById('new-mu-tee').value;
   const teamAId= document.getElementById('new-mu-teamA').value;
   const teamBId= document.getElementById('new-mu-teamB').value;
   if (!week || !teamAId || !teamBId) { showToast('Fill in all fields'); return; }
   if (teamAId === teamBId) { showToast('Select two different teams'); return; }
   if (!DATA.matchups) DATA.matchups = [];
-  DATA.matchups.push({ id: 'm' + Date.now(), week, teamAId, teamBId, teeTime });
+  DATA.matchups.push({ id: 'm' + Date.now(), week, teamAId, teamBId });
   saveData();
   renderMatchupsList();
   showToast('Matchup added ✓');
@@ -2101,62 +2169,64 @@ function loadScoringForm() {
   const el3 = document.getElementById('cfg-pts-match');
   const el4 = document.getElementById('cfg-skins-on');
   const el5 = document.getElementById('cfg-skins-fee');
-  const el6 = document.getElementById('cfg-tee-default');
   if (el1) el1.value = cfg.pointsPerHole ?? 1;
   if (el2) el2.value = cfg.tiePoints ?? 0.5;
   if (el3) el3.value = cfg.matchBonus ?? 2;
   if (el4) { el4.checked = cfg.skinsEnabled || false; toggleSkinsSection(el4); }
   if (el5) el5.value = cfg.skinsFee ?? 5;
-  if (el6) el6.value = cfg.teeTimeDefault || '17:30';
   const stablefordRadio = document.querySelector(`input[name="cfg-stableford"][value="${cfg.stablefordVariant || 'standard'}"]`);
   if (stablefordRadio) stablefordRadio.checked = true;
   updateStablefordTable();
+  refreshEditModeUI('scoring');
 }
 
 function saveScoringConfig() {
   DATA.scoringConfig = {
-    pointsPerHole:  parseFloat(document.getElementById('cfg-pts-hole').value) || 1,
-    tiePoints:      parseFloat(document.getElementById('cfg-pts-tie').value)  || 0.5,
-    matchBonus:     parseFloat(document.getElementById('cfg-pts-match').value)|| 2,
-    skinsEnabled:   document.getElementById('cfg-skins-on').checked,
-    skinsFee:       parseFloat(document.getElementById('cfg-skins-fee').value)|| 5,
-    teeTimeDefault:    document.getElementById('cfg-tee-default').value || '17:30',
-    teeOverrides:      DATA.scoringConfig?.teeOverrides || [],
+    pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) || 1,
+    tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  || 0.5,
+    matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value)|| 2,
+    skinsEnabled:      document.getElementById('cfg-skins-on').checked,
+    skinsFee:          parseFloat(document.getElementById('cfg-skins-fee').value)|| 5,
     stablefordVariant: document.querySelector('input[name="cfg-stableford"]:checked')?.value || 'standard'
   };
   if (DATA.league) DATA.league.skinsEnabled = DATA.scoringConfig.skinsEnabled;
   saveData();
+  exitEditMode('scoring');
   showToast('Scoring settings saved ✓');
 }
 
-function addTeeOverride() {
-  const wrap = document.getElementById('tee-overrides');
-  const row  = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:8px;margin-top:8px;align-items:center';
-  row.innerHTML = `<input class="form-input" type="number" placeholder="Wk" style="width:60px" min="1"><input class="form-input" type="time" style="flex:1"><button class="btn-sm btn-delete" onclick="this.parentElement.remove()">×</button>`;
-  wrap.appendChild(row);
-}
 
 // ============================================================
 // ANNOUNCEMENTS
 // ============================================================
 function renderAnnounceList() {
-  const list = document.getElementById('announce-list');
-  if (!list) return;
-  if (DATA.announcements.length === 0) {
-    list.innerHTML = `<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No announcements yet.</div>`;
-    return;
-  }
-  list.innerHTML = DATA.announcements.slice().reverse().map(a => {
-    const d = new Date(a.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    return `<div class="announce-row">
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:700;color:#1A1A1A">${a.title}</div>
-        <div style="font-size:12px;color:#6B7280;margin-top:2px">${d}</div>
-      </div>
-      <button class="btn-sm btn-delete" onclick="deleteAnnouncement('${a.id}')">Delete</button>
-    </div>`;
-  }).join('');
+  const wrap = document.getElementById('announce-panel-content');
+  if (!wrap) return;
+  const on = adminEditModes['announce'] || false;
+
+  const listHtml = DATA.announcements.length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No announcements yet.</div>'
+    : DATA.announcements.slice().reverse().map(a => {
+        const d = new Date(a.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        return '<div class="announce-row">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + a.title + '</div>' +
+            '<div style="font-size:12px;color:#6B7280;margin-top:2px">' + d + '</div>' +
+          '</div>' +
+          (on ? '<button class="btn-sm btn-delete" onclick="deleteAnnouncement(\'' + a.id + '\')">Delete</button>' : '') +
+        '</div>';
+      }).join('');
+
+  const createFormHtml = on ? (
+    '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
+      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">New Announcement</div>' +
+      '<div class="form-group"><input class="form-input" id="new-announce-title" placeholder="Title"></div>' +
+      '<div class="form-group"><textarea class="form-input" id="new-announce-body" rows="4" placeholder="Message..." style="resize:none;line-height:1.5"></textarea></div>' +
+      '<button class="btn-green" style="width:100%" onclick="createAnnouncement()">Send Announcement</button>' +
+    '</div>'
+  ) : '';
+
+  wrap.innerHTML = editModeBar('announce', 'Announcements', 'exitEditMode(\'announce\')') + listHtml + createFormHtml;
 }
 
 function createAnnouncement() {
