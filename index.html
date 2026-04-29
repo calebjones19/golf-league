@@ -7,8 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#F5F0E8;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh}
@@ -493,6 +491,8 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
 // ============================================================
 // FIREBASE INIT
@@ -1685,6 +1685,15 @@ function handleAuthState(user) {
 // ============================================================
 loadData();
 buildLandingLoading();
+
+if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
+  document.getElementById('landing-body').innerHTML = `
+    <div style="background:rgba(220,38,38,0.15);border:1.5px solid rgba(220,38,38,0.4);border-radius:12px;padding:16px;text-align:center">
+      <div style="color:#fca5a5;font-size:13px;font-weight:600">Firebase failed to load</div>
+      <div style="color:#fca5a5;font-size:11px;margin-top:4px">Check your connection and reload.</div>
+    </div>`;
+  throw new Error('Firebase not loaded');
+}
 
 // Fallback: if auth doesn't resolve in 6s, show sign-in screen
 setTimeout(() => {
