@@ -136,7 +136,7 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
 .admin-nav::-webkit-scrollbar{display:none}
 .admin-nav-tab{flex-shrink:0;padding:11px 14px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
 .admin-nav-tab.active{color:#1B4332;border-bottom-color:#C9A84C}
-.admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;overflow-x:hidden;flex:1;-webkit-overflow-scrolling:touch}
 .admin-panel.active{display:block}
 #sec-admin.active{display:flex;flex-direction:column;overflow:hidden}
 /* Par/hcp grid */
@@ -285,7 +285,6 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
     <!-- Admin sub-nav -->
     <div class="admin-nav" id="admin-nav">
       <button class="admin-nav-tab active" onclick="switchAdminTab('league',this)">League</button>
-      <button class="admin-nav-tab" onclick="switchAdminTab('schedule',this)">Schedule</button>
       <button class="admin-nav-tab" onclick="switchAdminTab('players',this)">Players</button>
       <button class="admin-nav-tab" onclick="switchAdminTab('teams',this)">Teams</button>
       <button class="admin-nav-tab" onclick="switchAdminTab('scoring',this)">Scoring</button>
@@ -328,6 +327,14 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
         <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
       </div>
       <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label class="form-label" style="margin:0">Cancellations</label>
+          <button class="btn-sm btn-outline" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
+        </div>
+        <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
+        <div id="schedule-list"></div>
+      </div>
+      <div class="form-group">
         <label class="form-label">League Format</label>
         <div class="radio-group">
           <label class="radio-label"><input type="radio" name="cfg-format" value="match_play" checked> Match Play</label>
@@ -336,13 +343,6 @@ section.active{display:block;position:fixed;top:50px;bottom:70px;left:50%;transf
         </div>
       </div>
       <button class="btn-green" style="width:100%;margin-top:4px" onclick="saveLeagueConfig()">Save League Settings</button>
-    </div>
-
-    <!-- Schedule -->
-    <div class="admin-panel" id="admin-schedule">
-      <div id="schedule-end-date" style="font-size:13px;color:#6B7280;margin-bottom:14px"></div>
-      <button class="btn-outline" style="width:100%;margin-bottom:14px" onclick="showAddWeekOff()">+ Add Cancellation</button>
-      <div id="schedule-list"></div>
     </div>
 
     <!-- Players -->
@@ -944,11 +944,7 @@ function switchAdminTab(id, btn) {
 }
 
 function buildAdmin() {
-  if (!isAdmin) {
-    showSection('dashboard');
-    openAdminLogin();
-    return;
-  }
+  if (!isAdmin) { showSection('dashboard'); return; }
   renderHoleGrids();
   loadLeagueForm();
   renderScheduleList();
@@ -1553,13 +1549,18 @@ function buildLandingNotInLeague(user) {
 }
 
 function signInWithGoogle() {
-  auth.signInWithPopup(googleProvider).catch(e => {
-    if (e.code === 'auth/popup-blocked') {
-      showToast('Popup blocked — please allow popups and try again.');
-    } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-      showToast('Sign-in failed: ' + (e.code || e.message));
-    }
-  });
+  auth.signInWithPopup(googleProvider)
+    .then(result => {
+      // Handle result directly — don't rely on onAuthStateChanged firing correctly after popup
+      handleAuthState(result.user);
+    })
+    .catch(e => {
+      if (e.code === 'auth/popup-blocked') {
+        showToast('Popup blocked — please allow popups and try again.');
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        showToast('Sign-in failed: ' + (e.code || e.message));
+      }
+    });
 }
 
 function claimAdmin() {
@@ -1578,15 +1579,18 @@ function closeLanding() {
 }
 
 async function signOut() {
+  signingOut = true;
   DATA.currentUserId = null;
   saveData();
   closeProfileSheet();
-  if (isAdmin) {
-    isAdmin = false;
-    sessionStorage.removeItem('golf_is_admin');
-  }
+  isAdmin = false;
+  sessionStorage.removeItem('golf_is_admin');
+  initialAuthChecked = false; // Allow onAuthStateChanged to fire fresh next time
   await auth.signOut();
-  // onAuthStateChanged will fire and show sign-in screen
+  signingOut = false;
+  buildBottomNav();
+  updateAvatarBtn();
+  buildLandingSignIn();
 }
 
 function openProfileSheet() {
@@ -1695,29 +1699,21 @@ if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
   throw new Error('Firebase not loaded');
 }
 
-// Fallback: if auth doesn't resolve in 6s, show sign-in screen
+// onAuthStateChanged only used for initial page-load auth check.
+// Popup results are handled directly in signInWithGoogle().
+let initialAuthChecked = false;
+let signingOut = false;
+
+// Fallback: if auth doesn't resolve in 6s show sign-in
 setTimeout(() => {
-  const body = document.getElementById('landing-body');
-  if (body && body.querySelector('.landing-spinner')) buildLandingSignIn();
+  if (!initialAuthChecked) { initialAuthChecked = true; buildLandingSignIn(); }
 }, 6000);
 
 auth.onAuthStateChanged(user => {
-  try {
-    handleAuthState(user);
-  } catch(e) {
-    console.error('Auth state error:', e);
-    document.getElementById('landing-body').innerHTML = `
-      <div style="background:rgba(220,38,38,0.15);border:1.5px solid rgba(220,38,38,0.4);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px">
-        <div style="color:#fca5a5;font-size:12px;font-weight:600;margin-bottom:4px">Something went wrong</div>
-        <div style="color:#fca5a5;font-size:11px;line-height:1.5;word-break:break-all">${e.message}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center">
-        <button class="google-signin-btn" onclick="signInWithGoogle()">
-          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-          Sign in with Google
-        </button>
-      </div>`;
-  }
+  if (signingOut) return;         // Handled by signOut() directly
+  if (initialAuthChecked) return; // Ignore subsequent fires (popup intermediate states)
+  initialAuthChecked = true;
+  try { handleAuthState(user); } catch(e) { console.error(e); buildLandingSignIn(); }
 });
 </script>
 </body>
