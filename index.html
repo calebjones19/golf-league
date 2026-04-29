@@ -422,6 +422,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:120px">
       </div>
       <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
+      <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Stableford</div>
+      <div class="radio-group" style="margin-bottom:14px">
+        <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()"> Standard</label>
+        <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()"> Modified</label>
+      </div>
+      <div id="stableford-table"></div>
+      <div class="divider" style="margin:14px 0;background:#E5E7EB"></div>
       <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:14px">Skins</div>
       <div class="toggle-wrap">
         <span class="toggle-label">Skins enabled</span>
@@ -1928,6 +1935,45 @@ function toggleSkinsSection(el) {
   document.getElementById('skins-fee-row').style.display = el.checked ? 'block' : 'none';
 }
 
+const STABLEFORD_DATA = {
+  standard: [
+    ['Double bogey or worse', '0'],
+    ['Bogey', '1'],
+    ['Par', '2'],
+    ['Birdie', '3'],
+    ['Eagle', '4'],
+    ['Albatross', '5'],
+  ],
+  modified: [
+    ['Double bogey or worse', '−3'],
+    ['Bogey', '−1'],
+    ['Par', '0'],
+    ['Birdie', '+2'],
+    ['Eagle', '+5'],
+    ['Albatross', '+8'],
+  ]
+};
+
+function updateStablefordTable() {
+  const variant = document.querySelector('input[name="cfg-stableford"]:checked')?.value || 'standard';
+  const rows = STABLEFORD_DATA[variant];
+  const el = document.getElementById('stableford-table');
+  if (!el) return;
+  el.innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:7px 10px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;color:#374151;border-radius:8px 0 0 0">Score</th>' +
+    '<th style="text-align:center;padding:7px 10px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;color:#374151;width:80px;border-radius:0 8px 0 0">Points</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(([score, pts], i) =>
+      '<tr>' +
+      '<td style="padding:7px 10px;border:1px solid #E5E7EB;color:#1A1A1A;background:' + (i%2===0?'#fff':'#F9FAFB') + '">' + score + '</td>' +
+      '<td style="padding:7px 10px;border:1px solid #E5E7EB;text-align:center;font-weight:700;color:' + (pts.startsWith('+') || parseInt(pts) > 0 ? '#16A34A' : pts.startsWith('−') ? '#DC2626' : '#6B7280') + ';background:' + (i%2===0?'#fff':'#F9FAFB') + '">' + pts + '</td>' +
+      '</tr>'
+    ).join('') +
+    '</tbody></table>';
+}
+
 function loadScoringForm() {
   const cfg = DATA.scoringConfig || {};
   const el1 = document.getElementById('cfg-pts-hole');
@@ -1942,6 +1988,9 @@ function loadScoringForm() {
   if (el4) { el4.checked = cfg.skinsEnabled || false; toggleSkinsSection(el4); }
   if (el5) el5.value = cfg.skinsFee ?? 5;
   if (el6) el6.value = cfg.teeTimeDefault || '17:30';
+  const stablefordRadio = document.querySelector(`input[name="cfg-stableford"][value="${cfg.stablefordVariant || 'standard'}"]`);
+  if (stablefordRadio) stablefordRadio.checked = true;
+  updateStablefordTable();
 }
 
 function saveScoringConfig() {
@@ -1951,8 +2000,9 @@ function saveScoringConfig() {
     matchBonus:     parseFloat(document.getElementById('cfg-pts-match').value)|| 2,
     skinsEnabled:   document.getElementById('cfg-skins-on').checked,
     skinsFee:       parseFloat(document.getElementById('cfg-skins-fee').value)|| 5,
-    teeTimeDefault: document.getElementById('cfg-tee-default').value || '17:30',
-    teeOverrides:   DATA.scoringConfig?.teeOverrides || []
+    teeTimeDefault:    document.getElementById('cfg-tee-default').value || '17:30',
+    teeOverrides:      DATA.scoringConfig?.teeOverrides || [],
+    stablefordVariant: document.querySelector('input[name="cfg-stableford"]:checked')?.value || 'standard'
   };
   if (DATA.league) DATA.league.skinsEnabled = DATA.scoringConfig.skinsEnabled;
   saveData();
