@@ -4373,8 +4373,11 @@ function handleAuthState(user) {
   } else {
     // Signed in but no player match — not in league
     DATA.currentUserId = null;
-    saveData();
     updateAvatarBtn();
+    // If Firestore hasn't loaded yet, DATA.players may be empty — don't flash "not in league".
+    // The onSnapshot handler will re-attempt matching once real data arrives.
+    if (!_firestoreLoaded) return;
+    saveData();
     buildLandingNotInLeague(user);
     showSection('dashboard');
   }
@@ -4433,7 +4436,7 @@ function _adjustChatForKeyboard() {
   if (keyboardOpen) {
     // Drive bottom edge up by exactly the keyboard+accessory height.
     // Using top+bottom (not height) so inset:0 CSS doesn't fight us.
-    panel.style.top    = vv.offsetTop + 'px';
+    panel.style.top    = '0'; // always anchor to top — vv.offsetTop shift would expose dashboard
     panel.style.bottom = keyboardHeight + 'px';
     panel.style.height = '';
     // Scroll to bottom if already near it
