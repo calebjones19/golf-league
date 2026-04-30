@@ -1009,6 +1009,31 @@ function startFirestoreSync() {
     const remote = snap.data();
     _applyRemoteData(remote);
     _firestoreLoaded = true;
+
+    // Re-attempt player matching if we still don't know who the user is.
+    // This handles the race where auth resolved before Firestore data arrived.
+    const user = auth.currentUser;
+    if (user && !DATA.currentUserId) {
+      const email = user.email.toLowerCase();
+      let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
+      if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
+      if (player) {
+        if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; }
+        DATA.currentUserId = player.id;
+        saveData();
+        updateAvatarBtn();
+        closeLanding();
+        showSection('dashboard');
+        checkAnnouncements();
+        return; // refreshCurrentSection called via showSection
+      } else if (isAdmin) {
+        updateAvatarBtn();
+        closeLanding();
+        showSection('dashboard');
+        return;
+      }
+    }
+
     // Refresh whatever section is currently visible
     refreshCurrentSection();
     updateChatBadge();
