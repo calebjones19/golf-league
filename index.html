@@ -1080,31 +1080,29 @@ function buildDashboard() {
   }
 
   // ── 3. MY SKINS BLOCK ────────────────────────────────────────────────────
-  if (hasSkins) {
-    html += '<div class="card" style="cursor:pointer;margin-top:12px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border:none" onclick="showSection(\'skins\')">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between">' +
-        '<div>' +
-          '<div style="font-size:10px;font-weight:700;color:#6b9e82;letter-spacing:0.8px;margin-bottom:6px">MY SKINS</div>' +
-          '<div style="font-size:42px;font-weight:800;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif;line-height:1">' +
-            '$' + mySkinsTotal +
-          '</div>' +
-          '<div style="font-size:12px;color:#a0bfab;margin-top:6px">' + weeksLabel + '</div>' +
+  html += '<div class="card" style="cursor:pointer;margin-top:12px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border:none" onclick="showSection(\'skins\')">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between">' +
+      '<div>' +
+        '<div style="font-size:10px;font-weight:700;color:#6b9e82;letter-spacing:0.8px;margin-bottom:6px">MY SKINS</div>' +
+        '<div style="font-size:42px;font-weight:800;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif;line-height:1">' +
+          '$' + mySkinsTotal +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
-          '<div style="width:52px;height:52px;border-radius:14px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center">' +
-            '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:3px">' +
-            '<span style="font-size:11px;color:#a0bfab;font-weight:500">View board</span>' +
-            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a0bfab" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
-          '</div>' +
+        '<div style="font-size:12px;color:#a0bfab;margin-top:6px">' + weeksLabel + '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
+        '<div style="width:52px;height:52px;border-radius:14px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center">' +
+          '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:3px">' +
+          '<span style="font-size:11px;color:#a0bfab;font-weight:500">View board</span>' +
+          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a0bfab" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>' +
       '</div>' +
-    '</div>';
-  }
+    '</div>' +
+  '</div>';
 
   // ── 4. TEAM POINTS + PERSONAL STABLEFORD (2 square blocks) ──────────────
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-top:0">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-top:12px">';
 
   // Team Points
   html += '<div style="background:#fff;border-radius:16px;padding:16px 14px;border:1px solid #E5E7EB;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px" onclick="showSection(\'standings\')">' +
@@ -1133,7 +1131,7 @@ function buildDashboard() {
   html += '</div>';
 
   // ── 5. TOP 3 STANDINGS ───────────────────────────────────────────────────
-  html += '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
+  html += '<div class="card" style="margin-top:12px;padding:0;overflow:hidden">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">' +
       '<div style="font-size:14px;font-weight:700;color:#1A1A1A">🏆 Standings</div>' +
       '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="showSection(\'standings\')">' +
@@ -3323,9 +3321,29 @@ function updateChatBadge() {
   if (dot) dot.classList.toggle('show', msgs.length > seen);
 }
 
+function _adjustChatForKeyboard() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel || !panel.classList.contains('open')) return;
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    panel.style.bottom = keyboardH + 'px';
+    if (keyboardH > 0) {
+      // scroll messages to bottom when keyboard opens
+      const msgs = document.getElementById('chat-messages');
+      if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
+    }
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
+  window.visualViewport.addEventListener('scroll', _adjustChatForKeyboard);
+}
+
 function openChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.add('open');
+  panel.style.bottom = '';
   // mark all as seen
   setChatSeen((DATA.messages||[]).length);
   updateChatBadge();
@@ -3339,7 +3357,9 @@ function openChat() {
 }
 
 function closeChat() {
-  document.getElementById('chat-panel').classList.remove('open');
+  const panel = document.getElementById('chat-panel');
+  panel.classList.remove('open');
+  panel.style.bottom = '';
   dismissReactionPicker();
   dismissContextMenu();
 }
