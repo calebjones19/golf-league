@@ -538,6 +538,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League" disabled>
       </div>
       <div class="form-group">
+        <label class="form-label">League Code <span style="font-weight:400;color:#9CA3AF">(players enter this to self-register)</span></label>
+        <input class="form-input" id="cfg-league-code" placeholder="e.g. EAGLES25" disabled autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;letter-spacing:2px;text-transform:uppercase">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:5px">Share this with your group. Leave blank to disable self-join.</div>
+      </div>
+      <div class="form-group">
         <label class="form-label">Golf Course</label>
         <div class="course-search-wrap">
           <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)" disabled>
@@ -597,11 +602,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </div>
         <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
         <div id="schedule-list"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Join Code <span style="font-weight:400;color:#9CA3AF">(players enter this to self-register)</span></label>
-        <input class="form-input" id="cfg-league-code" placeholder="e.g. EAGLES25" disabled autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;letter-spacing:2px;text-transform:uppercase">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:5px">Share this with your group. Leave blank to disable self-join.</div>
       </div>
       <div class="form-group">
         <label class="form-label">League Format</label>
