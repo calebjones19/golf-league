@@ -304,9 +304,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .gif-search-bar{display:flex;align-items:center;gap:8px;background:#F3F4F6;border-radius:10px;padding:8px 12px;flex-shrink:0}
 .gif-search-input{flex:1;border:none;background:none;font-size:14px;color:#1A1A1A;font-family:'DM Sans',sans-serif;outline:none}
 .gif-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;align-content:start;-webkit-overflow-scrolling:touch}
-.gif-item{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;cursor:pointer;background:#F3F4F6;transition:opacity 0.15s;flex-shrink:0}
+.gif-item{position:relative;width:100%;padding-bottom:66%;border-radius:8px;overflow:hidden;cursor:pointer;background:#F3F4F6;transition:opacity 0.15s}
 .gif-item:active{opacity:0.7}
-.gif-item img{width:100%;height:100%;object-fit:cover;display:block}
+.gif-item img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
 /* Image attachment preview (before send) */
 .img-preview-bar{display:flex;align-items:flex-start;gap:8px;padding:6px 0}
 .img-preview-thumb{width:60px;height:60px;border-radius:10px;object-fit:cover;border:1.5px solid #E5E7EB}
@@ -385,7 +385,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="gif-search-bar">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="gif-search-input" id="gif-search-input" placeholder="Search GIFs…" oninput="searchGifsDebounced(this.value)" />
-        <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;font-size:16px;padding:0;line-height:1" onclick="closeGifPanel()">✕</button>
+        <!-- X clears the text; chevron closes the panel -->
+        <button id="gif-clear-btn" style="border:none;background:none;color:#9CA3AF;cursor:pointer;font-size:15px;padding:0 2px;line-height:1;display:none" onclick="clearGifSearch()">✕</button>
+        <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;margin-left:2px" onclick="closeGifPanel()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
       </div>
       <div class="gif-grid" id="gif-grid">
         <div style="grid-column:span 2;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>
@@ -4140,16 +4144,34 @@ function openGifPanel() {
 }
 function closeGifPanel() {
   const panel = document.getElementById('gif-panel');
-  if (panel) { panel.classList.remove('open'); }
+  if (panel) panel.classList.remove('open');
+  // Reset search state for next open
+  const inp = document.getElementById('gif-search-input');
+  if (inp) inp.value = '';
+  const clearBtn = document.getElementById('gif-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const grid = document.getElementById('gif-grid');
+  if (grid) grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>';
 }
 function searchGifsDebounced(q) {
+  // Show/hide clear button
+  const clearBtn = document.getElementById('gif-clear-btn');
+  if (clearBtn) clearBtn.style.display = q.length > 0 ? 'inline' : 'none';
   clearTimeout(_gifDebounceTimer);
   _gifDebounceTimer = setTimeout(function(){
     searchGifs(q);
-    // Dismiss keyboard once search fires so GIF results are fully visible
+    // Dismiss keyboard once search fires so results are fully visible
     const inp = document.getElementById('gif-search-input');
     if (inp) inp.blur();
   }, 400);
+}
+function clearGifSearch() {
+  const inp = document.getElementById('gif-search-input');
+  if (inp) { inp.value = ''; inp.focus(); }
+  const clearBtn = document.getElementById('gif-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const grid = document.getElementById('gif-grid');
+  if (grid) grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>';
 }
 function searchGifs(q) {
   const grid = document.getElementById('gif-grid');
