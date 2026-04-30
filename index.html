@@ -3872,7 +3872,7 @@ function openProfileSheet() {
     avatarEl.textContent = playerInitials(player);
     nameEl.textContent   = playerName(player);
     const team = DATA.teams.find(t => t.playerIds.includes(player.id));
-    subEl.textContent = (team ? team.name : 'No team') + (isAdmin ? ' · Admin' : '');
+    subEl.textContent = team ? team.name : 'No team';
 
     // Stats/details grid
     const email   = player.googleEmail || (user ? user.email : null);
