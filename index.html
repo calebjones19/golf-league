@@ -4964,7 +4964,7 @@ function showMsgContextMenu(msgId, anchorEl, isMine) {
   if (isOwner) {
     const delBtn = document.createElement('button');
     delBtn.className = 'msg-context-item danger';
-    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg> Delete';
+    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> Unsend';
     delBtn.onclick = function(){ deleteMessage(msgId); };
     menu.appendChild(delBtn);
   }
@@ -5249,7 +5249,7 @@ function renderChatMessages() {
     if (msg.replyTo) {
       const orig = msgs.find(function(m){return m.id === msg.replyTo;});
       if (orig) {
-        var origPreview = orig.deleted ? 'Message deleted'
+        var origPreview = orig.deleted ? 'Message unsent'
           : orig.attachment ? (orig.attachment.type==='image'?'📷 Photo':orig.attachment.type==='gif'?'🎞️ GIF':'📎 '+orig.attachment.name)
           : (orig.text||'');
         replyHtml = '<div class="reply-preview" onclick="scrollToMsg(\'' + orig.id + '\')">' +
@@ -5278,7 +5278,7 @@ function renderChatMessages() {
     var bubbleInner = '';
 
     if (msg.deleted) {
-      bubbleInner = '<div class="msg-bubble deleted" onclick="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ')">Message deleted</div>';
+      bubbleInner = '<div class="msg-bubble deleted" onclick="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ')">' + (isMine ? 'You unsent a message' : 'Message unsent') + '</div>';
     } else if (msg.attachment) {
       var att = msg.attachment;
       if (att.type === 'image' || att.type === 'gif') {
