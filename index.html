@@ -2403,6 +2403,12 @@ function playerFirstName(p) {
   if (p.firstName) return p.firstName;
   return p.name ? p.name.split(' ')[0] : '';
 }
+function playerLastName(p) {
+  if (!p) return '';
+  if (p.lastName) return p.lastName;
+  if (p.name) { var parts = p.name.trim().split(' '); return parts.length > 1 ? parts[parts.length - 1] : parts[0]; }
+  return '';
+}
 function playerInitials(p) {
   if (!p) return '';
   if (p.firstName || p.lastName) {
@@ -2610,8 +2616,8 @@ function tapPlayerForPairing(pid) {
   const p1 = DATA.players.find(p => p.id === pairingSelection);
   const p2 = DATA.players.find(p => p.id === pid);
   if (!p1 || !p2) return;
-  const defaultName = (p1.lastName || playerFirstName(p1));
-  const teamName = prompt('Team name:', defaultName + ' / ' + (p2.lastName || playerFirstName(p2)));
+  const defaultName = playerLastName(p1) || playerFirstName(p1);
+  const teamName = prompt('Team name:', defaultName + ' / ' + (playerLastName(p2) || playerFirstName(p2)));
   if (teamName === null) { pairingSelection = null; renderTeamsList(); return; }
   DATA.teams.push({ id: 't' + Date.now(), name: teamName || 'Team ' + (DATA.teams.length + 1), playerIds: [pairingSelection, pid] });
   pairingSelection = null;
@@ -3653,7 +3659,7 @@ function handleFileSelected(input) {
 
 // ── GIF SEARCH (Giphy) ────────────────────────────────────────────────────
 var _gifDebounceTimer = null;
-var TENOR_KEY = 'LIVDSRZULELA'; // Tenor demo API key
+var GIPHY_KEY = 'dc6zaTOxFJmzC'; // Giphy public beta key
 
 function openGifPanel() {
   const panel = document.getElementById('gif-panel');
@@ -3675,27 +3681,25 @@ function searchGifs(q) {
     return;
   }
   grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">Searching…</div>';
-  fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=18&media_filter=gif&contentfilter=medium')
+  fetch('https://api.giphy.com/v1/gifs/search?api_key=' + GIPHY_KEY + '&q=' + encodeURIComponent(q) + '&limit=18&rating=g')
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      if (!data.results || data.results.length === 0) {
+      if (!data.data || data.data.length === 0) {
         grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">No GIFs found</div>';
         return;
       }
       grid.innerHTML = '';
-      data.results.forEach(function(gif) {
-        var formats = gif.media_formats || {};
-        var thumbUrl = (formats.tinygif && formats.tinygif.url) || (formats.gif && formats.gif.url) || '';
-        var fullUrl  = (formats.gif && formats.gif.url) || thumbUrl;
-        if (!thumbUrl) return;
+      data.data.forEach(function(gif) {
+        var thumbUrl = (gif.images.fixed_width_small && gif.images.fixed_width_small.url) || gif.images.downsized_small.url || gif.images.downsized.url;
+        var fullUrl  = gif.images.downsized.url || gif.images.original.url;
         var el = document.createElement('div');
         el.className = 'gif-item';
         el.innerHTML = '<img src="' + thumbUrl + '" loading="lazy">';
-        el.onclick = function() { selectGif(fullUrl, gif.content_description || 'GIF'); };
+        el.onclick = function() { selectGif(fullUrl, gif.title || 'GIF'); };
         grid.appendChild(el);
       });
     })
-    .catch(function() {
+    .catch(function(err) {
       grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#DC2626;font-size:13px">Failed to load GIFs</div>';
     });
 }
