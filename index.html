@@ -753,18 +753,63 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- PROFILE BOTTOM SHEET -->
   <div class="modal-overlay" id="profile-overlay" onclick="closeProfileSheet(event)">
-    <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto;padding-bottom:max(24px,env(safe-area-inset-bottom))">
       <div class="sheet-handle"></div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-        <div id="profile-avatar-large" style="width:52px;height:52px;border-radius:50%;background:#1B4332;color:#C9A84C;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:'Space Grotesk',sans-serif;flex-shrink:0"></div>
-        <div>
-          <div id="profile-name" style="font-size:17px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif"></div>
-          <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
-        </div>
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-size:17px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif">Profile &amp; Settings</div>
+        <button onclick="closeProfileSheet(null)" style="width:28px;height:28px;border-radius:50%;background:#F3F4F6;border:none;color:#6B7280;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
-      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();showSection('admin')">Admin Panel</button>
+
+      <!-- Profile card -->
+      <div style="background:#F5F0E8;border-radius:16px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div id="profile-avatar-large" style="width:52px;height:52px;border-radius:50%;background:#1B4332;color:#C9A84C;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:'Space Grotesk',sans-serif;flex-shrink:0"></div>
+          <div>
+            <div id="profile-name" style="font-size:16px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif"></div>
+            <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
+          </div>
+        </div>
+        <!-- Profile details grid -->
+        <div id="profile-details" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"></div>
+      </div>
+
+      <!-- Notifications settings -->
+      <div style="background:#fff;border-radius:16px;border:1.5px solid #F3F4F6;margin-bottom:16px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid #F3F4F6">
+          <div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">NOTIFICATIONS</div>
+
+          <!-- Toggle row -->
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#1A1A1A">Chat notifications</div>
+              <div id="notif-status-text" style="font-size:11px;color:#6B7280;margin-top:2px">—</div>
+            </div>
+            <label class="toggle" style="flex-shrink:0">
+              <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Test button -->
+        <button onclick="sendTestNotification()" style="width:100%;padding:13px 16px;background:none;border:none;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif">
+          <div style="width:32px;height:32px;border-radius:8px;background:#F5F0E8;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">🔔</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1A1A1A">Send test notification</div>
+            <div style="font-size:11px;color:#6B7280;margin-top:1px">Check that notifications are working</div>
+          </div>
+          <svg style="margin-left:auto;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Admin / actions -->
+      <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet(null);showSection('admin')">Go to Admin Panel</button>
       <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px" onclick="signOut()">Sign Out</button>
-      <button onclick="hardRefresh();closeProfileSheet(null)" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Update to latest version</button>
+      <button onclick="hardRefresh();closeProfileSheet(null)" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Update to latest version
+      </button>
       <div style="text-align:center;font-size:10px;color:#D1D5DB;margin-top:8px" id="profile-version"></div>
     </div>
   </div>
@@ -3448,29 +3493,146 @@ function openProfileSheet() {
   const user   = auth.currentUser;
   if (!player && !user) return;
 
-  const avatarEl = document.getElementById('profile-avatar-large');
-  const nameEl   = document.getElementById('profile-name');
-  const subEl    = document.getElementById('profile-sub');
-  const adminBtn = document.getElementById('profile-admin-btn');
+  const avatarEl  = document.getElementById('profile-avatar-large');
+  const nameEl    = document.getElementById('profile-name');
+  const subEl     = document.getElementById('profile-sub');
+  const detailsEl = document.getElementById('profile-details');
+  const adminBtn  = document.getElementById('profile-admin-btn');
 
   if (player) {
     avatarEl.textContent = playerInitials(player);
     nameEl.textContent   = playerName(player);
-    subEl.textContent    = `Handicap ${effectiveHandicap(player)}${isAdmin ? ' · League Admin' : ''}`;
+    const team = DATA.teams.find(t => t.playerIds.includes(player.id));
+    subEl.textContent = (team ? team.name : 'No team') + (isAdmin ? ' · Admin' : '');
+
+    // Stats/details grid
+    const email   = player.googleEmail || (user ? user.email : null);
+    const hcp     = effectiveHandicap(player);
+    const standing = (() => {
+      let W=0,L=0,T=0;
+      (DATA.rounds||[]).forEach(r => {
+        const inA = (r.teamAPlayerIds||[]).includes(player.id);
+        const inB = (r.teamBPlayerIds||[]).includes(player.id);
+        if (!inA && !inB) return;
+        const myPts = inA ? r.pointsA : r.pointsB;
+        const opPts = inA ? r.pointsB : r.pointsA;
+        if (myPts > opPts) W++; else if (opPts > myPts) L++; else T++;
+      });
+      return {W,L,T};
+    })();
+
+    detailsEl.innerHTML =
+      _profileCell('Handicap', hcp) +
+      _profileCell('Record', `${standing.W}W · ${standing.L}L · ${standing.T}T`) +
+      (team ? _profileCell('Team', team.name) : '') +
+      (email ? _profileCell('Email', email) : '');
   } else {
-    // Signed in with Google but no player profile linked yet (admin-only or unclaimed)
     const initStr = user.displayName
       ? user.displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)
       : (user.email||'?')[0].toUpperCase();
     avatarEl.textContent = initStr;
     nameEl.textContent   = user.displayName || user.email;
-    subEl.textContent    = isAdmin ? 'League Admin · ' + user.email : user.email;
+    subEl.textContent    = isAdmin ? 'League Admin' : 'Signed in';
+    detailsEl.innerHTML  = _profileCell('Email', user.email || '—') +
+                           _profileCell('Role', isAdmin ? '👑 Admin' : 'Member');
   }
 
   if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
   const vEl = document.getElementById('profile-version');
   if (vEl) vEl.textContent = 'v' + APP_VERSION;
+
+  // Notification toggle state
+  _refreshNotifToggle();
+
   document.getElementById('profile-overlay').classList.add('open');
+}
+
+function _profileCell(label, value) {
+  return `<div style="background:#fff;border-radius:10px;padding:10px 12px">
+    <div style="font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:0.4px;margin-bottom:3px">${label.toUpperCase()}</div>
+    <div style="font-size:13px;font-weight:600;color:#1A1A1A;word-break:break-all">${value}</div>
+  </div>`;
+}
+
+function _refreshNotifToggle() {
+  const toggle     = document.getElementById('notif-toggle');
+  const statusText = document.getElementById('notif-status-text');
+  if (!toggle || !statusText) return;
+
+  const perm = 'Notification' in window ? Notification.permission : 'unsupported';
+  const pref = _getNotifPref();
+
+  if (perm === 'unsupported') {
+    toggle.checked  = false;
+    toggle.disabled = true;
+    statusText.textContent = 'Not supported on this device';
+    return;
+  }
+  if (perm === 'denied') {
+    toggle.checked  = false;
+    toggle.disabled = true;
+    statusText.textContent = 'Blocked in browser settings';
+    return;
+  }
+  toggle.disabled = false;
+  toggle.checked  = (perm === 'granted') && pref;
+  statusText.textContent = toggle.checked
+    ? 'On — you\'ll be notified of new messages'
+    : perm === 'default' ? 'Off — tap to enable' : 'Off';
+}
+
+function _getNotifPref() {
+  try { return localStorage.getItem('golf_notif_pref') !== 'off'; } catch(e){ return true; }
+}
+function _setNotifPref(on) {
+  try { localStorage.setItem('golf_notif_pref', on ? 'on' : 'off'); } catch(e){}
+}
+
+async function handleNotifToggle(checked) {
+  const statusText = document.getElementById('notif-status-text');
+  if (!checked) {
+    _setNotifPref(false);
+    if (statusText) statusText.textContent = 'Off';
+    return;
+  }
+  // Turning on — request permission if needed
+  if (Notification.permission === 'default') {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      _refreshNotifToggle(); // reset toggle
+      showToast('Permission denied — check browser settings');
+      return;
+    }
+  }
+  if (Notification.permission === 'granted') {
+    _setNotifPref(true);
+    if (statusText) statusText.textContent = 'On — you\'ll be notified of new messages';
+    showToast('Notifications enabled ✓');
+  } else {
+    _refreshNotifToggle();
+  }
+}
+
+function sendTestNotification() {
+  if (!('Notification' in window)) { showToast('Notifications not supported'); return; }
+  if (Notification.permission === 'denied') { showToast('Notifications are blocked — enable in browser settings'); return; }
+
+  const doSend = () => {
+    _triggerNotification({
+      senderName: 'Golf League',
+      text: '⛳ Notifications are working!'
+    });
+    showToast('Test notification sent!');
+  };
+
+  if (Notification.permission === 'granted') {
+    doSend();
+  } else {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') { _setNotifPref(true); _refreshNotifToggle(); doSend(); }
+      else showToast('Permission denied');
+    });
+  }
 }
 
 function closeProfileSheet(e) {
@@ -4259,6 +4421,7 @@ window.addEventListener('storage', function(e) {
 });
 
 function _triggerNotification(msg) {
+  if (!_getNotifPref()) return; // user turned off notifications
   const title = msg.senderName || 'League Chat';
   const body  = msg.attachment
     ? (msg.text || '') + (msg.attachment.type === 'gif' ? ' 🎞️ GIF' : ' 📎')
@@ -4288,12 +4451,10 @@ function maybePromptNotifications() {
   if (_notifPromptShown) return;
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'default') return;
+  // Only prompt if they haven't explicitly set a preference yet
+  try { if (localStorage.getItem('golf_notif_pref') !== null) return; } catch(e){}
   _notifPromptShown = true;
-
-  // Show a soft in-app prompt instead of immediately hitting the browser dialog
-  setTimeout(function() {
-    showNotifPrompt();
-  }, 2000);
+  setTimeout(showNotifPrompt, 2500);
 }
 
 function showNotifPrompt() {
@@ -4324,7 +4485,8 @@ function requestNotifPermission() {
   dismissNotifPrompt();
   if (!('Notification' in window)) return;
   Notification.requestPermission().then(function(perm) {
-    if (perm === 'granted') showToast('Notifications enabled ✓');
+    if (perm === 'granted') { _setNotifPref(true); showToast('Notifications enabled ✓'); }
+    else _setNotifPref(false);
   });
 }
 
