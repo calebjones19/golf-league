@@ -3866,7 +3866,7 @@ function submitAdminLogin() {
   const hasAnyAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
 
   if (!hasAnyAdmin) {
-    // First admin — claim it
+    // No admin registered yet — first person to claim it wins
     DATA.adminEmail = email;
     grantAdmin(email);
     saveData();
@@ -3877,14 +3877,16 @@ function submitAdminLogin() {
     return;
   }
 
-  // Check by entered email against admin list, OR by signed-in Google UID (UID is ground truth)
+  // Check 1: email matches the admin list
   const matchByEmail = isAdminEmail(email);
-  const matchByUid   = u && isAdminUid(u.uid);
-  // Also accept if the entered email matches their signed-in Google email AND that email is in admin list
-  const matchBySignedIn = signedInEmail && email === signedInEmail && isAdminEmail(signedInEmail);
+  // Check 2: UID already registered (most durable)
+  const matchByUid = u && isAdminUid(u.uid);
+  // Check 3: signed-in Google account email matches what they typed
+  //   — trust the Google account as ground truth even if adminEmails drifted
+  const matchByGoogle = u && signedInEmail && email === signedInEmail;
 
-  if (matchByEmail || matchByUid || matchBySignedIn) {
-    // Ensure their email is in adminEmails (in case it was missing)
+  if (matchByEmail || matchByUid || matchByGoogle) {
+    // Self-heal: make sure this email + UID are in the authoritative lists
     if (!isAdminEmail(email)) grantAdmin(email);
     setAdmin(true);
     closeCenterModalAnimated('admin-login-modal', () => showSection('admin'));
