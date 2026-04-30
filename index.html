@@ -797,12 +797,21 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           </div>
         </div>
 
-        <!-- Test button -->
-        <button onclick="sendTestNotification()" style="width:100%;padding:13px 16px;background:none;border:none;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <!-- Test notification -->
+        <button onclick="sendTestNotification()" style="width:100%;padding:13px 16px;background:none;border:none;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:1px solid #F3F4F6">
           <div style="width:32px;height:32px;border-radius:8px;background:#F5F0E8;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">🔔</div>
           <div>
             <div style="font-size:14px;font-weight:600;color:#1A1A1A">Send test notification</div>
             <div style="font-size:11px;color:#6B7280;margin-top:1px">Check that notifications are working</div>
+          </div>
+          <svg style="margin-left:auto;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <!-- Test badge -->
+        <button onclick="sendTestBadge()" style="width:100%;padding:13px 16px;background:none;border:none;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif">
+          <div style="width:32px;height:32px;border-radius:8px;background:#F5F0E8;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">🔴</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1A1A1A">Test app badge</div>
+            <div style="font-size:11px;color:#6B7280;margin-top:1px">Sets badge to 5 on home screen icon</div>
           </div>
           <svg style="margin-left:auto;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -3639,6 +3648,29 @@ function sendTestNotification() {
   }
 }
 
+function sendTestBadge() {
+  const supported = 'setAppBadge' in navigator;
+  if (!supported) { showToast('Badge API not supported on this browser/device'); return; }
+
+  // Try setting badge to 5 directly from page context
+  navigator.setAppBadge(5)
+    .then(function() {
+      showToast('Badge set to 5 — check your home screen icon ✓');
+      // Also send via SW so it's set in both contexts
+      if (_swReg && _swReg.active) {
+        _swReg.active.postMessage({ type: 'SET_BADGE', count: 5 });
+      }
+      // Auto-clear after 8 seconds
+      setTimeout(function() {
+        navigator.clearAppBadge().catch(function(){});
+        if (_swReg && _swReg.active) _swReg.active.postMessage({ type: 'CLEAR_BADGE' });
+      }, 8000);
+    })
+    .catch(function(err) {
+      showToast('Badge failed: ' + (err.message || err));
+    });
+}
+
 function closeProfileSheet(e) {
   if (e && e.target !== document.getElementById('profile-overlay')) return;
   document.getElementById('profile-overlay').classList.remove('open');
@@ -4406,26 +4438,29 @@ function viewFullImage(msgId) {
 // NOTIFICATIONS & SERVICE WORKER
 // ============================================================
 
-var _swReg = null; // holds ServiceWorkerRegistration once ready
+var _swReg = null; // holds active ServiceWorkerRegistration
 
-// Register SW
 if ('serviceWorker' in navigator) {
+  // Register (kicks off install/activate if needed)
   navigator.serviceWorker.register('/golf-league/sw.js').then(function(reg) {
-    _swReg = reg;
-    // If a new SW is waiting (cache update), activate it immediately
+    // Tell any waiting SW to take over immediately
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     reg.addEventListener('updatefound', function() {
-      const newSW = reg.installing;
-      if (newSW) newSW.addEventListener('statechange', function() {
-        if (newSW.state === 'installed' && reg.active) reg.active.postMessage({ type: 'SKIP_WAITING' });
-        if (newSW.state === 'activated') { _swReg = reg; updateChatBadge(); }
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', function() {
+        if (sw.state === 'waiting') sw.postMessage({ type: 'SKIP_WAITING' });
       });
     });
-    // Sync badge count to SW on registration
-    updateChatBadge();
   }).catch(function(){});
 
-  // Listen for SW messages (e.g. OPEN_CHAT from notification click)
+  // Use .ready so _swReg.active is guaranteed non-null
+  navigator.serviceWorker.ready.then(function(reg) {
+    _swReg = reg;
+    updateChatBadge(); // sync badge count now that SW is active
+  }).catch(function(){});
+
+  // Listen for SW → page messages
   navigator.serviceWorker.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'OPEN_CHAT') {
       if (!document.getElementById('chat-panel').classList.contains('open')) openChat();
