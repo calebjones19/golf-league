@@ -4065,9 +4065,11 @@ function buildLandingNotInLeague(user) {
       <div class="not-in-league-wrap">
         <div class="not-in-league-email">${user.email}</div>
         <div class="not-in-league-title">League needs rebuilding</div>
-        <div class="not-in-league-sub" style="margin-bottom:16px">Player data was lost. Sign in with the admin account (<strong style="color:#C9A84C">${masked}</strong>) to restore the league, or verify that email below to take over.</div>
+        <div class="not-in-league-sub" style="margin-bottom:20px">Player data was lost. If <strong style="color:#C9A84C">${masked}</strong> is your email, enter it below to verify. Otherwise, you can take over with your current account.</div>
         <input id="admin-verify-input" class="form-input" type="email" placeholder="Enter admin email to verify" style="margin-bottom:10px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
-        <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="verifyAdminTakeover()">Verify &amp; Take Over</button>
+        <button class="btn-gold" style="width:100%;margin-bottom:14px" onclick="verifyAdminTakeover()">Verify &amp; Take Over</button>
+        <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">— or —</div>
+        <button class="btn-gold" style="width:100%;margin-bottom:10px;background:rgba(201,168,76,0.2);border:1.5px solid rgba(201,168,76,0.5)" onclick="claimAdminFreshStart()">Take over with ${user.email}</button>
         <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign in with a different account</button>
       </div>`;
 
@@ -4140,6 +4142,29 @@ function claimAdmin() {
   closeLanding();
   showSection('admin');
   showToast('You are now the league admin ✓');
+}
+
+// Called from recovery screen when user doesn't know the original admin email.
+// Replaces the stored admin list with just the currently signed-in user.
+function claimAdminFreshStart() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const email = user.email.toLowerCase();
+  // Replace admin list entirely — old admin email is gone
+  DATA.adminEmails = [email];
+  DATA.adminEmail  = email; // compat
+  // Write directly so this persists even if players list is still empty
+  if (_firestoreLoaded) {
+    LEAGUE_DOC.set(_dataForFirestore()).catch(e => {
+      console.error('claimAdminFreshStart save failed:', e);
+      showToast('Save failed — check connection');
+    });
+  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+  setAdmin(true);
+  closeLanding();
+  showSection('admin');
+  showToast('Admin access granted — now add your players ✓');
 }
 
 function closeLanding() {
