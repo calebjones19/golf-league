@@ -6,10 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1B4332">
-<meta name="apple-mobile-web-app-title" content="Golf League">
+<meta name="apple-mobile-web-app-title" content="Fairway">
 <link rel="apple-touch-icon" href="/golf-league/icon-192.png">
 <link rel="manifest" href="/golf-league/manifest.json">
-<title>Golf League</title>
+<title>Fairway</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -342,7 +342,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     <div class="landing-inner">
       <div class="landing-top">
         <span class="landing-icon">⛳</span>
-        <div class="landing-league" id="landing-league-name">Golf League</div>
+        <div class="landing-league" id="landing-league-name">Fairway</div>
         <div class="landing-meta" id="landing-meta"></div>
       </div>
       <div class="landing-divider"></div>
@@ -353,7 +353,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
   <!-- TOP BAR -->
   <div class="top-bar">
     <div>
-      <div class="top-bar-title" id="top-bar-title">Golf League</div>
+      <div class="top-bar-title" id="top-bar-title">Fairway</div>
       <div class="top-bar-sub" id="top-bar-sub">Loading...</div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
@@ -3343,7 +3343,7 @@ function updateTopBar() {
     const weeks = DATA.schedule.filter(w=>w.status!=='cancelled').length;
     sub.textContent = `${season} Season · ${weeks} Weeks`;
   } else {
-    title.textContent = 'Golf League';
+    title.textContent = 'Fairway';
     sub.textContent   = 'Setup required';
   }
 }
@@ -3367,7 +3367,7 @@ function buildLandingTop() {
     nameEl.textContent = DATA.league.name;
     metaEl.textContent = `${DATA.league.season || new Date().getFullYear()} Season · ${DATA.league.course || ''}`;
   } else {
-    nameEl.textContent = 'Golf League';
+    nameEl.textContent = 'Fairway';
     metaEl.textContent = '';
   }
   document.getElementById('landing-overlay').classList.remove('hidden');
@@ -3632,7 +3632,7 @@ function sendTestNotification() {
 
   const doSend = () => {
     _triggerNotification({
-      senderName: 'Golf League',
+      senderName: 'Fairway',
       text: '⛳ Notifications are working!'
     });
     showToast('Test notification sent!');
