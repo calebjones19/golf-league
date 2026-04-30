@@ -3061,30 +3061,18 @@ function handleAuthState(user) {
     showSection('dashboard');
     checkAnnouncements();
   } else if (isAdmin) {
-    // Admin signed in but no player profile matched yet
-    // If there's exactly one unclaimed player, offer to link; otherwise go to admin panel
+    // Admin signed in but no player profile matched yet — go straight to admin panel
     DATA.currentUserId = null;
     saveData();
     updateAvatarBtn();
-    const unclaimedPlayers = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
-    if (DATA.players.length > 0 && unclaimedPlayers.length > 0) {
-      // Show claim screen so admin can also link their own player profile
-      buildLandingClaimProfile(user, true);
-    } else {
-      closeLanding();
-      showSection('admin');
-    }
+    closeLanding();
+    showSection('admin');
   } else {
-    // Signed in but no player match — show claim screen
+    // Signed in but no player match — not in league
     DATA.currentUserId = null;
     saveData();
     updateAvatarBtn();
-    const unclaimed = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
-    if (unclaimed.length > 0) {
-      buildLandingClaimProfile(user);
-    } else {
-      buildLandingNotInLeague(user);
-    }
+    buildLandingNotInLeague(user);
     showSection('dashboard');
   }
 }
