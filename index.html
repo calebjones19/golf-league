@@ -990,13 +990,14 @@ var _firestoreLoaded = false;
 function _applyRemoteData(raw) {
   if (!raw) return;
   // Preserve whichever messages array is longer — never downgrade message count
-  const localMsgs    = Array.isArray(DATA.messages) ? DATA.messages : [];
+  // Messages: Firestore is always the source of truth.
+  // Never let a stale local cache resurrect deleted messages.
   const remoteMsgs   = Array.isArray(raw.messages)  ? raw.messages  : [];
-  // Preserve whichever players array is longer — prevents accidental remote wipe
+  // Players: keep whichever array is longer — protects against accidental roster wipes.
   const localPlayers  = Array.isArray(DATA.players)  ? DATA.players  : [];
   const remotePlayers = Array.isArray(raw.players)   ? raw.players   : [];
   DATA = { ...DATA, ...raw };
-  DATA.messages = remoteMsgs.length  >= localMsgs.length    ? remoteMsgs  : localMsgs;
+  DATA.messages = remoteMsgs;
   DATA.players  = remotePlayers.length >= localPlayers.length ? remotePlayers : localPlayers;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
