@@ -346,22 +346,27 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
       </div>
       <div class="form-group">
-        <div style="display:grid;grid-template-columns:1fr 60px;gap:8px 10px">
-          <div>
+        <div style="display:flex;gap:10px;margin-bottom:10px">
+          <div style="width:136px">
             <label class="form-label">Start Date</label>
             <input class="form-input" type="date" id="cfg-start" disabled>
           </div>
-          <div>
+          <div style="width:54px">
             <label class="form-label">Weeks</label>
-            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18" style="text-align:center;padding-left:4px;padding-right:4px" disabled>
+            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18" style="text-align:center;padding-left:0;padding-right:0" disabled>
           </div>
-          <div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="width:116px">
             <label class="form-label">Start Time</label>
             <input class="form-input" type="time" id="cfg-start-time" value="17:30" disabled>
           </div>
-          <div>
-            <label class="form-label">Interval (min)</label>
-            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8" style="text-align:center;padding-left:4px;padding-right:4px" disabled>
+          <div style="width:54px">
+            <label class="form-label">Interval</label>
+            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8" style="text-align:center;padding-left:0;padding-right:0" disabled>
+          </div>
+          <div style="flex:1;align-self:flex-end;padding-bottom:11px">
+            <span style="font-size:11px;color:#9CA3AF">mins between groups</span>
           </div>
         </div>
       </div>
