@@ -940,10 +940,11 @@ function showSection(id) {
 
 function buildBottomNav() {
   const tabs = [
-    { id:'dashboard',   label:'Home',  icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
-    { id:'score',       label:'Score', icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
-    { id:'leaderboard', label:'Board', icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
-    { id:'skins',       label:'Skins', icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
+    { id:'dashboard',   label:'Home',     icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+    { id:'score',       label:'Score',    icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
+    { id:'standings',   label:'Matchups', icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+    { id:'leaderboard', label:'Board',    icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
+    { id:'skins',       label:'Skins',    icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
   ];
   if (isAdmin) {
     tabs.push({ id:'admin', label:'Admin', icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', adminTab: true });
@@ -1994,87 +1995,172 @@ function buildSkins() {
 // ============================================================
 // STANDINGS
 // ============================================================
-function buildStandings() {
-  buildMatchPlayStandings();
-}
+function buildStandings() { buildMatchups(); }
 
-function buildMatchPlayStandings() {
+function buildMatchups() {
   var el = document.getElementById('standings-content');
-  if (DATA.teams.length === 0) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-title">No Teams Yet</div><div class="empty-state-sub">Set up teams in Admin to see standings here.</div></div>';
+  if (!DATA.league || !DATA.matchups || DATA.matchups.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div>' +
+      '<div class="empty-state-title">No Schedule Yet</div>' +
+      '<div class="empty-state-sub">Set up teams and generate a schedule in Admin.</div></div>';
     return;
   }
 
-  // Tally team stats from rounds
-  var teamStats = {};
-  DATA.teams.forEach(function(t) {
-    teamStats[t.id] = { id: t.id, name: t.name, playerIds: t.playerIds, W: 0, L: 0, T: 0, pts: 0 };
-  });
+  var thisWeek  = getCurrentWeek();
+  var rounds    = DATA.rounds || [];
+  var myTeam    = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
+  var schedule  = DATA.schedule || [];
 
-  (DATA.rounds || []).forEach(function(r) {
-    var sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
-    if (!sA || !sB) return;
-    sA.pts += r.pointsA; sB.pts += r.pointsB;
-    if (r.pointsA > r.pointsB) { sA.W++; sB.L++; }
-    else if (r.pointsB > r.pointsA) { sB.W++; sA.L++; }
-    else { sA.T++; sB.T++; }
-  });
+  // Build a map of week → completed round results
+  var roundsByWeek = {};
+  rounds.forEach(function(r){ roundsByWeek[r.week] = (roundsByWeek[r.week]||[]).concat(r); });
 
-  var sorted = Object.values(teamStats).sort(function(a,b){ return b.pts - a.pts || b.W - a.W; });
-  var hasSkins = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
-  var myTeam   = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
+  // Group matchups by week, sorted
+  var grouped = {};
+  DATA.matchups.forEach(function(m){ if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
+  var allWeeks = Object.keys(grouped).map(Number).sort(function(a,b){return a-b;});
 
-  function pname(pid) {
-    var p = DATA.players.find(function(pl){return pl.id === pid;});
-    return p ? playerFirstName(p) : '';
+  function teamName(id) { var t = DATA.teams.find(function(t){return t.id===id;}); return t?t.name:'?'; }
+  function pnames(t) {
+    if (!t) return '';
+    return (t.playerIds||[]).map(function(pid){
+      var p = DATA.players.find(function(pl){return pl.id===pid;}); return p?playerLastName(p):'';
+    }).filter(Boolean).join(' / ');
+  }
+  function schedDate(week) {
+    var s = schedule.find(function(s){return s.week===week;});
+    if (!s) return '';
+    return new Date(s.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   }
 
-  var rows = sorted.map(function(s, i) {
-    var isMe = myTeam && myTeam.id === s.id;
-    var rank = i === 0 ? '🏆' : (i + 1).toString();
-    return '<tr'+(isMe?' style="background:#F0FFF4"':'')+'>' +
-      '<td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:'+(i===0?'14':'13')+'px;font-weight:600;color:'+(i===0?'#C9A84C':'#9CA3AF')+'">'+rank+'</div></td>' +
-      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+s.name+(isMe?'<span class="you-badge">You</span>':'')+'</div><div style="font-size:10px;color:#9CA3AF">'+s.playerIds.map(pname).join(' & ')+'</div></td>' +
-      '<td style="color:#16A34A;font-weight:600">'+s.W+'</td>' +
-      '<td style="color:#DC2626;font-weight:600">'+s.L+'</td>' +
-      '<td style="color:#6B7280;font-weight:600">'+s.T+'</td>' +
-      '<td class="td-pts">'+s.pts+'</td>' +
-      (hasSkins ? '<td style="color:#C9A84C;font-weight:600">—</td>' : '') +
-    '</tr>';
-  }).join('');
+  function matchupCard(m, weekStatus) {
+    var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
+    if (!tA||!tB) return '';
+    var isMyMatch = myTeam && (myTeam.id===m.teamAId || myTeam.id===m.teamBId);
 
-  var recentHtml = '';
-  var rounds = DATA.rounds || [];
-  if (rounds.length > 0) {
-    recentHtml = '<div style="padding:12px 16px 4px"><div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:8px">Recent Results</div>' +
-      rounds.slice(-3).reverse().map(function(r) {
-        var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
-        var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
-        if (!tA || !tB) return '';
-        var winner = r.pointsA > r.pointsB ? tA.name : r.pointsB > r.pointsA ? tB.name : 'Tie';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
-          '<span style="font-size:12px;color:#6B7280">Wk '+r.week+'</span>' +
-          '<span style="font-size:12px;font-weight:600;color:#1A1A1A">'+tA.name+' '+r.pointsA+' – '+r.pointsB+' '+tB.name+'</span>' +
-          '<span class="badge-completed">'+winner+'</span>' +
+    // Check if live
+    var isLive = activeMatch && activeMatch.teamAId===m.teamAId && activeMatch.teamBId===m.teamBId;
+    // Check if completed
+    var done = (roundsByWeek[m.week]||[]).find(function(r){return r.teamAId===m.teamAId&&r.teamBId===m.teamBId;});
+
+    var bg = isMyMatch ? 'background:rgba(27,67,50,0.04);' : '';
+    var border = isMyMatch ? 'border-left:3px solid #1B4332;padding-left:13px;' : 'padding-left:16px;';
+
+    var statusHtml = '';
+    if (isLive) {
+      var liveMP = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+      statusHtml =
+        '<div style="display:flex;align-items:center;gap:6px;margin-top:6px">' +
+          '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>' +
+          '<span style="font-size:18px;font-weight:800;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">' +
+            liveMP.pointsA + ' – ' + liveMP.pointsB +
+          '</span>' +
+          '<button onclick="showSection(\'score\')" style="margin-left:auto;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">View →</button>' +
         '</div>';
-      }).join('') + '</div>';
+    } else if (done) {
+      var winnerName = done.pointsA > done.pointsB ? tA.name : done.pointsB > done.pointsA ? tB.name : null;
+      statusHtml =
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:5px">' +
+          '<span style="font-size:16px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' +
+            done.pointsA + ' – ' + done.pointsB +
+          '</span>' +
+          (winnerName
+            ? '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + winnerName + ' wins</span>'
+            : '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>') +
+        '</div>';
+    } else if (weekStatus === 'this') {
+      statusHtml =
+        '<div style="margin-top:5px">' +
+          (isMyMatch
+            ? '<button onclick="showSection(\'score\')" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">Start Scoring →</button>'
+            : '<span style="font-size:11px;color:#9CA3AF">Not yet started</span>') +
+        '</div>';
+    }
+
+    return '<div style="'+bg+border+'border-bottom:1px solid #F5F0E8;padding-top:12px;padding-right:16px;padding-bottom:12px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' +
+            tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name +
+          '</div>' +
+          '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + pnames(tA) + '  ·  ' + pnames(tB) + '</div>' +
+        '</div>' +
+      '</div>' +
+      statusHtml +
+    '</div>';
   }
 
-  el.innerHTML =
-    '<div style="padding:16px 16px 8px"><div class="section-title" style="padding:0">Team Standings</div></div>' +
-    '<div class="card" style="margin:0 16px">' +
-      '<table class="standings-table">' +
-        '<thead><tr>' +
-          '<th style="width:28px">#</th>' +
-          '<th>Team</th>' +
-          '<th>W</th><th>L</th><th>T</th>' +
-          '<th>Pts</th>' +
-          (hasSkins ? '<th>Skins</th>' : '') +
-        '</tr></thead>' +
-        '<tbody>'+rows+'</tbody>' +
-      '</table>' +
-    '</div>' +
-    recentHtml;
+  var html = '';
+
+  // ── Separate weeks: past, this, upcoming ────────────────────────────────
+  var pastWeeks     = allWeeks.filter(function(w){ return w < thisWeek; });
+  var thisWeekArr   = allWeeks.filter(function(w){ return w === thisWeek; });
+  var upcomingWeeks = allWeeks.filter(function(w){ return w > thisWeek; });
+
+  // THIS WEEK
+  if (thisWeekArr.length) {
+    var d = schedDate(thisWeek);
+    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid #F5F0E8">' +
+        '<div>' +
+          '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.8px">THIS WEEK — WEEK ' + thisWeek + '</div>' +
+          (d ? '<div style="font-size:12px;color:#6B7280;margin-top:1px">'+d+'</div>' : '') +
+        '</div>' +
+        (activeMatch ? '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>' : '') +
+      '</div>' +
+      grouped[thisWeek].map(function(m){ return matchupCard(m, 'this'); }).join('') +
+    '</div>';
+  }
+
+  // UPCOMING WEEKS (next 4)
+  var nextFew = upcomingWeeks.slice(0, 4);
+  if (nextFew.length) {
+    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
+      '<div style="padding:12px 16px 10px;border-bottom:1px solid #F5F0E8">' +
+        '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.8px">UPCOMING</div>' +
+      '</div>';
+    nextFew.forEach(function(w) {
+      var d = schedDate(w);
+      html += '<div style="padding:10px 16px 4px;border-bottom:1px solid #F5F0E8">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:2px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
+        grouped[w].map(function(m){
+          var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
+          var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
+          if(!tA||!tB) return '';
+          var isMyMatch = myTeam && (myTeam.id===m.teamAId||myTeam.id===m.teamBId);
+          return '<div style="display:flex;align-items:center;padding:5px 0;'+(isMyMatch?'font-weight:700':'')+'">' +
+            (isMyMatch ? '<span style="width:6px;height:6px;border-radius:50%;background:#1B4332;margin-right:8px;flex-shrink:0;display:inline-block"></span>' : '<span style="width:6px;margin-right:8px;display:inline-block"></span>') +
+            '<span style="font-size:12px;color:'+(isMyMatch?'#1A1A1A':'#6B7280')+'">' + tA.name + ' vs ' + tB.name + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    });
+    html += '</div>';
+    if (upcomingWeeks.length > 4) {
+      html += '<div style="text-align:center;padding:10px 0 4px;font-size:11px;color:#9CA3AF">' + (upcomingWeeks.length - 4) + ' more weeks to come</div>';
+    }
+  }
+
+  // PAST RESULTS (last 3 weeks)
+  var recentPast = pastWeeks.slice(-3).reverse();
+  if (recentPast.length) {
+    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
+      '<div style="padding:12px 16px 10px;border-bottom:1px solid #F5F0E8">' +
+        '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.8px">RECENT RESULTS</div>' +
+      '</div>' +
+      recentPast.map(function(w) {
+        var d = schedDate(w);
+        return '<div style="padding:10px 16px;border-bottom:1px solid #F5F0E8">' +
+          '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
+          grouped[w].map(function(m){ return matchupCard(m, 'past'); }).join('') +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  html += '<div style="height:16px"></div>';
+  el.innerHTML = html;
 }
 
 function buildStablefordLeaderboard(targetElId) {
@@ -3760,7 +3846,7 @@ function handleFileSelected(input) {
 
 // ── GIF SEARCH (Giphy) ────────────────────────────────────────────────────
 var _gifDebounceTimer = null;
-var GIPHY_KEY = 'dc6zaTOxFJmzC'; // Giphy public beta key
+var TENOR_KEY = 'LIVDSRZULELA'; // Tenor public demo key (swap for own key if needed)
 
 function openGifPanel() {
   const panel = document.getElementById('gif-panel');
@@ -3782,25 +3868,27 @@ function searchGifs(q) {
     return;
   }
   grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">Searching…</div>';
-  fetch('https://api.giphy.com/v1/gifs/search?api_key=' + GIPHY_KEY + '&q=' + encodeURIComponent(q) + '&limit=18&rating=g')
+  fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=18&media_filter=gif&contentfilter=medium')
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      if (!data.data || data.data.length === 0) {
+      if (!data.results || data.results.length === 0) {
         grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">No GIFs found</div>';
         return;
       }
       grid.innerHTML = '';
-      data.data.forEach(function(gif) {
-        var thumbUrl = (gif.images.fixed_width_small && gif.images.fixed_width_small.url) || gif.images.downsized_small.url || gif.images.downsized.url;
-        var fullUrl  = gif.images.downsized.url || gif.images.original.url;
+      data.results.forEach(function(gif) {
+        var formats  = gif.media_formats || {};
+        var thumbUrl = (formats.tinygif && formats.tinygif.url) || (formats.gif && formats.gif.url) || '';
+        var fullUrl  = (formats.gif && formats.gif.url) || thumbUrl;
+        if (!thumbUrl) return;
         var el = document.createElement('div');
         el.className = 'gif-item';
         el.innerHTML = '<img src="' + thumbUrl + '" loading="lazy">';
-        el.onclick = function() { selectGif(fullUrl, gif.title || 'GIF'); };
+        el.onclick = function() { selectGif(fullUrl, gif.content_description || 'GIF'); };
         grid.appendChild(el);
       });
     })
-    .catch(function(err) {
+    .catch(function() {
       grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#DC2626;font-size:13px">Failed to load GIFs</div>';
     });
 }
