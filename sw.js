@@ -23,19 +23,23 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// ── Badge helpers (WorkerNavigator has the Badge API) ───────────
+// ── Badge helpers ────────────────────────────────────────────────
+// Use self.navigator (WorkerNavigator) — more explicit than bare `navigator` in SW scope
 function swSetBadge(count) {
-  if ('setAppBadge' in navigator) {
-    navigator.setAppBadge(count > 0 ? count : 0).catch(() => {});
-  }
+  const nav = self.navigator;
+  if (nav && 'setAppBadge' in nav) nav.setAppBadge(count).catch(() => {});
 }
 function swClearBadge() {
-  if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+  const nav = self.navigator;
+  if (nav && 'clearAppBadge' in nav) nav.clearAppBadge().catch(() => {});
 }
 
 // ── Messages from the page ───────────────────────────────────────
 self.addEventListener('message', e => {
   if (!e.data) return;
+
+  // Allow page to force this SW to activate immediately
+  if (e.data.type === 'SKIP_WAITING') { self.skipWaiting(); return; }
 
   if (e.data.type === 'SHOW_NOTIFICATION') {
     const { title, body, tag, badgeCount } = e.data;
