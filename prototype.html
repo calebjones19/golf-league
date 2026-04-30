@@ -4892,10 +4892,7 @@ function toggleReaction(msgId, emoji) {
 }
 
 function deleteMessage(msgId) {
-  const msg = (DATA.messages||[]).find(m=>m.id===msgId);
-  if (!msg) return;
-  msg.deleted = true;
-  msg.text = '';
+  DATA.messages = (DATA.messages||[]).filter(m=>m.id!==msgId);
   saveData();
   dismissContextMenu();
   renderChatMessages();
