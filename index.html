@@ -2790,7 +2790,7 @@ function renderPlayersList() {
   // ── League Players ──────────────────────────────────────────
   const leagueListHtml = DATA.players.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No league players yet.</div>'
-    : DATA.players.map(p => {
+    : DATA.players.slice().sort((a,b) => playerName(a).localeCompare(playerName(b))).map(p => {
         const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
         const claimed  = !!(p.googleUid || p.googleEmail);
         const pIsAdmin = claimed && isAdminEmail(p.googleEmail);
