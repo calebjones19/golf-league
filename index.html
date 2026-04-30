@@ -2973,71 +2973,141 @@ function openPlayerPage(id) {
   if (existing) existing.remove();
 
   const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
+  const teammate = team ? DATA.players.find(pl => pl.id !== p.id && team.playerIds.includes(pl.id)) : null;
   const pIsAdmin = !!(p.googleEmail && isAdminEmail(p.googleEmail));
   const isSelf   = auth.currentUser && p.googleEmail &&
                    auth.currentUser.email.toLowerCase() === p.googleEmail.toLowerCase();
+
+  // Build teammate options — all other players
+  const teammateOptions = '<option value="">' + (teammate ? '— Remove teammate —' : '— No teammate —') + '</option>' +
+    DATA.players
+      .filter(pl => pl.id !== p.id)
+      .map(pl => '<option value="' + pl.id + '"' + (teammate && teammate.id === pl.id ? ' selected' : '') + '>' + playerName(pl) + '</option>')
+      .join('');
 
   const page = document.createElement('div');
   page.id = 'player-page';
   page.style.cssText = 'position:fixed;inset:0;z-index:960;background:#F9F6F0;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)';
 
-  page.innerHTML =
-    // Header
-    '<div style="background:#1B4332;padding:calc(env(safe-area-inset-top) + 14px) 16px 16px;display:flex;align-items:center;gap:12px">' +
-      '<button onclick="closePlayerPage()" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">' +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
-      '</button>' +
-      '<div style="font-size:17px;font-weight:700;color:#fff;flex:1">Edit Player</div>' +
-      '<button onclick="savePlayerPage(\'' + id + '\')" style="background:#C9A84C;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;color:#1B4332;cursor:pointer;font-family:\'DM Sans\',sans-serif">Save</button>' +
-    '</div>' +
+  page.innerHTML = _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, isSelf, false);
+  document.body.appendChild(page);
+}
 
-    // Avatar
-    '<div style="display:flex;flex-direction:column;align-items:center;padding:28px 20px 20px">' +
-      '<div style="width:72px;height:72px;border-radius:50%;background:#1B4332;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:8px">' +
-        playerInitials(p) +
-      '</div>' +
-      '<div style="font-size:11px;color:#6B7280;font-weight:600">' + (team ? team.name : 'Unassigned') + '</div>' +
-    '</div>' +
+function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, isSelf, editing) {
+  const ro = !editing; // read-only
 
-    // Form card
-    '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
-      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">PLAYER INFO</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:12px">' +
-        '<div style="flex:1">' +
-          '<label style="font-size:11px;font-weight:600;color:#6B7280">First name</label>' +
-          '<input class="form-input" id="pp-first" value="' + (p.firstName||'') + '" style="margin-top:4px">' +
+  const infoCard = ro
+    ? // View mode — static rows
+      '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">PLAYER INFO</div>' +
+        _ppRow('Name', playerName(p)) +
+        _ppRow('Handicap', p.handicap != null ? p.handicap : '—') +
+        _ppRow('Email', p.googleEmail || '—') +
+      '</div>'
+    : // Edit mode — inputs
+      '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">PLAYER INFO</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+          '<div style="flex:1"><label style="font-size:11px;font-weight:600;color:#6B7280">First name</label>' +
+            '<input class="form-input" id="pp-first" value="' + (p.firstName||'') + '" style="margin-top:4px"></div>' +
+          '<div style="flex:1"><label style="font-size:11px;font-weight:600;color:#6B7280">Last name</label>' +
+            '<input class="form-input" id="pp-last" value="' + (p.lastName||'') + '" style="margin-top:4px"></div>' +
         '</div>' +
-        '<div style="flex:1">' +
-          '<label style="font-size:11px;font-weight:600;color:#6B7280">Last name</label>' +
-          '<input class="form-input" id="pp-last" value="' + (p.lastName||'') + '" style="margin-top:4px">' +
-        '</div>' +
-      '</div>' +
-      '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
-      '<input class="compact-num" id="pp-hcp" type="number" min="0" max="54" value="' + (p.handicap||0) + '" style="margin-top:4px;margin-bottom:12px;width:80px;display:block">' +
-      '<label style="font-size:11px;font-weight:600;color:#6B7280">Google email</label>' +
-      '<input class="form-input" id="pp-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px">' +
-    '</div>' +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
+        '<input class="compact-num" id="pp-hcp" type="number" min="0" max="54" value="' + (p.handicap||0) + '" style="margin-top:4px;margin-bottom:12px;width:80px;display:block">' +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Google email</label>' +
+        '<input class="form-input" id="pp-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px">' +
+      '</div>';
 
-    // Admin toggle card
+  const teammateCard = ro
+    ? '<div style="margin:12px 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">TEAMMATE</div>' +
+        (teammate
+          ? '<div style="display:flex;align-items:center;gap:12px">' +
+              '<div style="width:40px;height:40px;border-radius:50%;background:#1B4332;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">' + playerInitials(teammate) + '</div>' +
+              '<div style="font-size:14px;font-weight:600;color:#1A1A1A">' + playerName(teammate) + '</div>' +
+            '</div>'
+          : '<div style="font-size:13px;color:#9CA3AF">No teammate assigned</div>'
+        ) +
+      '</div>'
+    : '<div style="margin:12px 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">TEAMMATE</div>' +
+        (teammate
+          ? '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+              '<div style="width:40px;height:40px;border-radius:50%;background:#1B4332;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">' + playerInitials(teammate) + '</div>' +
+              '<div style="font-size:14px;font-weight:600;color:#1A1A1A">' + playerName(teammate) + '</div>' +
+            '</div>'
+          : '<div style="font-size:13px;color:#9CA3AF;margin-bottom:12px">No teammate assigned</div>'
+        ) +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Change teammate</label>' +
+        '<select id="pp-teammate" class="form-input" style="margin-top:4px">' + teammateOptions + '</select>' +
+      '</div>';
+
+  const adminCard =
     '<div style="margin:12px 16px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;align-items:center;gap:12px">' +
       '<div style="flex:1">' +
         '<div style="font-size:14px;font-weight:600;color:#1A1A1A">Admin access</div>' +
         '<div style="font-size:12px;color:#6B7280;margin-top:2px">Can manage league, players & scores</div>' +
       '</div>' +
-      '<label style="position:relative;width:44px;height:26px;flex-shrink:0;cursor:' + (isSelf ? 'not-allowed' : 'pointer') + '" title="' + (isSelf ? "Can't remove your own admin access" : '') + '">' +
-        '<input type="checkbox" id="pp-admin" ' + (pIsAdmin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' style="opacity:0;width:0;height:0" onchange="updatePlayerPageAdminToggle()">' +
-        '<span id="pp-admin-track" style="position:absolute;inset:0;border-radius:13px;background:' + (pIsAdmin ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s">' +
-          '<span id="pp-admin-thumb" style="position:absolute;top:3px;left:' + (pIsAdmin ? '21px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:left 0.2s"></span>' +
-        '</span>' +
-      '</label>' +
-    '</div>' +
-
-    // Danger zone
-    '<div style="margin:12px 16px 32px">' +
-      '<button onclick="confirmRemovePlayer(\'' + id + '\')" style="width:100%;background:none;border:1.5px solid #FCA5A5;border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:#DC2626;cursor:pointer;font-family:\'DM Sans\',sans-serif">Remove Player</button>' +
+      (ro
+        ? '<span style="font-size:13px;font-weight:600;color:' + (pIsAdmin ? '#1B4332' : '#9CA3AF') + '">' + (pIsAdmin ? 'Yes' : 'No') + '</span>'
+        : '<label style="position:relative;width:44px;height:26px;flex-shrink:0;cursor:' + (isSelf ? 'not-allowed' : 'pointer') + '">' +
+            '<input type="checkbox" id="pp-admin" ' + (pIsAdmin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' style="opacity:0;width:0;height:0" onchange="updatePlayerPageAdminToggle()">' +
+            '<span id="pp-admin-track" style="position:absolute;inset:0;border-radius:13px;background:' + (pIsAdmin ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s">' +
+              '<span id="pp-admin-thumb" style="position:absolute;top:3px;left:' + (pIsAdmin ? '21px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:left 0.2s"></span>' +
+            '</span>' +
+          '</label>'
+      ) +
     '</div>';
 
-  document.body.appendChild(page);
+  const dangerZone = !ro
+    ? '<div style="margin:12px 16px 32px">' +
+        '<button onclick="confirmRemovePlayer(\'' + id + '\')" style="width:100%;background:none;border:1.5px solid #FCA5A5;border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:#DC2626;cursor:pointer;font-family:\'DM Sans\',sans-serif">Remove Player</button>' +
+      '</div>'
+    : '<div style="height:32px"></div>';
+
+  return (
+    '<div style="background:#1B4332;padding:calc(env(safe-area-inset-top) + 14px) 16px 16px;display:flex;align-items:center;gap:12px">' +
+      '<button onclick="closePlayerPage()" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
+      '</button>' +
+      '<div style="font-size:17px;font-weight:700;color:#fff;flex:1">' + playerName(p) + '</div>' +
+      (ro
+        ? '<button onclick="enterPlayerEditMode(\'' + id + '\')" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:\'DM Sans\',sans-serif">Edit</button>'
+        : '<button onclick="savePlayerPage(\'' + id + '\')" style="background:#C9A84C;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;color:#1B4332;cursor:pointer;font-family:\'DM Sans\',sans-serif">Save</button>'
+      ) +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;align-items:center;padding:28px 20px 20px">' +
+      '<div style="width:72px;height:72px;border-radius:50%;background:#1B4332;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' +
+        playerInitials(p) +
+      '</div>' +
+    '</div>' +
+    infoCard + teammateCard + adminCard + dangerZone
+  );
+}
+
+function _ppRow(label, value) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6">' +
+    '<span style="font-size:13px;color:#6B7280;font-weight:500">' + label + '</span>' +
+    '<span style="font-size:13px;font-weight:600;color:#1A1A1A">' + value + '</span>' +
+  '</div>';
+}
+
+function enterPlayerEditMode(id) {
+  const p = DATA.players.find(pl => pl.id === id);
+  if (!p) return;
+  const page = document.getElementById('player-page');
+  if (!page) return;
+  const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
+  const teammate = team ? DATA.players.find(pl => pl.id !== p.id && team.playerIds.includes(pl.id)) : null;
+  const pIsAdmin = !!(p.googleEmail && isAdminEmail(p.googleEmail));
+  const isSelf   = auth.currentUser && p.googleEmail &&
+                   auth.currentUser.email.toLowerCase() === p.googleEmail.toLowerCase();
+  const teammateOptions = '<option value="">' + (teammate ? '— Remove teammate —' : '— No teammate —') + '</option>' +
+    DATA.players.filter(pl => pl.id !== p.id)
+      .map(pl => '<option value="' + pl.id + '"' + (teammate && teammate.id === pl.id ? ' selected' : '') + '>' + playerName(pl) + '</option>')
+      .join('');
+  page.innerHTML = _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, isSelf, true);
 }
 
 function updatePlayerPageAdminToggle() {
@@ -3079,9 +3149,29 @@ function savePlayerPage(id) {
   p.handicap    = hcp;
   p.googleEmail = email || null;
   p.claimed     = !!(email || p.googleUid);
+
+  // ── Teammate / team assignment ──
+  const newTeammateId = document.getElementById('pp-teammate').value;
+  // Remove this player from all teams
+  DATA.teams.forEach(t => { t.playerIds = t.playerIds.filter(pid => pid !== p.id); });
+  if (newTeammateId) {
+    // Remove new teammate from all teams too
+    DATA.teams.forEach(t => { t.playerIds = t.playerIds.filter(pid => pid !== newTeammateId); });
+    // Find a team with capacity or create one
+    let targetTeam = DATA.teams.find(t => t.playerIds.length < 2);
+    if (!targetTeam) {
+      targetTeam = { id: 't' + Date.now(), name: 'Team ' + (DATA.teams.length + 1), playerIds: [] };
+      DATA.teams.push(targetTeam);
+    }
+    targetTeam.playerIds = [p.id, newTeammateId];
+  }
+  // Clean up any empty teams
+  DATA.teams = DATA.teams.filter(t => t.playerIds.length > 0);
+
   saveData();
   closePlayerPage();
   renderPlayersList();
+  renderTeamsList();
   showToast(`${first} ${last} saved ✓`);
 }
 
