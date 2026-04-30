@@ -836,6 +836,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
 
       <!-- Actions -->
+      <button onclick="forceSyncToCloud()" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#1B4332;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Sync to cloud
+      </button>
       <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px" onclick="signOut()">Sign Out</button>
       <button onclick="hardRefresh();closeProfileSheet(null)" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Update to latest version
@@ -993,9 +996,12 @@ function _applyRemoteData(raw) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
   }
   if (!DATA.adminEmails) DATA.adminEmails = [];
-  // If remote wiped players but local had them, push local back to Firestore
-  if (localPlayers.length > remotePlayers.length && _firestoreLoaded) {
-    setTimeout(() => LEAGUE_DOC.set(_dataForFirestore()).catch(console.error), 500);
+  // If remote has fewer players than local, push local back to Firestore.
+  // Use setTimeout so _firestoreLoaded is true by the time the write runs.
+  if (localPlayers.length > remotePlayers.length) {
+    setTimeout(() => {
+      if (_firestoreLoaded) LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
+    }, 600);
   }
   // Cache locally so offline / next cold start is fast
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
@@ -1049,33 +1055,25 @@ function startFirestoreSync() {
       }
       let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
       if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
+      const landingOpen = !document.getElementById('landing-overlay').classList.contains('hidden');
       if (player) {
         if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; }
         DATA.currentUserId = player.id;
         saveData();
         updateAvatarBtn();
-        closeLanding();
-        showSection('dashboard');
-        checkAnnouncements();
+        if (landingOpen) { closeLanding(); showSection('dashboard'); checkAnnouncements(); }
         return; // refreshCurrentSection called via showSection
       } else if (isAdmin) {
         updateAvatarBtn();
-        closeLanding();
-        showSection('dashboard');
-        checkAnnouncements();
+        // Only navigate if the landing screen is still blocking the UI
+        if (landingOpen) { closeLanding(); showSection('dashboard'); checkAnnouncements(); }
         return;
       } else {
-        // Firestore loaded, still no match. Show profile picker if there are
-        // claimable players (covers lost-link case); otherwise "not in league".
-        // Guard: don't re-render on every subsequent snapshot update.
-        if (!document.querySelector('.not-in-league-wrap') && !document.querySelector('.player-pill')) {
+        // Firestore loaded, email not matched to any player.
+        // Only show the "not in league" screen if the landing overlay is still up.
+        if (landingOpen && !document.querySelector('.not-in-league-wrap')) {
           updateAvatarBtn();
-          const claimable = getClaimablePlayers(user);
-          if (claimable.length > 0) {
-            buildLandingClaimProfile(user, isAdmin);
-          } else {
-            buildLandingNotInLeague(user);
-          }
+          buildLandingNotInLeague(user);
           showSection('dashboard');
         }
         return;
@@ -1118,16 +1116,18 @@ function saveData() {
   // would wipe any data (especially messages) that exist remotely but aren't
   // in local memory yet.
   if (!_firestoreLoaded) return;
-  // Guard: never write an empty players array to Firestore — this is always a bug.
-  // Real player deletions go through removePlayer() which handles them explicitly.
-  if (!Array.isArray(DATA.players) || DATA.players.length === 0) {
-    console.warn('saveData blocked: refusing to write empty players array to Firestore');
-    return;
-  }
   LEAGUE_DOC.set(_dataForFirestore()).catch(function(e) {
     console.error('Firestore save failed:', e);
     showToast('Save failed — check connection');
   });
+}
+
+// Admin can tap "Sync to cloud" to force-push local data to Firestore
+function forceSyncToCloud() {
+  if (!_firestoreLoaded) { showToast('Not connected to cloud yet — try again in a moment'); return; }
+  LEAGUE_DOC.set(_dataForFirestore())
+    .then(() => showToast('Synced to cloud ✓'))
+    .catch(e => { console.error('Force sync failed:', e); showToast('Sync failed: ' + (e.code || e.message)); });
 }
 
 // Use arrayUnion for sending messages — avoids full-document replace race condition
@@ -3922,7 +3922,7 @@ function buildLandingSignIn() {
         Sign in with Google
       </button>
       <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
-        Sign in with your Google account.<br>You'll choose your player profile on first sign-in.
+        Sign in with your Google account.<br>Your profile will be matched automatically.
       </div>
     </div>`;
 }
@@ -4034,19 +4034,21 @@ function confirmClaimProfile(playerId, skip) {
   showToast('Welcome to the league, ' + playerFirstName(player) + '! ⛳');
 }
 
-function buildLandingNotInLeague(user) {
-  // If there ARE players in the league, redirect to the claim picker —
-  // it's almost certainly a matching failure, not a genuine "not in league".
-  if (Array.isArray(DATA.players) && DATA.players.length > 0) {
-    buildLandingClaimProfile(user, isAdmin);
-    return;
-  }
+// Mask an email for display: caleb.jones@pco.com → ca*****@pco.com
+function _maskEmail(email) {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return visible + '*'.repeat(Math.max(2, local.length - 2)) + '@' + domain;
+}
 
+function buildLandingNotInLeague(user) {
   buildLandingTop();
-  // Distinguish: no players loaded at all vs. admin-less empty league
-  const hasAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
-  if (!hasAdmin && (!Array.isArray(DATA.players) || DATA.players.length === 0)) {
-    // League not set up yet — let them claim admin
+  const players   = Array.isArray(DATA.players) ? DATA.players : [];
+  const hasAdmin  = Array.isArray(DATA.adminEmails) && DATA.adminEmails.length > 0;
+
+  if (!hasAdmin && players.length === 0) {
+    // Fresh league — let first user set up as admin
     document.getElementById('landing-body').innerHTML = `
       <div class="not-in-league-wrap">
         <div class="not-in-league-email">${user.email}</div>
@@ -4055,17 +4057,48 @@ function buildLandingNotInLeague(user) {
         <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>
         <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
       </div>`;
-  } else {
-    // Data may not have loaded yet — show a retry option instead of a dead end
+
+  } else if (hasAdmin && players.length === 0) {
+    // Admin exists but player list is empty — recovery mode
+    const masked = _maskEmail(DATA.adminEmails[0]);
     document.getElementById('landing-body').innerHTML = `
       <div class="not-in-league-wrap">
         <div class="not-in-league-email">${user.email}</div>
-        <div class="not-in-league-title">Couldn't load league data</div>
-        <div class="not-in-league-sub">League data didn't load. Check your connection and try again.</div>
-        <button class="btn-green" style="width:100%;margin-bottom:10px" onclick="location.reload()">Reload App</button>
-        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+        <div class="not-in-league-title">League needs rebuilding</div>
+        <div class="not-in-league-sub" style="margin-bottom:16px">Player data was lost. Sign in with the admin account (<strong style="color:#C9A84C">${masked}</strong>) to restore the league, or verify that email below to take over.</div>
+        <input id="admin-verify-input" class="form-input" type="email" placeholder="Enter admin email to verify" style="margin-bottom:10px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
+        <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="verifyAdminTakeover()">Verify &amp; Take Over</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign in with a different account</button>
+      </div>`;
+
+  } else {
+    // Players exist but this email isn't linked to any of them
+    document.getElementById('landing-body').innerHTML = `
+      <div class="not-in-league-wrap">
+        <div class="not-in-league-email">${user.email}</div>
+        <div class="not-in-league-title">Not in this league</div>
+        <div class="not-in-league-sub">Ask your league admin to add <strong style="color:#C9A84C">${user.email}</strong> to your player profile.</div>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline;margin-top:8px" onclick="signOut()">Sign in with a different account</button>
       </div>`;
   }
+}
+
+function verifyAdminTakeover() {
+  const input = document.getElementById('admin-verify-input');
+  if (!input) return;
+  const entered = input.value.trim().toLowerCase();
+  const isMatch = Array.isArray(DATA.adminEmails) &&
+    DATA.adminEmails.some(e => e.toLowerCase() === entered);
+  if (!isMatch) { showToast('Email doesn\'t match — try again'); input.focus(); return; }
+  // Verified — add new email as admin and proceed
+  const user = auth.currentUser;
+  if (!user) return;
+  grantAdmin(user.email.toLowerCase());
+  saveData();
+  setAdmin(true);
+  closeLanding();
+  showSection('admin');
+  showToast('Admin access restored ✓');
 }
 
 function _isStandalone() {
@@ -4486,18 +4519,12 @@ function handleAuthState(user) {
     // Don't replace the landing UI here — the sign-in screen stays visible so the
     // user always has a button to tap. onSnapshot fires next and will either:
     //   • match the player → closeLanding() → dashboard, or
-    //   • show the claim picker so they can select their name.
-    // If Firestore already loaded (e.g. second handleAuthState call), handle now.
+    // If Firestore already loaded (e.g. second handleAuthState call), show result now.
     if (_firestoreLoaded) {
-      const claimable = getClaimablePlayers(user);
-      if (claimable.length > 0) {
-        buildLandingClaimProfile(user, isAdmin);
-      } else {
-        buildLandingNotInLeague(user);
-      }
+      buildLandingNotInLeague(user);
       showSection('dashboard');
     }
-    // If _firestoreLoaded is false: do nothing — sign-in UI stays, onSnapshot handles it.
+    // If _firestoreLoaded is false: sign-in UI stays visible, onSnapshot handles it.
   }
 }
 
