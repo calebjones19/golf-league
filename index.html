@@ -1118,6 +1118,12 @@ function saveData() {
   // would wipe any data (especially messages) that exist remotely but aren't
   // in local memory yet.
   if (!_firestoreLoaded) return;
+  // Guard: never write an empty players array to Firestore — this is always a bug.
+  // Real player deletions go through removePlayer() which handles them explicitly.
+  if (!Array.isArray(DATA.players) || DATA.players.length === 0) {
+    console.warn('saveData blocked: refusing to write empty players array to Firestore');
+    return;
+  }
   LEAGUE_DOC.set(_dataForFirestore()).catch(function(e) {
     console.error('Firestore save failed:', e);
     showToast('Save failed — check connection');
