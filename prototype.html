@@ -3910,10 +3910,12 @@ function buildLandingSignIn() {
 // (catches the case where googleUid was lost but email is on record)
 function getClaimablePlayers(user) {
   const email = user.email.toLowerCase();
-  return DATA.players.filter(p =>
-    (!p.googleUid && !p.googleEmail) ||            // totally unclaimed
-    (p.googleEmail && p.googleEmail.toLowerCase() === email) // same email, uid may differ
-  );
+  return DATA.players.filter(p => {
+    if (!p.googleUid) return true;                                           // never claimed
+    if (p.googleUid === user.uid) return true;                               // already theirs
+    if (p.googleEmail && p.googleEmail.toLowerCase() === email) return true; // same email
+    return false; // claimed by a confirmed different user — don't show
+  });
 }
 
 function buildLandingClaimProfile(user, isAdminFlow) {
@@ -3949,9 +3951,19 @@ function claimProfile(playerId) {
   if (!user) return;
   const player = DATA.players.find(p => p.id === playerId);
   if (!player) return;
-  // Block re-link only if claimed by a DIFFERENT user (same email = re-linking is fine)
   const curEmail = user.email.toLowerCase();
-  if (player.googleUid && player.googleUid !== user.uid && player.googleEmail && player.googleEmail.toLowerCase() !== curEmail) {
+  // If this player is already correctly linked to this user, just sign them in
+  if (player.googleUid === user.uid) {
+    DATA.currentUserId = player.id;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('dashboard');
+    return;
+  }
+  // Block re-link only if claimed by a confirmed different user
+  if (player.googleUid && player.googleUid !== user.uid &&
+      player.googleEmail && player.googleEmail.toLowerCase() !== curEmail) {
     showToast('This profile is linked to a different account'); return;
   }
 
@@ -4420,9 +4432,12 @@ function handleAuthState(user) {
     // Signed in but no player match yet.
     DATA.currentUserId = null;
     updateAvatarBtn();
+    // Don't replace the landing UI here — the sign-in screen stays visible so the
+    // user always has a button to tap. onSnapshot fires next and will either:
+    //   • match the player → closeLanding() → dashboard, or
+    //   • show the claim picker so they can select their name.
+    // If Firestore already loaded (e.g. second handleAuthState call), handle now.
     if (_firestoreLoaded) {
-      // Firestore is already loaded — show claim screen or not-in-league now.
-      // (onSnapshot won't re-fire just because we need it to.)
       const claimable = getClaimablePlayers(user);
       if (claimable.length > 0) {
         buildLandingClaimProfile(user, isAdmin);
@@ -4430,11 +4445,8 @@ function handleAuthState(user) {
         buildLandingNotInLeague(user);
       }
       showSection('dashboard');
-    } else {
-      // Firestore not loaded yet — show a brief loading indicator.
-      // onSnapshot will retry matching and close the landing when data arrives.
-      buildLandingLoading();
     }
+    // If _firestoreLoaded is false: do nothing — sign-in UI stays, onSnapshot handles it.
   }
 }
 
