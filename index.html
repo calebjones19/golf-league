@@ -315,12 +315,12 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
       <div class="form-group">
         <label class="form-label">League Name</label>
-        <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League">
+        <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League" disabled>
       </div>
       <div class="form-group">
         <label class="form-label">Golf Course</label>
         <div class="course-search-wrap">
-          <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)">
+          <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)" disabled>
           <div class="course-dropdown" id="course-dropdown"></div>
         </div>
         <div id="course-selected" style="display:none;margin-top:6px;font-size:12px;color:#16A34A;font-weight:600"></div>
@@ -328,8 +328,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="form-group">
         <label class="form-label">Holes</label>
         <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="cfg-holes" value="9" checked> 9 Holes</label>
-          <label class="radio-label"><input type="radio" name="cfg-holes" value="18"> 18 Holes</label>
+          <label class="radio-label"><input type="radio" name="cfg-holes" value="9" checked disabled> 9 Holes</label>
+          <label class="radio-label"><input type="radio" name="cfg-holes" value="18" disabled> 18 Holes</label>
         </div>
       </div>
       <div class="form-group">
@@ -346,26 +346,26 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
       </div>
       <div class="form-group">
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1;min-width:0">
             <label class="form-label">Start Date</label>
-            <input class="form-input" type="date" id="cfg-start">
+            <input class="form-input" type="date" id="cfg-start" disabled>
           </div>
-          <div style="width:100px">
+          <div style="width:68px;flex-shrink:0">
             <label class="form-label">Weeks</label>
-            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18">
+            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18" disabled>
           </div>
         </div>
       </div>
       <div class="form-group">
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1;min-width:0">
             <label class="form-label">Start Time</label>
-            <input class="form-input" type="time" id="cfg-start-time" value="17:30">
+            <input class="form-input" type="time" id="cfg-start-time" value="17:30" disabled>
           </div>
-          <div style="width:120px">
+          <div style="width:68px;flex-shrink:0">
             <label class="form-label">Interval (min)</label>
-            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8">
+            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8" disabled>
           </div>
         </div>
       </div>
@@ -380,9 +380,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="form-group">
         <label class="form-label">League Format</label>
         <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="cfg-format" value="match_play" checked> Match Play</label>
-          <label class="radio-label"><input type="radio" name="cfg-format" value="stroke_play"> Stroke Play</label>
-          <label class="radio-label"><input type="radio" name="cfg-format" value="stableford"> Stableford</label>
+          <label class="radio-label"><input type="radio" name="cfg-format" value="match_play" checked disabled> Match Play</label>
+          <label class="radio-label"><input type="radio" name="cfg-format" value="stroke_play" disabled> Stroke Play</label>
+          <label class="radio-label"><input type="radio" name="cfg-format" value="stableford" disabled> Stableford</label>
         </div>
       </div>
     </div>
@@ -414,33 +414,33 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
       <div class="form-group">
         <label class="form-label">Points per hole win</label>
-        <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0.5" step="0.5" style="max-width:120px">
+        <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0.5" step="0.5" style="max-width:100px" disabled>
       </div>
       <div class="form-group">
         <label class="form-label">Points for a tied hole</label>
-        <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:120px">
+        <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:100px" disabled>
       </div>
       <div class="form-group">
         <label class="form-label">Match win bonus points</label>
-        <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:120px">
+        <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:100px" disabled>
       </div>
       <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
       <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">STABLEFORD</div>
       <div class="radio-group" style="margin-bottom:14px">
-        <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()"> Standard</label>
-        <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()"> Modified</label>
+        <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()" disabled> Standard</label>
+        <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()" disabled> Modified</label>
       </div>
       <div id="stableford-table"></div>
       <div class="divider" style="margin:16px 0;background:#E5E7EB"></div>
       <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SKINS</div>
       <div class="toggle-wrap">
         <span class="toggle-label">Skins enabled</span>
-        <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)"><span class="toggle-slider"></span></label>
+        <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)" disabled><span class="toggle-slider"></span></label>
       </div>
       <div id="skins-fee-row" style="display:none">
         <div class="form-group" style="margin-top:10px">
           <label class="form-label">Entry fee per player per week ($)</label>
-          <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:120px">
+          <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:100px" disabled>
         </div>
       </div>
     </div>
@@ -1610,12 +1610,14 @@ function switchAdminTab(id, btn) {
 function buildAdmin() {
   if (!isAdmin) { showSection('dashboard'); return; }
   renderHoleGrids();
-  loadLeagueForm();    // calls refreshEditModeUI('league') at end
+  loadLeagueForm();
+  refreshEditModeUI('league');
   renderScheduleList();
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
-  loadScoringForm();   // calls refreshEditModeUI('scoring') at end
+  loadScoringForm();
+  refreshEditModeUI('scoring');
   renderAnnounceList();
 }
 
@@ -1717,7 +1719,6 @@ function loadLeagueForm() {
   const fmtRadio = document.querySelector(`input[name="cfg-format"][value="${L.format||'match_play'}"]`);
   if (fmtRadio) fmtRadio.checked = true;
   renderHoleGrids();
-  refreshEditModeUI('league');
 }
 
 function saveLeagueConfig() {
@@ -2177,7 +2178,6 @@ function loadScoringForm() {
   const stablefordRadio = document.querySelector(`input[name="cfg-stableford"][value="${cfg.stablefordVariant || 'standard'}"]`);
   if (stablefordRadio) stablefordRadio.checked = true;
   updateStablefordTable();
-  refreshEditModeUI('scoring');
 }
 
 function saveScoringConfig() {
