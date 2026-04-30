@@ -295,12 +295,12 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .attach-option-label{font-size:15px;font-weight:600;color:#1A1A1A;font-family:'DM Sans',sans-serif}
 .attach-option-sub{font-size:12px;color:#6B7280;margin-top:1px}
 /* GIF search panel */
-.gif-panel{position:absolute;bottom:100%;left:0;right:0;background:#fff;border-top:1px solid #E5E7EB;border-radius:16px 16px 0 0;padding:10px 12px;max-height:320px;display:none;flex-direction:column;gap:8px;box-shadow:0 -4px 20px rgba(0,0,0,0.12);z-index:10}
+.gif-panel{position:absolute;bottom:100%;left:0;right:0;background:#fff;border-top:1px solid #E5E7EB;border-radius:16px 16px 0 0;padding:10px 12px 6px;height:420px;display:none;flex-direction:column;gap:8px;box-shadow:0 -4px 20px rgba(0,0,0,0.12);z-index:10}
 .gif-panel.open{display:flex}
-.gif-search-bar{display:flex;align-items:center;gap:8px;background:#F3F4F6;border-radius:10px;padding:8px 12px}
+.gif-search-bar{display:flex;align-items:center;gap:8px;background:#F3F4F6;border-radius:10px;padding:8px 12px;flex-shrink:0}
 .gif-search-input{flex:1;border:none;background:none;font-size:14px;color:#1A1A1A;font-family:'DM Sans',sans-serif;outline:none}
-.gif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;overflow-y:auto;flex:1}
-.gif-item{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;background:#F3F4F6;transition:opacity 0.15s}
+.gif-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;overflow-y:auto;flex:1;align-content:start;-webkit-overflow-scrolling:touch}
+.gif-item{aspect-ratio:16/9;border-radius:8px;overflow:hidden;cursor:pointer;background:#F3F4F6;transition:opacity 0.15s}
 .gif-item:active{opacity:0.7}
 .gif-item img{width:100%;height:100%;object-fit:cover}
 /* Image attachment preview (before send) */
@@ -385,7 +385,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;font-size:16px;padding:0;line-height:1" onclick="closeGifPanel()">✕</button>
         </div>
         <div class="gif-grid" id="gif-grid">
-          <div style="grid-column:span 3;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>
+          <div style="grid-column:span 2;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>
         </div>
       </div>
       <div class="chat-reply-bar" id="chat-reply-bar" style="display:none">
@@ -3957,15 +3957,15 @@ function searchGifs(q) {
   const grid = document.getElementById('gif-grid');
   if (!grid) return;
   if (!q.trim()) {
-    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>';
+    grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>';
     return;
   }
-  grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">Searching…</div>';
+  grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">Searching…</div>';
   fetch('https://api.tenor.com/v1/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=18&contentfilter=medium&media_filter=minimal')
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (!data.results || data.results.length === 0) {
-        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">No GIFs found</div>';
+        grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">No GIFs found</div>';
         return;
       }
       grid.innerHTML = '';
@@ -3983,7 +3983,7 @@ function searchGifs(q) {
       });
     })
     .catch(function() {
-      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#DC2626;font-size:13px">Failed to load GIFs</div>';
+      grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:16px;color:#DC2626;font-size:13px">Failed to load GIFs</div>';
     });
 }
 function selectGif(url, title) {
