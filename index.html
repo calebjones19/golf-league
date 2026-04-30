@@ -1038,6 +1038,17 @@ function startFirestoreSync() {
     // Refresh whatever section is currently visible
     refreshCurrentSection();
     updateChatBadge();
+    // Re-render chat if it's open so incoming messages appear in real-time
+    if (document.getElementById('chat-panel').classList.contains('open')) {
+      renderChatMessages();
+      // Scroll to bottom only if already near it (don't hijack manual scroll)
+      setTimeout(function() {
+        const msgs = document.getElementById('chat-messages');
+        if (!msgs) return;
+        const nearBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 120;
+        if (nearBottom) msgs.scrollTop = msgs.scrollHeight;
+      }, 30);
+    }
   }, function(err) {
     console.error('Firestore sync error:', err);
   });
