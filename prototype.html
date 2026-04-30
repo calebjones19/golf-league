@@ -4742,10 +4742,9 @@ function openChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.add('open');
   panel.style.bottom = '';
-  // Lock body scroll so iOS can't rubber-band the page behind the chat panel
-  document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.width    = '100%';
+  // Prevent iOS rubber-band showing content behind the panel
+  document.documentElement.style.overscrollBehavior = 'none';
+  document.body.style.overscrollBehavior = 'none';
   // mark all as seen
   setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
@@ -4764,10 +4763,9 @@ function closeChat() {
   panel.style.top    = '';
   panel.style.bottom = '';
   panel.style.height = '';
-  // Restore body scroll
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width    = '';
+  // Restore overscroll
+  document.documentElement.style.overscrollBehavior = '';
+  document.body.style.overscrollBehavior = '';
   // Blur input so keyboard dismisses before panel slides away
   const inp = document.getElementById('chat-input');
   if (inp) inp.blur();
