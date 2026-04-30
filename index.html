@@ -822,16 +822,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
       <!-- Admin / actions -->
       <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet(null);showSection('admin')">Go to Admin Panel</button>
-      <!-- Data backup / restore — admin only -->
-      <div id="profile-backup-row" style="display:none;gap:8px;margin-bottom:10px">
-        <button onclick="exportDataBackup()" style="flex:1;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:600;color:#1B4332;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Back up data
-        </button>
-        <label style="flex:1;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Restore
-          <input type="file" accept=".json" style="display:none" onchange="importDataBackup(this.files[0])">
-        </label>
-      </div>
       <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px" onclick="signOut()">Sign Out</button>
       <button onclick="hardRefresh();closeProfileSheet(null)" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Update to latest version
@@ -846,6 +836,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 // ============================================================
 // FIREBASE INIT
@@ -862,6 +853,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
+const db = firebase.firestore();
+const LEAGUE_DOC = db.collection('leagues').doc('main');
 
 // ============================================================
 // VERSION
@@ -965,66 +958,99 @@ let DATA = {
 let seenAnnouncements = [];
 let isAdmin = false;
 
-const BACKUP_KEY = 'golf_league_data_bak';
+// ── Firestore sync ───────────────────────────────────────────────
+// localStorage is used only as a fast paint cache so the UI renders
+// immediately on load — Firestore is the source of truth.
+var _firestoreUnsubscribe = null;
+var _firestoreLoaded = false;
+
+function _applyRemoteData(raw) {
+  if (!raw) return;
+  DATA = { ...DATA, ...raw };
+  if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
+    DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
+  }
+  if (!DATA.adminEmails) DATA.adminEmails = [];
+  // Cache locally so offline / next cold start is fast
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+}
 
 function loadData() {
+  // Load from localStorage cache so first paint is instant
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    let parsed = null;
     if (raw) {
-      try { parsed = JSON.parse(raw); } catch(e) { console.warn('Main data corrupt, trying backup'); }
-    }
-    // Fall back to backup if main key is missing or corrupt
-    if (!parsed) {
-      const bak = localStorage.getItem(BACKUP_KEY);
-      if (bak) {
-        try { parsed = JSON.parse(bak); console.warn('Restored from backup'); } catch(e) {}
+      const parsed = JSON.parse(raw);
+      DATA = { ...DATA, ...parsed };
+      if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
+        DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
       }
+      if (!DATA.adminEmails) DATA.adminEmails = [];
     }
-    if (parsed) DATA = { ...DATA, ...parsed };
-    // Migrate legacy single adminEmail → adminEmails array
-    if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
-      DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
-    }
-    if (!DATA.adminEmails) DATA.adminEmails = [];
+  } catch(e) {}
+  try {
     const seen = localStorage.getItem(SEEN_KEY);
-    if (seen) { try { seenAnnouncements = JSON.parse(seen); } catch(e) {} }
-    isAdmin = sessionStorage.getItem('golf_is_admin') === 'true';
-  } catch(e) { console.error('loadData failed:', e); }
+    if (seen) seenAnnouncements = JSON.parse(seen);
+  } catch(e) {}
+  isAdmin = sessionStorage.getItem('golf_is_admin') === 'true';
+}
+
+function startFirestoreSync() {
+  if (_firestoreUnsubscribe) return; // already listening
+  _firestoreUnsubscribe = LEAGUE_DOC.onSnapshot(function(snap) {
+    if (!snap.exists) {
+      // First run — push local cache up to Firestore if we have any data
+      if (DATA.adminEmails && DATA.adminEmails.length > 0) {
+        LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
+      }
+      _firestoreLoaded = true;
+      return;
+    }
+    const remote = snap.data();
+    _applyRemoteData(remote);
+    _firestoreLoaded = true;
+    // Refresh whatever section is currently visible
+    refreshCurrentSection();
+    updateChatBadge();
+  }, function(err) {
+    console.error('Firestore sync error:', err);
+  });
+}
+
+function stopFirestoreSync() {
+  if (_firestoreUnsubscribe) { _firestoreUnsubscribe(); _firestoreUnsubscribe = null; }
+  _firestoreLoaded = false;
+}
+
+function _dataForFirestore() {
+  // Strip undefined values — Firestore doesn't accept them
+  return JSON.parse(JSON.stringify(DATA));
 }
 
 function saveData() {
-  const json = JSON.stringify(DATA);
-  try { localStorage.setItem(STORAGE_KEY, json); } catch(e) { console.error('saveData failed:', e); return; }
-  // Write a redundant backup copy — if main key ever goes missing, this is the fallback
-  try { localStorage.setItem(BACKUP_KEY, json); } catch(e) {}
+  // Write to localStorage cache immediately (synchronous, instant UI feedback)
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+  // Write to Firestore (async, survives across devices / reinstalls)
+  LEAGUE_DOC.set(_dataForFirestore()).catch(function(e) {
+    console.error('Firestore save failed:', e);
+    showToast('Save failed — check connection');
+  });
 }
 
-function exportDataBackup() {
-  const json = JSON.stringify(DATA, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'fairway-backup-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Backup downloaded ✓');
-}
-
-function importDataBackup(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (!parsed.adminEmails && !parsed.players) { showToast('Invalid backup file'); return; }
-      DATA = { ...DATA, ...parsed };
-      saveData();
-      showToast('Data restored ✓ — reloading…');
-      setTimeout(() => location.reload(), 1200);
-    } catch(err) { showToast('Could not read backup file'); }
-  };
-  reader.readAsText(file);
+function refreshCurrentSection() {
+  try {
+    const active = document.querySelector('.section.active');
+    if (!active) return;
+    const id = active.id ? active.id.replace('-section','') : '';
+    if (id === 'dashboard')   buildDashboard();
+    if (id === 'leaderboard') buildLeaderboard();
+    if (id === 'standings')   buildStandings();
+    if (id === 'skins')       buildSkins();
+    if (id === 'score')       buildScoreEntry();
+    if (id === 'admin')       buildAdmin();
+    updateTopBar();
+    buildBottomNav();
+  } catch(e) {}
 }
 
 function markSeen(id) {
@@ -3549,8 +3575,9 @@ function closeLanding() {
 
 async function signOut() {
   signingOut = true;
+  stopFirestoreSync();
   DATA.currentUserId = null;
-  saveData();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
   closeProfileSheet();
   isAdmin = false;
   sessionStorage.removeItem('golf_is_admin');
@@ -3612,8 +3639,6 @@ function openProfileSheet() {
   }
 
   if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
-  const backupRow = document.getElementById('profile-backup-row');
-  if (backupRow) backupRow.style.display = isAdmin ? 'flex' : 'none';
   const vEl = document.getElementById('profile-version');
   if (vEl) vEl.textContent = 'v' + APP_VERSION;
 
@@ -3784,9 +3809,10 @@ function handleAuthState(user) {
   updateTopBar();
 
   if (!user) {
+    stopFirestoreSync();
     // Not signed in — show sign-in landing
     DATA.currentUserId = null;
-    saveData();
+    // Don't saveData() when signing out — no need to write null userId to Firestore
     isAdmin = false;
     sessionStorage.removeItem('golf_is_admin');
     buildBottomNav();
@@ -3795,6 +3821,9 @@ function handleAuthState(user) {
     showSection('dashboard');
     return;
   }
+
+  // Start Firestore real-time sync now that we have an authenticated user
+  startFirestoreSync();
 
   const email = user.email.toLowerCase();
 
