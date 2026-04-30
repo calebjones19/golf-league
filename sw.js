@@ -1,4 +1,4 @@
-/* Golf League Service Worker */
+/* Fairway Service Worker */
 const CACHE = 'golf-league-v2';
 const ICON  = '/golf-league/icon-192.png';
 
