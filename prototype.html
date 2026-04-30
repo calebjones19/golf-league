@@ -1049,6 +1049,15 @@ function startFirestoreSync() {
         closeLanding();
         showSection('dashboard');
         return;
+      } else {
+        // Firestore data is confirmed loaded and still no player match — truly not in league.
+        // Guard against re-rendering on every subsequent snapshot update.
+        if (!document.querySelector('.not-in-league-wrap')) {
+          updateAvatarBtn();
+          buildLandingNotInLeague(user);
+          showSection('dashboard');
+        }
+        return;
       }
     }
 
@@ -4388,15 +4397,14 @@ function handleAuthState(user) {
     showSection('dashboard');
     checkAnnouncements();
   } else {
-    // Signed in but no player match — not in league
+    // Signed in but no player match.
+    // NEVER show "not in league" here — onAuthStateChanged fires handleAuthState twice
+    // when using a popup (once from signInWithGoogle, once from the listener), and by the
+    // second call _firestoreLoaded may already be true even though the match is valid.
+    // The onSnapshot callback below is the only place with a reliable, single-fire
+    // confirmation that Firestore data is loaded — "not in league" is shown there.
     DATA.currentUserId = null;
     updateAvatarBtn();
-    // If Firestore hasn't loaded yet, DATA.players may be empty — don't flash "not in league".
-    // The onSnapshot handler will re-attempt matching once real data arrives.
-    if (!_firestoreLoaded) return;
-    saveData();
-    buildLandingNotInLeague(user);
-    showSection('dashboard');
   }
 }
 
