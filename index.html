@@ -981,14 +981,22 @@ var _firestoreLoaded = false;
 function _applyRemoteData(raw) {
   if (!raw) return;
   // Preserve whichever messages array is longer — never downgrade message count
-  const localMsgs  = Array.isArray(DATA.messages)     ? DATA.messages     : [];
-  const remoteMsgs = Array.isArray(raw.messages)       ? raw.messages      : [];
+  const localMsgs    = Array.isArray(DATA.messages) ? DATA.messages : [];
+  const remoteMsgs   = Array.isArray(raw.messages)  ? raw.messages  : [];
+  // Preserve whichever players array is longer — prevents accidental remote wipe
+  const localPlayers  = Array.isArray(DATA.players)  ? DATA.players  : [];
+  const remotePlayers = Array.isArray(raw.players)   ? raw.players   : [];
   DATA = { ...DATA, ...raw };
-  DATA.messages = remoteMsgs.length >= localMsgs.length ? remoteMsgs : localMsgs;
+  DATA.messages = remoteMsgs.length  >= localMsgs.length    ? remoteMsgs  : localMsgs;
+  DATA.players  = remotePlayers.length >= localPlayers.length ? remotePlayers : localPlayers;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
   }
   if (!DATA.adminEmails) DATA.adminEmails = [];
+  // If remote wiped players but local had them, push local back to Firestore
+  if (localPlayers.length > remotePlayers.length && _firestoreLoaded) {
+    setTimeout(() => LEAGUE_DOC.set(_dataForFirestore()).catch(console.error), 500);
+  }
   // Cache locally so offline / next cold start is fast
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
 }
@@ -1033,6 +1041,12 @@ function startFirestoreSync() {
     const user = auth.currentUser;
     if (user && !DATA.currentUserId) {
       const email = user.email.toLowerCase();
+      // Re-check admin now that Firestore data is loaded (might not have been set at auth time)
+      if (!isAdmin && isAdminEmail(email)) {
+        isAdmin = true;
+        sessionStorage.setItem('golf_is_admin', 'true');
+        buildBottomNav();
+      }
       let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
       if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
       if (player) {
@@ -1048,6 +1062,7 @@ function startFirestoreSync() {
         updateAvatarBtn();
         closeLanding();
         showSection('dashboard');
+        checkAnnouncements();
         return;
       } else {
         // Firestore loaded, still no match. Show profile picker if there are
@@ -4014,16 +4029,37 @@ function confirmClaimProfile(playerId, skip) {
 }
 
 function buildLandingNotInLeague(user) {
+  // If there ARE players in the league, redirect to the claim picker —
+  // it's almost certainly a matching failure, not a genuine "not in league".
+  if (Array.isArray(DATA.players) && DATA.players.length > 0) {
+    buildLandingClaimProfile(user, isAdmin);
+    return;
+  }
+
   buildLandingTop();
+  // Distinguish: no players loaded at all vs. admin-less empty league
   const hasAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
-  document.getElementById('landing-body').innerHTML = `
-    <div class="not-in-league-wrap">
-      <div class="not-in-league-email">${user.email}</div>
-      <div class="not-in-league-title">You're not in this league</div>
-      <div class="not-in-league-sub">${!hasAdmin ? 'Be the first to set up this league as admin.' : 'All player profiles are already linked. Contact your league admin to be added.'}</div>
-      ${!hasAdmin ? `<button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>` : ''}
-      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
-    </div>`;
+  if (!hasAdmin && (!Array.isArray(DATA.players) || DATA.players.length === 0)) {
+    // League not set up yet — let them claim admin
+    document.getElementById('landing-body').innerHTML = `
+      <div class="not-in-league-wrap">
+        <div class="not-in-league-email">${user.email}</div>
+        <div class="not-in-league-title">Set up your league</div>
+        <div class="not-in-league-sub">No league found. Be the first to set up this league as admin.</div>
+        <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+      </div>`;
+  } else {
+    // Data may not have loaded yet — show a retry option instead of a dead end
+    document.getElementById('landing-body').innerHTML = `
+      <div class="not-in-league-wrap">
+        <div class="not-in-league-email">${user.email}</div>
+        <div class="not-in-league-title">Couldn't load league data</div>
+        <div class="not-in-league-sub">League data didn't load. Check your connection and try again.</div>
+        <button class="btn-green" style="width:100%;margin-bottom:10px" onclick="location.reload()">Reload App</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+      </div>`;
+  }
 }
 
 function _isStandalone() {
