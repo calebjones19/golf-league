@@ -2829,16 +2829,7 @@ function renderPlayersList() {
         '</div>';
       }).join('');
 
-  const addSubFormHtml =
-    '<div style="margin-top:12px;border-top:1px solid #F3F4F6;padding-top:12px">' +
-      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">ADD SUB</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:8px">' +
-        '<div style="flex:1"><input class="form-input" id="new-sub-first" placeholder="First name"></div>' +
-        '<div style="flex:1"><input class="form-input" id="new-sub-last" placeholder="Last name"></div>' +
-        '<div style="width:64px"><input class="compact-num" id="new-sub-hcp" placeholder="0" type="number" min="0" max="54"></div>' +
-      '</div>' +
-      '<button class="btn-outline" style="width:100%;border-color:#C9A84C;color:#A07C2D" onclick="addSub()">+ Add Sub</button>' +
-    '</div>';
+  const addSubFormHtml = ''; // form lives in the Add Sub modal now
 
   const activeSubTab = window._playersSubTab || 'members';
   const tabBar =
@@ -2860,9 +2851,14 @@ function renderPlayersList() {
   const membersPanel = activeSubTab === 'members'
     ? addPlayerBtnHtml + leagueListHtml
     : '';
+  const addSubBtnHtml =
+    '<button onclick="openAddSubModal()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:12px">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+      'Add Sub' +
+    '</button>';
+
   const subsPanel = activeSubTab === 'subs'
-    ? '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.4">Subs can fill in for league players but aren\'t assigned to teams.</div>' +
-      subsListHtml + addSubFormHtml
+    ? addSubBtnHtml + subsListHtml
     : '';
 
   wrap.innerHTML =
@@ -2934,19 +2930,53 @@ function addPlayer() {
   showToast(`${firstName} ${lastName} added ✓`);
 }
 
+function openAddSubModal() {
+  const existing = document.getElementById('add-sub-sheet');
+  if (existing) existing.remove();
+
+  const sheet = document.createElement('div');
+  sheet.id = 'add-sub-sheet';
+  sheet.className = 'modal-overlay open';
+  sheet.style.cssText = 'z-index:1100';
+  sheet.onclick = function(e) { if (e.target === sheet) closeAddSubModal(); };
+  sheet.innerHTML =
+    '<div class="bottom-sheet" onclick="event.stopPropagation()" style="padding-bottom:max(28px,env(safe-area-inset-bottom))">' +
+      '<div class="sheet-handle"></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+        '<div style="font-size:17px;font-weight:700;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">Add Sub</div>' +
+        '<button onclick="closeAddSubModal()" style="width:28px;height:28px;border-radius:50%;background:#F3F4F6;border:none;color:#6B7280;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+        '<div style="flex:1"><label class="form-label">First name</label><input class="form-input" id="modal-sub-first" placeholder="First" autocomplete="given-name"></div>' +
+        '<div style="flex:1"><label class="form-label">Last name</label><input class="form-input" id="modal-sub-last" placeholder="Last" autocomplete="family-name"></div>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label class="form-label">Handicap</label>' +
+        '<input class="form-input" id="modal-sub-hcp" type="number" min="0" max="54" placeholder="0" style="width:80px">' +
+      '</div>' +
+      '<button class="btn-green" style="width:100%" onclick="addSub()">Add to Subs</button>' +
+    '</div>';
+  document.getElementById('app').appendChild(sheet);
+  setTimeout(() => { const f = document.getElementById('modal-sub-first'); if (f) f.focus(); }, 300);
+}
+
+function closeAddSubModal() {
+  const sheet = document.getElementById('add-sub-sheet');
+  if (sheet) sheet.remove();
+}
+
 function addSub() {
-  const firstName = document.getElementById('new-sub-first').value.trim();
-  const lastName  = document.getElementById('new-sub-last').value.trim();
-  const hcp       = parseInt(document.getElementById('new-sub-hcp').value) || 0;
+  const firstName = (document.getElementById('modal-sub-first') || {value:''}).value.trim();
+  const lastName  = (document.getElementById('modal-sub-last')  || {value:''}).value.trim();
+  const hcpEl     = document.getElementById('modal-sub-hcp');
+  const hcp       = parseInt((hcpEl || {value:''}).value) || 0;
   if (!firstName) { showToast('Please enter a first name'); return; }
   if (!lastName)  { showToast('Please enter a last name'); return; }
   const sub = { id: 's' + Date.now(), firstName, lastName, handicap: hcp };
   if (!DATA.subs) DATA.subs = [];
   DATA.subs.push(sub);
   saveData();
-  document.getElementById('new-sub-first').value = '';
-  document.getElementById('new-sub-last').value  = '';
-  document.getElementById('new-sub-hcp').value   = '';
+  closeAddSubModal();
   renderPlayersList();
   showToast(`${firstName} ${lastName} added to subs ✓`);
 }
