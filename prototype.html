@@ -4715,36 +4715,51 @@ function _adjustChatForKeyboard() {
   if (!panel || !panel.classList.contains('open')) return;
   if (!window.visualViewport) return;
   const vv = window.visualViewport;
-  const keyboardHeight = window.innerHeight - vv.offsetTop - vv.height;
-  const keyboardOpen   = keyboardHeight > 50;
-  if (keyboardOpen) {
-    // Position panel so it sits exactly in the visible area above the keyboard.
-    // vv.offsetTop accounts for any iOS viewport shift when keyboard opens.
-    panel.style.top    = vv.offsetTop + 'px';
+  // Never touch panel.style.top — keep it anchored at 0.
+  // Only adjust height so the panel shrinks up above the keyboard.
+  const keyboardHeight = window.innerHeight - vv.height;
+  if (keyboardHeight > 50) {
     panel.style.height = vv.height + 'px';
-    // Scroll messages to bottom so the newest message stays visible
     const msgs = document.getElementById('chat-messages');
     if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
   } else {
-    // Keyboard closed — let CSS 100dvh handle it; clear overrides
-    panel.style.top    = '';
     panel.style.height = '';
   }
 }
 if (window.visualViewport) {
-  // Only listen to 'resize' — that fires when the keyboard actually opens/closes.
-  // The 'scroll' event also fires during iOS rubber-band scroll and causes the
-  // panel to jump, so we deliberately skip it.
   window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
 }
+
+// Prevent iOS rubber-band from revealing the page behind the chat panel.
+// We intercept touchmove on the panel itself: allow scrolling inside the
+// messages list normally, but block overscroll at the top/bottom boundaries
+// and block any touch on non-scrollable areas (header, input bar).
+(function() {
+  var _chatTouchStartY = 0;
+  var chatPanel = document.getElementById('chat-panel');
+  chatPanel.addEventListener('touchstart', function(e) {
+    _chatTouchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  chatPanel.addEventListener('touchmove', function(e) {
+    var msgs = document.getElementById('chat-messages');
+    if (msgs && msgs.contains(e.target)) {
+      var atTop    = msgs.scrollTop <= 0;
+      var atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 1;
+      var swipeDown = e.touches[0].clientY > _chatTouchStartY;
+      var swipeUp   = e.touches[0].clientY < _chatTouchStartY;
+      // Block overscroll at boundaries; allow normal scroll otherwise
+      if ((atTop && swipeDown) || (atBottom && swipeUp)) e.preventDefault();
+    } else {
+      // Header, input bar, etc. — never scroll the page
+      e.preventDefault();
+    }
+  }, { passive: false });
+})();
 
 function openChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.add('open');
   panel.style.bottom = '';
-  // Prevent iOS rubber-band showing content behind the panel
-  document.documentElement.style.overscrollBehavior = 'none';
-  document.body.style.overscrollBehavior = 'none';
   // mark all as seen
   setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
@@ -4763,9 +4778,6 @@ function closeChat() {
   panel.style.top    = '';
   panel.style.bottom = '';
   panel.style.height = '';
-  // Restore overscroll
-  document.documentElement.style.overscrollBehavior = '';
-  document.body.style.overscrollBehavior = '';
   // Blur input so keyboard dismisses before panel slides away
   const inp = document.getElementById('chat-input');
   if (inp) inp.blur();
