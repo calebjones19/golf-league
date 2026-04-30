@@ -4336,23 +4336,26 @@ function _adjustChatForKeyboard() {
   if (!panel || !panel.classList.contains('open')) return;
   if (!window.visualViewport) return;
   const vv = window.visualViewport;
-  const keyboardOpen = vv.height < window.innerHeight * 0.85;
+  // keyboardHeight includes both the keyboard and iOS accessory bar
+  const keyboardHeight = window.innerHeight - vv.offsetTop - vv.height;
+  const keyboardOpen   = keyboardHeight > 50;
   if (keyboardOpen) {
-    // Shrink panel to sit above keyboard — keep top at 0, adjust height only
-    panel.style.top    = '0';
-    panel.style.height = vv.height + 'px';
-    panel.style.bottom = 'auto';
-    // Only scroll to bottom if already near bottom
+    // Drive bottom edge up by exactly the keyboard+accessory height.
+    // Using top+bottom (not height) so inset:0 CSS doesn't fight us.
+    panel.style.top    = vv.offsetTop + 'px';
+    panel.style.bottom = keyboardHeight + 'px';
+    panel.style.height = '';
+    // Scroll to bottom if already near it
     const msgs = document.getElementById('chat-messages');
     if (msgs) {
       const nearBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80;
       if (nearBottom) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
     }
   } else {
-    // Keyboard closed — restore full-screen coverage
+    // Keyboard closed — restore full inset:0 coverage
     panel.style.top    = '';
-    panel.style.height = '';
     panel.style.bottom = '';
+    panel.style.height = '';
   }
 }
 if (window.visualViewport) {
@@ -4380,8 +4383,11 @@ function closeChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.remove('open');
   panel.style.top    = '';
-  panel.style.height = '';
   panel.style.bottom = '';
+  panel.style.height = '';
+  // Blur input so keyboard dismisses before panel slides away
+  const inp = document.getElementById('chat-input');
+  if (inp) inp.blur();
   dismissReactionPicker();
   dismissContextMenu();
 }
