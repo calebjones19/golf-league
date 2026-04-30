@@ -2954,6 +2954,10 @@ function openAddSubModal() {
         '<label class="form-label">Handicap</label>' +
         '<input class="form-input" id="modal-sub-hcp" type="number" min="0" max="54" placeholder="0" style="width:80px">' +
       '</div>' +
+      '<div class="form-group">' +
+        '<label class="form-label">Google email <span style="font-weight:400;color:#9CA3AF">(optional — links their account)</span></label>' +
+        '<input class="form-input" id="modal-sub-email" type="email" placeholder="player@gmail.com" autocomplete="email">' +
+      '</div>' +
       '<button class="btn-green" style="width:100%" onclick="addSub()">Add to Subs</button>' +
     '</div>';
   document.getElementById('app').appendChild(sheet);
@@ -2966,13 +2970,14 @@ function closeAddSubModal() {
 }
 
 function addSub() {
-  const firstName = (document.getElementById('modal-sub-first') || {value:''}).value.trim();
-  const lastName  = (document.getElementById('modal-sub-last')  || {value:''}).value.trim();
-  const hcpEl     = document.getElementById('modal-sub-hcp');
-  const hcp       = parseInt((hcpEl || {value:''}).value) || 0;
+  const firstName = (document.getElementById('modal-sub-first')  || {value:''}).value.trim();
+  const lastName  = (document.getElementById('modal-sub-last')   || {value:''}).value.trim();
+  const hcp       = parseInt((document.getElementById('modal-sub-hcp')   || {value:''}).value) || 0;
+  const email     = ((document.getElementById('modal-sub-email') || {value:''}).value || '').trim().toLowerCase();
   if (!firstName) { showToast('Please enter a first name'); return; }
   if (!lastName)  { showToast('Please enter a last name'); return; }
-  const sub = { id: 's' + Date.now(), firstName, lastName, handicap: hcp };
+  const sub = { id: 's' + Date.now(), firstName, lastName, handicap: hcp,
+    googleEmail: email || null, googleUid: null, claimed: !!email };
   if (!DATA.subs) DATA.subs = [];
   DATA.subs.push(sub);
   saveData();
