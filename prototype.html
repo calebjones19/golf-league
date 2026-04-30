@@ -4334,19 +4334,30 @@ function updateChatBadge() {
 function _adjustChatForKeyboard() {
   const panel = document.getElementById('chat-panel');
   if (!panel || !panel.classList.contains('open')) return;
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
-    // Pin the panel to exactly the visible viewport — no gaps on either end
-    panel.style.top    = vv.offsetTop + 'px';
+  if (!window.visualViewport) return;
+  const vv = window.visualViewport;
+  const keyboardOpen = vv.height < window.innerHeight * 0.85;
+  if (keyboardOpen) {
+    // Shrink panel to sit above keyboard — keep top at 0, adjust height only
+    panel.style.top    = '0';
     panel.style.height = vv.height + 'px';
     panel.style.bottom = 'auto';
+    // Only scroll to bottom if already near bottom
     const msgs = document.getElementById('chat-messages');
-    if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
+    if (msgs) {
+      const nearBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80;
+      if (nearBottom) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
+    }
+  } else {
+    // Keyboard closed — restore full-screen coverage
+    panel.style.top    = '';
+    panel.style.height = '';
+    panel.style.bottom = '';
   }
 }
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
-  window.visualViewport.addEventListener('scroll', _adjustChatForKeyboard);
+  // No scroll listener — it fires during user swipe and fights scrolling
 }
 
 function openChat() {
@@ -4368,7 +4379,7 @@ function openChat() {
 function closeChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.remove('open');
-  panel.style.top = '';
+  panel.style.top    = '';
   panel.style.height = '';
   panel.style.bottom = '';
   dismissReactionPicker();
