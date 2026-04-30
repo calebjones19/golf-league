@@ -62,6 +62,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .form-select{width:100%;padding:11px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A1A;background:#fff;outline:none;font-family:'DM Sans',sans-serif}
 .radio-group{display:flex;gap:12px;flex-wrap:wrap}
 .radio-label{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer}
+/* Compact number input (weeks, interval) — no width:100% */
+.compact-num{width:52px;min-width:0;padding:11px 0;text-align:center;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-weight:600;color:#1A1A1A;background:#fff;outline:none;font-family:'DM Sans',sans-serif;-webkit-appearance:textfield;appearance:textfield;box-sizing:border-box;display:block}
+.compact-num:disabled{opacity:0.55;cursor:not-allowed;background:#F9FAFB}
 /* Panel edit mode header */
 .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px solid #F3F4F6}
 .panel-title{font-size:15px;font-weight:700;color:#1A1A1A}
@@ -346,27 +349,27 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
       </div>
       <div class="form-group">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <div style="width:136px">
+        <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-end">
+          <div>
             <label class="form-label">Start Date</label>
-            <input class="form-input" type="date" id="cfg-start" disabled>
+            <input class="form-input" type="date" id="cfg-start" style="width:auto" disabled>
           </div>
-          <div style="width:54px">
+          <div>
             <label class="form-label">Weeks</label>
-            <input class="form-input" type="number" id="cfg-weeks" min="1" max="40" value="18" style="text-align:center;padding-left:0;padding-right:0" disabled>
+            <input class="compact-num" type="number" id="cfg-weeks" min="1" max="40" value="18" disabled>
           </div>
         </div>
-        <div style="display:flex;gap:10px">
-          <div style="width:116px">
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div>
             <label class="form-label">Start Time</label>
-            <input class="form-input" type="time" id="cfg-start-time" value="17:30" disabled>
+            <input class="form-input" type="time" id="cfg-start-time" value="17:30" style="width:auto" disabled>
           </div>
-          <div style="width:54px">
+          <div>
             <label class="form-label">Interval</label>
-            <input class="form-input" type="number" id="cfg-tee-interval" min="5" max="30" value="8" style="text-align:center;padding-left:0;padding-right:0" disabled>
+            <input class="compact-num" type="number" id="cfg-tee-interval" min="5" max="30" value="8" disabled>
           </div>
-          <div style="flex:1;align-self:flex-end;padding-bottom:11px">
-            <span style="font-size:11px;color:#9CA3AF">mins between groups</span>
+          <div style="padding-bottom:13px;white-space:nowrap">
+            <span style="font-size:11px;color:#9CA3AF">mins apart</span>
           </div>
         </div>
       </div>
