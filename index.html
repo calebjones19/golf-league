@@ -200,9 +200,10 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .landing-overlay{position:fixed;inset:0;background:#1B4332;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;transition:opacity 0.35s ease;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 .landing-overlay.hidden{opacity:0;pointer-events:none}
 .landing-inner{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;padding:0 24px}
-.landing-wordmark{font-family:'Pinyon Script',cursive;font-size:72px;color:#C9A84C;line-height:1;text-align:center;text-shadow:0 2px 16px rgba(0,0,0,0.35),0 1px 3px rgba(0,0,0,0.5);margin-bottom:8px;letter-spacing:1px}
+.landing-wordmark{font-family:'Pinyon Script',cursive;font-size:clamp(72px,22vw,104px);color:#C9A84C;line-height:1.05;text-align:center;text-shadow:0 3px 24px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.55);margin-bottom:6px;letter-spacing:2px}
+.landing-wordmark-rule{width:72px;height:1px;background:linear-gradient(90deg,transparent,#C9A84C 30%,#C9A84C 70%,transparent);margin:0 auto 24px}
 .landing-top{text-align:center;width:100%;padding-bottom:28px}
-.landing-icon{font-size:52px;margin-bottom:16px;display:block}
+.landing-icon{display:none}
 .landing-league{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#C9A84C;line-height:1.2;margin-bottom:6px}
 .landing-meta{font-size:13px;color:#a0bfab;font-weight:500}
 .landing-divider{height:1px;background:rgba(255,255,255,0.1);margin-bottom:28px;width:100%}
@@ -342,8 +343,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
   <div id="landing-overlay" class="landing-overlay">
     <div class="landing-inner">
       <div class="landing-wordmark">Fairway Golf</div>
+      <div class="landing-wordmark-rule"></div>
       <div class="landing-top">
-        <span class="landing-icon">⛳</span>
         <div class="landing-league" id="landing-league-name">Fairway</div>
         <div class="landing-meta" id="landing-meta"></div>
       </div>
