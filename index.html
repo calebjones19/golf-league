@@ -773,9 +773,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div style="background:#F5F0E8;border-radius:16px;padding:16px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:14px">
           <div id="profile-avatar-large" style="width:52px;height:52px;border-radius:50%;background:#1B4332;color:#C9A84C;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:'Space Grotesk',sans-serif;flex-shrink:0"></div>
-          <div>
-            <div id="profile-name" style="font-size:16px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif"></div>
-            <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:2px"></div>
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div id="profile-name" style="font-size:16px;font-weight:700;color:#1A1A1A;font-family:'Space Grotesk',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <span id="profile-admin-badge" style="display:none;background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;white-space:nowrap;flex-shrink:0">👑 Admin</span>
+            </div>
+            <div id="profile-sub" style="font-size:12px;color:#6B7280;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+            <div id="profile-sub2" style="font-size:12px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
           </div>
         </div>
         <!-- Profile details grid -->
@@ -2984,6 +2988,7 @@ function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, 
         _ppRow('Name', playerName(p)) +
         _ppRow('Handicap', p.handicap != null ? p.handicap : '—') +
         _ppRow('Email', p.googleEmail || '—') +
+        _ppRow('Phone', p.phone || '—') +
       '</div>'
     : // Edit mode — inputs
       '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
@@ -2997,7 +3002,9 @@ function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, 
         '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
         '<input class="compact-num" id="pp-hcp" type="number" min="0" max="54" value="' + (p.handicap||0) + '" style="margin-top:4px;margin-bottom:12px;width:80px;display:block">' +
         '<label style="font-size:11px;font-weight:600;color:#6B7280">Google email</label>' +
-        '<input class="form-input" id="pp-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px">' +
+        '<input class="form-input" id="pp-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px;margin-bottom:12px">' +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Phone number</label>' +
+        '<input class="form-input" id="pp-phone" type="tel" placeholder="(555) 555-5555" value="' + (p.phone||'') + '" style="margin-top:4px" oninput="formatPhoneInput(this)">' +
       '</div>';
 
   const teammateCard = ro
@@ -3125,10 +3132,12 @@ function savePlayerPage(id) {
     }
   }
 
+  const phone   = (document.getElementById('pp-phone') ? document.getElementById('pp-phone').value.trim() : '') || p.phone || '';
   p.firstName   = first;
   p.lastName    = last;
   p.handicap    = hcp;
   p.googleEmail = email || null;
+  p.phone       = phone || null;
   p.claimed     = !!(email || p.googleUid);
 
   // ── Teammate / team assignment ──
@@ -3766,11 +3775,52 @@ function claimProfile(playerId) {
   const player = DATA.players.find(p => p.id === playerId);
   if (!player) return;
   if (player.googleUid || player.googleEmail) { showToast('This profile is already linked'); return; }
+
+  // Show phone number prompt before confirming
+  const existing = document.getElementById('claim-phone-sheet');
+  if (existing) existing.remove();
+
+  const sheet = document.createElement('div');
+  sheet.id = 'claim-phone-sheet';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:980;display:flex;flex-direction:column;justify-content:flex-end';
+  sheet.innerHTML =
+    '<div style="flex:1;background:rgba(0,0,0,0.5)"></div>' +
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px calc(32px + env(safe-area-inset-bottom))">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="font-size:18px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Hi, ' + playerFirstName(player) + '! 👋</div>' +
+      '<div style="font-size:14px;color:#6B7280;margin-bottom:20px">One last thing — what\'s your phone number? It helps your teammates reach you.</div>' +
+      '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px">PHONE NUMBER</label>' +
+      '<input id="claim-phone-input" class="form-input" type="tel" placeholder="(555) 555-5555" style="margin-top:6px;margin-bottom:6px" oninput="formatPhoneInput(this)">' +
+      '<div style="font-size:11px;color:#9CA3AF;margin-bottom:20px">Optional — you can skip this</div>' +
+      '<button onclick="confirmClaimProfile(\'' + playerId + '\')" class="btn-green" style="width:100%;margin-bottom:10px">Join the League ⛳</button>' +
+      '<button onclick="confirmClaimProfile(\'' + playerId + '\', true)" style="width:100%;background:none;border:none;color:#9CA3AF;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:\'DM Sans\',sans-serif">Skip</button>' +
+    '</div>';
+  document.body.appendChild(sheet);
+  setTimeout(() => document.getElementById('claim-phone-input').focus(), 350);
+}
+
+function formatPhoneInput(input) {
+  let v = input.value.replace(/\D/g, '').slice(0, 10);
+  if (v.length >= 7) v = '(' + v.slice(0,3) + ') ' + v.slice(3,6) + '-' + v.slice(6);
+  else if (v.length >= 4) v = '(' + v.slice(0,3) + ') ' + v.slice(3);
+  else if (v.length > 0) v = '(' + v;
+  input.value = v;
+}
+
+function confirmClaimProfile(playerId, skip) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const player = DATA.players.find(p => p.id === playerId);
+  if (!player) return;
+  const phone = skip ? '' : (document.getElementById('claim-phone-input').value.trim());
   player.googleUid   = user.uid;
   player.googleEmail = user.email.toLowerCase();
   player.claimed     = true;
+  if (phone) player.phone = phone;
   DATA.currentUserId = player.id;
   saveData();
+  const sheet = document.getElementById('claim-phone-sheet');
+  if (sheet) sheet.remove();
   updateAvatarBtn();
   closeLanding();
   showSection('dashboard');
@@ -3843,20 +3893,23 @@ function openProfileSheet() {
   const user   = auth.currentUser;
   if (!player && !user) return;
 
-  const avatarEl  = document.getElementById('profile-avatar-large');
-  const nameEl    = document.getElementById('profile-name');
-  const subEl     = document.getElementById('profile-sub');
-  const detailsEl = document.getElementById('profile-details');
+  const avatarEl   = document.getElementById('profile-avatar-large');
+  const nameEl     = document.getElementById('profile-name');
+  const subEl      = document.getElementById('profile-sub');
+  const sub2El     = document.getElementById('profile-sub2');
+  const badgeEl    = document.getElementById('profile-admin-badge');
+  const detailsEl  = document.getElementById('profile-details');
 
   if (player) {
     avatarEl.textContent = playerInitials(player);
     nameEl.textContent   = playerName(player);
-    const team = DATA.teams.find(t => t.playerIds.includes(player.id));
-    subEl.textContent = team ? team.name : 'No team';
+    if (badgeEl) badgeEl.style.display = isAdmin ? 'inline-flex' : 'none';
+    const email = player.googleEmail || (user ? user.email : null);
+    if (subEl)  subEl.textContent  = email || '';
+    if (sub2El) sub2El.textContent = player.phone || '';
 
-    // Stats/details grid
-    const email   = player.googleEmail || (user ? user.email : null);
     const hcp     = effectiveHandicap(player);
+    const team    = DATA.teams.find(t => t.playerIds.includes(player.id));
     const standing = (() => {
       let W=0,L=0,T=0;
       (DATA.rounds||[]).forEach(r => {
@@ -3873,17 +3926,17 @@ function openProfileSheet() {
     detailsEl.innerHTML =
       _profileCell('Handicap', hcp) +
       _profileCell('Record', `${standing.W}W · ${standing.L}L · ${standing.T}T`) +
-      (team ? _profileCell('Team', team.name) : '') +
-      (email ? _profileCell('Email', email) : '');
+      (team ? _profileCell('Team', team.name) : '');
   } else {
     const initStr = user.displayName
       ? user.displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)
       : (user.email||'?')[0].toUpperCase();
     avatarEl.textContent = initStr;
     nameEl.textContent   = user.displayName || user.email;
-    subEl.textContent    = isAdmin ? 'League Admin' : 'Signed in';
-    detailsEl.innerHTML  = _profileCell('Email', user.email || '—') +
-                           _profileCell('Role', isAdmin ? '👑 Admin' : 'Member');
+    if (badgeEl) badgeEl.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (subEl)  subEl.textContent  = user.email || '';
+    if (sub2El) sub2El.textContent = '';
+    detailsEl.innerHTML = _profileCell('Role', isAdmin ? '👑 Admin' : 'Member');
   }
 
   const vEl = document.getElementById('profile-version');
