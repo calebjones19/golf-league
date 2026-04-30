@@ -303,6 +303,25 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .chat-input:focus{border-color:#1B4332;background:#fff}
 .chat-send-btn{width:36px;height:36px;border-radius:50%;background:#1B4332;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s}
 .chat-send-btn:disabled{opacity:0.4;cursor:default}
+/* Custom keyboard */
+.kb-display{flex:1;border:1.5px solid #E5E7EB;border-radius:22px;padding:10px 16px;font-size:14px;font-family:'DM Sans',sans-serif;min-height:40px;max-height:100px;line-height:1.4;color:#1A1A1A;background:#F9FAFB;cursor:text;overflow:hidden;word-break:break-word;white-space:pre-wrap;position:relative;-webkit-tap-highlight-color:transparent}
+.kb-display.active{border-color:#1B4332;background:#fff}
+.kb-cursor{display:inline-block;width:2px;height:1.1em;background:#1A1A1A;vertical-align:text-bottom;animation:kbBlink 1s step-end infinite;margin-left:1px}
+.kb-display:not(.active) .kb-cursor{display:none}
+@keyframes kbBlink{0%,100%{opacity:1}50%{opacity:0}}
+.kb-suggest-bar{background:#CDD0D5;border-top:1px solid rgba(0,0,0,0.12);flex-direction:row;height:44px;flex-shrink:0}
+.kb-suggest-item{flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#1A1A1A;cursor:pointer;border-left:0.5px solid rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent;user-select:none;padding:0 6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'DM Sans',sans-serif;-webkit-user-select:none}
+.kb-suggest-item:first-child{border-left:none}
+.kb-suggest-item:active{background:rgba(0,0,0,0.1)}
+.custom-kb{background:#CDD0D5;padding:8px 3px 8px;padding-bottom:max(10px,env(safe-area-inset-bottom));flex-direction:column;gap:10px;flex-shrink:0}
+.kb-layer{flex-direction:column;gap:10px;width:100%}
+.kb-row{display:flex;gap:5px;justify-content:center;padding:0 3px}
+.kb-key{background:#FFFFFF;border-radius:5px;box-shadow:0 1px 0 rgba(0,0,0,0.38);font-size:17px;font-weight:400;color:#1A1A1A;cursor:pointer;display:flex;align-items:center;justify-content:center;height:42px;min-width:0;flex:1;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;border:none;line-height:1;transition:background 0.06s}
+.kb-key.dark{background:#ADB5BD;color:#1A1A1A}
+.kb-key.space{flex:4;font-size:14px}
+.kb-key.send-key{background:#1B4332;color:#fff;flex:1.5}
+.kb-key.send-key.disabled{opacity:0.45}
+.kb-key.wide{flex:1.5}
 /* Attachment action sheet */
 .attach-sheet{position:fixed;inset:0;z-index:650;display:none;align-items:flex-end;justify-content:center}
 .attach-sheet.open{display:flex}
@@ -443,12 +462,22 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <button onclick="openAttachMenu()" style="width:36px;height:36px;border-radius:50%;background:#F3F4F6;border:none;color:#374151;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <textarea class="chat-input" id="chat-input" placeholder="Message…" rows="1" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)"></textarea>
+        <div class="kb-display" id="kb-display" onclick="openCustomKb()"><span style="color:#9CA3AF;pointer-events:none">Message…</span></div>
+        <textarea id="chat-input" inputmode="none" style="display:none;position:absolute;opacity:0;pointer-events:none" rows="1" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)"></textarea>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
     </div>
+
+    <!-- Autocorrect suggestion bar (shown when custom keyboard is open) -->
+    <div class="kb-suggest-bar" id="kb-suggest-bar" style="display:none">
+      <div class="kb-suggest-item" id="kb-sug-0" onclick="kbAcceptSuggestion(0)"></div>
+      <div class="kb-suggest-item" id="kb-sug-1" onclick="kbAcceptSuggestion(1)" style="border-left:0.5px solid rgba(0,0,0,0.2);border-right:0.5px solid rgba(0,0,0,0.2)"></div>
+      <div class="kb-suggest-item" id="kb-sug-2" onclick="kbAcceptSuggestion(2)"></div>
+    </div>
+    <!-- Custom QWERTY keyboard (replaces native iOS keyboard) -->
+    <div class="custom-kb" id="custom-kb" style="display:none"></div>
   </div>
 
   <!-- Hidden file inputs -->
@@ -1030,7 +1059,7 @@ function loadData() {
     const seen = localStorage.getItem(SEEN_KEY);
     if (seen) seenAnnouncements = JSON.parse(seen);
   } catch(e) {}
-  isAdmin = sessionStorage.getItem('golf_is_admin') === 'true';
+  isAdmin = localStorage.getItem('golf_is_admin') === 'true';
 }
 
 function startFirestoreSync() {
@@ -1056,7 +1085,7 @@ function startFirestoreSync() {
       // Re-check admin now that Firestore data is loaded (might not have been set at auth time)
       if (!isAdmin && isAdminEmail(email)) {
         isAdmin = true;
-        sessionStorage.setItem('golf_is_admin', 'true');
+        localStorage.setItem('golf_is_admin', 'true');
         buildBottomNav();
       }
       let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
@@ -3861,7 +3890,7 @@ function submitAdminLogin() {
 
 function setAdmin(val) {
   isAdmin = val;
-  sessionStorage.setItem('golf_is_admin', val ? 'true' : 'false');
+  localStorage.setItem('golf_is_admin', val ? 'true' : 'false');
   buildBottomNav();
   updateAvatarBtn();
 }
@@ -4293,7 +4322,7 @@ async function signOut() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
   closeProfileSheet();
   isAdmin = false;
-  sessionStorage.removeItem('golf_is_admin');
+  localStorage.removeItem('golf_is_admin');
   initialAuthChecked = false; // Allow onAuthStateChanged to fire fresh next time
   await auth.signOut();
   signingOut = false;
@@ -4611,7 +4640,7 @@ function handleAuthState(user) {
     DATA.currentUserId = null;
     // Don't saveData() when signing out — no need to write null userId to Firestore
     isAdmin = false;
-    sessionStorage.removeItem('golf_is_admin');
+    localStorage.removeItem('golf_is_admin');
     buildBottomNav();
     updateAvatarBtn();
     buildLandingSignIn();
@@ -4627,7 +4656,7 @@ function handleAuthState(user) {
   // Check admin by Google email
   if (isAdminEmail(email)) {
     isAdmin = true;
-    sessionStorage.setItem('golf_is_admin', 'true');
+    localStorage.setItem('golf_is_admin', 'true');
     buildBottomNav();
   }
 
@@ -4710,24 +4739,315 @@ function updateChatBadge() {
   }
 }
 
-function _adjustChatForKeyboard() {
-  const panel = document.getElementById('chat-panel');
-  if (!panel || !panel.classList.contains('open')) return;
-  if (!window.visualViewport) return;
-  const vv = window.visualViewport;
-  // Never touch panel.style.top — keep it anchored at 0.
-  // Only adjust height so the panel shrinks up above the keyboard.
-  const keyboardHeight = window.innerHeight - vv.height;
-  if (keyboardHeight > 50) {
-    panel.style.height = vv.height + 'px';
-    const msgs = document.getElementById('chat-messages');
-    if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
+// ── Custom Keyboard ─────────────────────────────────────────────────────────
+// The custom keyboard lives inside the chat panel (flex column) so it never
+// needs visualViewport tricks — flexbox handles the layout automatically.
+var _kbText   = '';
+var _kbShift  = 'once';  // 'none' | 'once' | 'lock'
+var _kbLayer  = 'alpha'; // 'alpha' | 'num'  | 'sym'
+var _kbOpen   = false;
+var _kbBuilt  = false;
+var _kbAutoCorrect = null; // correction pending on next space
+
+// Auto-correct dictionary (common typos + golf terms)
+var _kbDict = {
+  // Common English typos
+  'teh':'the','taht':'that','wiht':'with','hte':'the','od':'do','si':'is',
+  'ti':'it','nad':'and','adn':'and','ot':'to','nto':'not','fo':'of',
+  'siad':'said','waht':'what','form':'from','cna':'can','liek':'like',
+  'jsut':'just','thnk':'think','thsi':'this','doesnt':"doesn't",
+  'dont':"don't",'cant':"can't",'wont':"won't",'isnt':"isn't",
+  'wouldnt':"wouldn't",'shouldnt':"shouldn't",'havent':"haven't",
+  'recieve':'receive','beleive':'believe','definately':'definitely',
+  'seperate':'separate','occured':'occurred','untill':'until',
+  'tommorow':'tomorrow','tommorrow':'tomorrow','becuase':'because',
+  'becasue':'because','freind':'friend','geting':'getting',
+  'haveing':'having','makeing':'making','comeing':'coming',
+  'takeing':'taking','tahnk':'thank','thnak':'thank','shold':'should',
+  'shoud':'should','calender':'calendar','alot':'a lot',
+  'arguement':'argument','equipement':'equipment','everytime':'every time',
+  'familar':'familiar','finaly':'finally','grammer':'grammar',
+  'happend':'happened','hight':'height','intresting':'interesting',
+  'knowlege':'knowledge','lieing':'lying','lisence':'license',
+  'medeval':'medieval','mispell':'misspell','mroe':'more',
+  'noticable':'noticeable','occassion':'occasion','ommit':'omit',
+  'posession':'possession','priviledge':'privilege','publically':'publicly',
+  'reccomend':'recommend','relevent':'relevant','restarant':'restaurant',
+  'rythm':'rhythm','sentance':'sentence','speach':'speech',
+  'succesful':'successful','suprise':'surprise','therfor':'therefore',
+  'tomarrow':'tomorrow','truely':'truly','wether':'whether',
+  'writting':'writing','yoour':'your','yoru':'your','htey':'they',
+  'tehy':'they','theyre':"they're",'thier':'their','thier':'their',
+  // Golf terms
+  'birdei':'birdie','birde':'birdie','ealge':'eagle','eagel':'eagle',
+  'bogei':'bogey','boegy':'bogey','bogie':'bogey','hanidcap':'handicap',
+  'handycap':'handicap','greebn':'green','greene':'green',
+  'fariway':'fairway','albatros':'albatross','pars':'pars',
+};
+
+function _kbBuild() {
+  if (_kbBuilt) return;
+  _kbBuilt = true;
+  var ALPHA = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['SHIFT','z','x','c','v','b','n','m','BACK'],
+    ['NUM','SPACE','RETURN']
+  ];
+  var NUM = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['-','/',':', ';','(',')','$','&','@','"'],
+    ['SYM','.',',','?','!','\'','BACK'],
+    ['ALPHA','SPACE','RETURN']
+  ];
+  var SYM = [
+    ['[',']','{','}','#','%','^','*','+','='],
+    ['_','\\','|','~','<','>','€','£','¥','•'],
+    ['NUM','.',',','?','!','\'','BACK'],
+    ['ALPHA','SPACE','RETURN']
+  ];
+  var kb = document.getElementById('custom-kb');
+  if (!kb) return;
+
+  function makeBtn(key) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kb-key';
+    switch (key) {
+      case 'SHIFT':
+        btn.classList.add('dark','wide');
+        btn.id = 'kb-shift-btn';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="6" x2="12" y2="18"/></svg>';
+        btn.addEventListener('touchstart', function(e){ e.preventDefault(); kbShiftTap(); }, {passive:false});
+        break;
+      case 'BACK':
+        btn.classList.add('dark','wide');
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>';
+        (function(){
+          var bpTimer;
+          btn.addEventListener('touchstart', function(e){
+            e.preventDefault();
+            kbBackspace();
+            bpTimer = setTimeout(function(){ _kbText=''; _kbRender(); _kbSuggest(); }, 650);
+          }, {passive:false});
+          btn.addEventListener('touchend',   function(){ clearTimeout(bpTimer); }, {passive:true});
+          btn.addEventListener('touchcancel',function(){ clearTimeout(bpTimer); }, {passive:true});
+        })();
+        break;
+      case 'SPACE':
+        btn.classList.add('space');
+        btn.textContent = 'space';
+        btn.addEventListener('touchstart', function(e){ e.preventDefault(); kbSpace(); }, {passive:false});
+        break;
+      case 'RETURN':
+        btn.classList.add('send-key','disabled','wide');
+        btn.id = 'kb-return-btn';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+        btn.addEventListener('touchstart', function(e){ e.preventDefault(); kbSend(); }, {passive:false});
+        break;
+      case 'NUM':
+        btn.classList.add('dark','wide');
+        btn.style.fontSize='13px';
+        btn.textContent='123';
+        btn.addEventListener('touchstart',function(e){e.preventDefault();kbSetLayer('num');},{passive:false});
+        break;
+      case 'ALPHA':
+        btn.classList.add('dark','wide');
+        btn.style.fontSize='13px';
+        btn.textContent='ABC';
+        btn.addEventListener('touchstart',function(e){e.preventDefault();kbSetLayer('alpha');},{passive:false});
+        break;
+      case 'SYM':
+        btn.classList.add('dark','wide');
+        btn.style.fontSize='12px';
+        btn.textContent='#+=';
+        btn.addEventListener('touchstart',function(e){e.preventDefault();kbSetLayer('sym');},{passive:false});
+        break;
+      default:
+        btn.textContent = key;
+        (function(ch){
+          btn.addEventListener('touchstart',function(e){ e.preventDefault(); kbKey(ch); },{passive:false});
+        })(key);
+    }
+    return btn;
+  }
+
+  [['alpha',ALPHA],['num',NUM],['sym',SYM]].forEach(function(pair) {
+    var lName = pair[0], rows = pair[1];
+    var layer = document.createElement('div');
+    layer.className = 'kb-layer';
+    layer.id = 'kb-layer-' + lName;
+    layer.style.display = lName==='alpha' ? 'flex' : 'none';
+    layer.style.flexDirection = 'column';
+    layer.style.gap = '10px';
+    rows.forEach(function(row, ri) {
+      var rowDiv = document.createElement('div');
+      rowDiv.className = 'kb-row';
+      // Slightly indent row 2 of alpha to create classic QWERTY stepped look
+      if (lName==='alpha' && ri===1) { rowDiv.style.paddingLeft='16px'; rowDiv.style.paddingRight='16px'; }
+      row.forEach(function(k){ rowDiv.appendChild(makeBtn(k)); });
+      layer.appendChild(rowDiv);
+    });
+    kb.appendChild(layer);
+  });
+}
+
+function kbSetLayer(name) {
+  _kbLayer = name;
+  ['alpha','num','sym'].forEach(function(l){
+    var el = document.getElementById('kb-layer-'+l);
+    if (el) el.style.display = l===name ? 'flex' : 'none';
+  });
+}
+
+function kbKey(char) {
+  var c = _kbShift !== 'none' ? char.toUpperCase() : char.toLowerCase();
+  _kbText += c;
+  if (_kbShift==='once') { _kbShift='none'; _kbUpdateShift(); }
+  _kbRender(); _kbSuggest();
+}
+
+function kbSpace() {
+  if (_kbAutoCorrect) {
+    var word = _kbCurrentWord();
+    if (word) {
+      var corrected = _kbCapMatch(word, _kbAutoCorrect);
+      _kbText = _kbText.slice(0, _kbText.length - word.length) + corrected;
+    }
+    _kbAutoCorrect = null;
+  }
+  _kbText += ' ';
+  _kbRender(); _kbSuggest();
+}
+
+function kbBackspace() {
+  if (!_kbText.length) return;
+  _kbAutoCorrect = null;
+  _kbText = _kbText.slice(0, -1);
+  _kbRender(); _kbSuggest();
+  if (!_kbText.trim() && _kbShift==='none') { _kbShift='once'; _kbUpdateShift(); }
+}
+
+function kbSend() {
+  if (!_kbText.trim() && !_pendingAttachment) return;
+  sendMessage();
+}
+
+function kbShiftTap() {
+  if      (_kbShift==='none') _kbShift='once';
+  else if (_kbShift==='once') _kbShift='lock';
+  else                        _kbShift='none';
+  _kbUpdateShift();
+}
+
+function _kbUpdateShift() {
+  var btn = document.getElementById('kb-shift-btn');
+  if (!btn) return;
+  if (_kbShift==='lock') {
+    btn.style.background='#fff'; btn.style.outline='2px solid #1B4332'; btn.style.color='#1B4332';
+  } else if (_kbShift==='once') {
+    btn.style.background='#fff'; btn.style.outline='none'; btn.style.color='#1A1A1A';
   } else {
-    panel.style.height = '';
+    btn.style.background=''; btn.style.outline='none'; btn.style.color='';
   }
 }
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
+
+function _kbCurrentWord() {
+  var parts = _kbText.split(/\s+/);
+  return parts[parts.length-1] || '';
+}
+
+function _kbCapMatch(original, replacement) {
+  if (original.length && original[0]===original[0].toUpperCase() && original[0]!==original[0].toLowerCase()) {
+    return replacement[0].toUpperCase() + replacement.slice(1);
+  }
+  return replacement;
+}
+
+function _kbSuggest() {
+  var word = _kbCurrentWord().toLowerCase();
+  var sug0 = document.getElementById('kb-sug-0');
+  var sug1 = document.getElementById('kb-sug-1');
+  var sug2 = document.getElementById('kb-sug-2');
+  if (!word || word.length < 2) {
+    _kbAutoCorrect = null;
+    if (sug0) sug0.textContent='';
+    if (sug1) { sug1.textContent=word||''; sug1.style.fontWeight='400'; }
+    if (sug2) sug2.textContent='';
+    return;
+  }
+  var correction = _kbDict[word] || null;
+  _kbAutoCorrect = correction;
+  if (sug1) { sug1.textContent='"'+word+'"'; sug1.style.fontWeight='400'; }
+  if (sug0) sug0.textContent='';
+  if (sug2) { sug2.textContent=correction||''; sug2.style.fontWeight=correction?'600':'400'; }
+}
+
+function kbAcceptSuggestion(idx) {
+  if (idx===1) {
+    // Reject correction — keep exact typed word, add space
+    _kbAutoCorrect = null;
+    var w = _kbCurrentWord();
+    if (w) { _kbText = _kbText.slice(0, _kbText.length-w.length) + w + ' '; }
+    _kbRender(); _kbSuggest();
+  } else if (idx===2 && _kbAutoCorrect) {
+    var w = _kbCurrentWord();
+    var corrected = _kbCapMatch(w, _kbAutoCorrect);
+    _kbText = _kbText.slice(0, _kbText.length-w.length) + corrected + ' ';
+    _kbAutoCorrect = null;
+    _kbRender(); _kbSuggest();
+  }
+}
+
+function _kbRender() {
+  // Sync hidden textarea
+  var inp = document.getElementById('chat-input');
+  if (inp) { inp.value = _kbText; chatInputChanged(inp); }
+  // Update visual display
+  var disp = document.getElementById('kb-display');
+  if (!disp) return;
+  if (_kbText) {
+    var esc = _kbText
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+    disp.innerHTML = esc + '<span class="kb-cursor"></span>';
+  } else {
+    disp.innerHTML = '<span style="color:#9CA3AF;pointer-events:none">Message…</span>';
+  }
+  // Update send key enabled state
+  var retBtn = document.getElementById('kb-return-btn');
+  if (retBtn) retBtn.classList.toggle('disabled', !_kbText.trim() && !_pendingAttachment);
+  updateSendBtn();
+}
+
+function openCustomKb() {
+  _kbBuild();
+  if (_kbOpen) return;
+  _kbOpen = true;
+  var kb     = document.getElementById('custom-kb');
+  var sugBar = document.getElementById('kb-suggest-bar');
+  var disp   = document.getElementById('kb-display');
+  if (kb)     { kb.style.display='flex'; }
+  if (sugBar) sugBar.style.display='flex';
+  if (disp)   disp.classList.add('active');
+  if (!_kbText.trim()) { _kbShift='once'; _kbUpdateShift(); }
+  // Scroll messages to bottom so last message is visible above keyboard
+  setTimeout(function(){
+    var msgs = document.getElementById('chat-messages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }, 80);
+}
+
+function closeCustomKb() {
+  if (!_kbOpen) return;
+  _kbOpen = false;
+  var kb     = document.getElementById('custom-kb');
+  var sugBar = document.getElementById('kb-suggest-bar');
+  var disp   = document.getElementById('kb-display');
+  if (kb)     kb.style.display='none';
+  if (sugBar) sugBar.style.display='none';
+  if (disp)   disp.classList.remove('active');
 }
 
 // Prevent iOS rubber-band from revealing the page behind the chat panel.
@@ -4773,14 +5093,12 @@ function openChat() {
 }
 
 function closeChat() {
+  closeCustomKb();
   const panel = document.getElementById('chat-panel');
   panel.classList.remove('open');
   panel.style.top    = '';
   panel.style.bottom = '';
   panel.style.height = '';
-  // Blur input so keyboard dismisses before panel slides away
-  const inp = document.getElementById('chat-input');
-  if (inp) inp.blur();
   dismissReactionPicker();
   dismissContextMenu();
 }
@@ -4856,6 +5174,8 @@ function sendMessage() {
   }
 
   if (input) { input.value = ''; input.style.height = 'auto'; }
+  _kbText = ''; _kbShift = 'once'; _kbAutoCorrect = null;
+  _kbRender(); _kbSuggest();
   clearPendingAttachment();
   clearReply();
 
@@ -4879,8 +5199,7 @@ function setReply(msgId) {
   const rt = document.getElementById('chat-reply-text');
   if (rn) rn.textContent = msg.senderName;
   if (rt) rt.textContent = msg.text;
-  const input = document.getElementById('chat-input');
-  if (input) input.focus();
+  openCustomKb();
   dismissContextMenu();
 }
 
@@ -5100,6 +5419,7 @@ var _gifDebounceTimer = null;
 var TENOR_KEY = 'LIVDSRZULELA'; // Tenor public demo key (swap for own key if needed)
 
 function openGifPanel() {
+  closeCustomKb(); // hide custom kb while gif panel is shown
   const panel = document.getElementById('gif-panel');
   if (panel) { panel.classList.add('open'); document.getElementById('gif-search-input').focus(); }
 }
@@ -5187,13 +5507,9 @@ function openEmojiPicker() {
     btn.textContent = em;
     btn.onclick = function(e){
       e.stopPropagation();
-      const input = document.getElementById('chat-input');
-      if (input) {
-        const pos = input.selectionStart || input.value.length;
-        input.value = input.value.slice(0,pos) + em + input.value.slice(pos);
-        input.focus();
-        chatInputChanged(input);
-      }
+      _kbText += em;
+      openCustomKb();
+      _kbRender(); _kbSuggest();
       dismissReactionPicker();
     };
     picker.appendChild(btn);
