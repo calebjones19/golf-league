@@ -876,6 +876,7 @@ let DATA = {
   currentUserId: null,
   league:        null,
   players:       [],
+  subs:          [],
   teams:         [],
   schedule:      [],
   rounds:        [],
@@ -1382,14 +1383,18 @@ function refreshSubsUI() {
   var tB = DATA.teams.find(function(t){return t.id===teamBId;});
   if (!tA || !tB) { wrap.innerHTML=''; return; }
 
-  // Available subs: all players not on either team + not already a sub
+  // Available subs: pull from the dedicated subs roster (DATA.subs), not league players
   var allMatchIds = tA.playerIds.concat(tB.playerIds);
-  var availSubs = DATA.players.filter(function(p){ return !allMatchIds.includes(p.id); });
+  var usedSubIds  = Object.values(pendingSubs);
+  var availSubs   = (DATA.subs || []).filter(function(p){ return !usedSubIds.includes(p.id); });
 
   function subOpts(excludeIds) {
+    if (availSubs.length === 0 && !excludeIds.some(function(id){return id;})) {
+      return '<option value="">— No subs on roster —</option>';
+    }
     return '<option value="">— No Sub —</option>' +
-      availSubs
-        .filter(function(p){ return !Object.values(pendingSubs).includes(p.id) || excludeIds.includes(p.id); })
+      (DATA.subs || [])
+        .filter(function(p){ return !usedSubIds.includes(p.id) || excludeIds.includes(p.id); })
         .map(function(p){ return '<option value="'+p.id+'">'+playerName(p)+' (Hcp '+(p.handicap||0)+')</option>'; }).join('');
   }
 
@@ -1398,7 +1403,7 @@ function refreshSubsUI() {
       var p = DATA.players.find(function(pl){return pl.id===pid;});
       if (!p) return '';
       var subPid = pendingSubs[pid];
-      var subP = subPid ? DATA.players.find(function(pl){return pl.id===subPid;}) : null;
+      var subP = subPid ? (DATA.subs || []).find(function(pl){return pl.id===subPid;}) : null;
       var hcp = subP ? effectiveHandicap(subP) : effectiveHandicap(p);
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6">' +
         '<div style="flex:1">' +
@@ -1525,7 +1530,8 @@ function renderEntryCard(tA, tB) {
 
   function makePlayerRows(playerIds, isSub, canEdit) {
     return playerIds.map(function(pid) {
-      var p = DATA.players.find(function(pl){return pl.id === pid;});
+      var p = DATA.players.find(function(pl){return pl.id === pid;})
+           || (DATA.subs || []).find(function(pl){return pl.id === pid;});
       if (!p) return '';
       var hcp     = effectiveHandicap(p);
       var strokes = playerStrokesOnHole(hcp, holeRank, numHoles);
@@ -1735,7 +1741,8 @@ function renderScorecard(tA, tB) {
   var idsB   = teams ? teams.idsB : tB.playerIds;
 
   function makePlayerRow(pid) {
-    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    var p = DATA.players.find(function(pl){return pl.id === pid;})
+         || (DATA.subs || []).find(function(pl){return pl.id === pid;});
     if (!p) return '';
     var sc  = activeMatch.scores[pid] || [];
     var tot = sc.reduce(function(a,s){return a+(s||0);}, 0);
@@ -1848,7 +1855,8 @@ function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel
   var numHoles = holeResults.length;
 
   function pname(pid) {
-    var p = DATA.players.find(function(pl){return pl.id === pid;});
+    var p = DATA.players.find(function(pl){return pl.id === pid;})
+         || (DATA.subs || []).find(function(pl){return pl.id === pid;});
     return p ? playerFirstName(p) : '';
   }
 
@@ -1937,12 +1945,13 @@ function buildSkins() {
 
       if (winners.length === 1) {
         // Clean win — player takes the pot
-        var wp = DATA.players.find(function(p){return p.id === winners[0].pid;});
+        var wp = DATA.players.find(function(p){return p.id === winners[0].pid;})
+              || (DATA.subs || []).find(function(p){return p.id === winners[0].pid;});
         skinResults.push({ hole: h+1, pid: winners[0].pid, winner: wp ? playerName(wp) : '?', amount: potPerHole * carryover, carryover: carryover > 1, multi: false });
         carryover = 0;
       } else if (winners.length > 1) {
         // Tie — pot carries over to next hole per rules
-        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? playerFirstName(p) : '?'; }).join(' & ');
+        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}) || (DATA.subs||[]).find(function(pl){return pl.id===w.pid;}); return p ? playerFirstName(p) : '?'; }).join(' & ');
         skinResults.push({ hole: h+1, pid: null, winner: null, tied: tiedNames, amount: 0, carryover: true });
         // carryover stays incremented (hole pot rolls forward)
       }
@@ -1956,7 +1965,8 @@ function buildSkins() {
   });
   var topEarners = Object.keys(winningsByPid)
     .map(function(pid){
-      var p = DATA.players.find(function(pl){return pl.id===pid;});
+      var p = DATA.players.find(function(pl){return pl.id===pid;})
+           || (DATA.subs || []).find(function(pl){return pl.id===pid;});
       return { pid: pid, name: p ? playerName(p) : '?', initials: p ? playerInitials(p) : '?', amt: winningsByPid[pid] };
     })
     .sort(function(a,b){return b.amt - a.amt;})
@@ -2612,8 +2622,9 @@ function renderPlayersList() {
   if (!wrap) return;
   const on = adminEditModes['players'] || false;
 
-  const listHtml = DATA.players.length === 0
-    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet.</div>'
+  // ── League Players ──────────────────────────────────────────
+  const leagueListHtml = DATA.players.length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No league players yet.</div>'
     : DATA.players.map(p => {
         const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
         const claimed  = !!(p.googleUid || p.googleEmail);
@@ -2624,15 +2635,12 @@ function renderPlayersList() {
         const adminBadge = (!on && pIsAdmin)
           ? '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">👑 Admin</span>'
           : '';
-
-        // Admin checkbox — visible in edit mode; disabled if player hasn't linked yet
         const adminCheckbox = on
           ? '<label style="display:flex;align-items:center;gap:5px;cursor:' + (claimed ? 'pointer' : 'not-allowed') + ';opacity:' + (claimed ? '1' : '0.4') + ';margin-right:2px" title="' + (claimed ? 'Toggle admin access' : 'Player must sign in first') + '">' +
               '<input type="checkbox" ' + (pIsAdmin ? 'checked' : '') + ' ' + (claimed ? '' : 'disabled') + ' onchange="togglePlayerAdmin(\'' + p.id + '\',this.checked)" style="width:15px;height:15px;accent-color:#1B4332;cursor:inherit">' +
               '<span style="font-size:10px;font-weight:600;color:#374151">Admin</span>' +
             '</label>'
           : '';
-
         return '<div class="player-row">' +
           avatarHtml(playerInitials(p), '#E5E7EB', '#6B7280', 32) +
           '<div style="flex:1;min-width:0">' +
@@ -2643,19 +2651,81 @@ function renderPlayersList() {
         '</div>';
       }).join('');
 
-  // Add form — always visible
-  const addFormHtml =
-    '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
-      '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">ADD PLAYER</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+  const addLeagueFormHtml =
+    '<div style="margin-top:12px;border-top:1px solid #F3F4F6;padding-top:12px">' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">ADD LEAGUE PLAYER</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:8px">' +
         '<div style="flex:1"><input class="form-input" id="new-player-first" placeholder="First name"></div>' +
         '<div style="flex:1"><input class="form-input" id="new-player-last" placeholder="Last name"></div>' +
         '<div style="width:64px"><input class="compact-num" id="new-player-hcp" placeholder="0" type="number" min="0" max="54"></div>' +
       '</div>' +
-      '<button class="btn-green" style="width:100%" onclick="addPlayer()">+ Add Player</button>' +
+      '<button class="btn-green" style="width:100%" onclick="addPlayer()">+ Add League Player</button>' +
     '</div>';
 
-  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml;
+  // ── Subs Roster ─────────────────────────────────────────────
+  const subs = DATA.subs || [];
+  const subsListHtml = subs.length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No subs on roster yet.</div>'
+    : subs.map(s => {
+        return '<div class="player-row">' +
+          avatarHtml(playerInitials(s), '#FEF9EE', '#C9A84C', 32) +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(s) +
+              '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px">SUB</span>' +
+            '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + (s.handicap || 0) + '</div>' +
+          '</div>' +
+          (on ? '<button class="btn-sm btn-delete" onclick="removeSub(\'' + s.id + '\')">Remove</button>' : '') +
+        '</div>';
+      }).join('');
+
+  const addSubFormHtml =
+    '<div style="margin-top:12px;border-top:1px solid #F3F4F6;padding-top:12px">' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">ADD SUB</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+        '<div style="flex:1"><input class="form-input" id="new-sub-first" placeholder="First name"></div>' +
+        '<div style="flex:1"><input class="form-input" id="new-sub-last" placeholder="Last name"></div>' +
+        '<div style="width:64px"><input class="compact-num" id="new-sub-hcp" placeholder="0" type="number" min="0" max="54"></div>' +
+      '</div>' +
+      '<button class="btn-outline" style="width:100%;border-color:#C9A84C;color:#A07C2D" onclick="addSub()">+ Add Sub</button>' +
+    '</div>';
+
+  const activeSubTab = window._playersSubTab || 'members';
+  const tabBar =
+    '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin-bottom:14px">' +
+      '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
+        (activeSubTab==='members' ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
+        '" onclick="switchPlayersSubTab(\'members\')">Members</button>' +
+      '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
+        (activeSubTab==='subs' ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
+        '" onclick="switchPlayersSubTab(\'subs\')">Subs</button>' +
+    '</div>';
+
+  const membersPanel = activeSubTab === 'members'
+    ? leagueListHtml + addLeagueFormHtml
+    : '';
+  const subsPanel = activeSubTab === 'subs'
+    ? '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.4">Subs can fill in for league players but aren\'t assigned to teams.</div>' +
+      subsListHtml + addSubFormHtml
+    : '';
+
+  // Edit/Done row — no title (admin nav already labels this "Players")
+  const editRow = '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">' +
+    '<button id="edit-btn-players" class="btn-sm btn-outline" onclick="enterEditMode(\'players\')"' +
+      (on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>' +
+    '<button id="save-btn-players" class="btn-sm btn-green" onclick="exitEditMode(\'players\')"' +
+      (!on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Done</button>' +
+  '</div>';
+
+  wrap.innerHTML =
+    editRow +
+    tabBar +
+    (activeSubTab === 'members' ? membersPanel : subsPanel);
+}
+
+function switchPlayersSubTab(tab) {
+  window._playersSubTab = tab;
+  renderPlayersList();
 }
 
 function addPlayer() {
@@ -2673,6 +2743,29 @@ function addPlayer() {
   renderPlayersList();
   renderTeamsList();
   showToast(`${firstName} ${lastName} added ✓`);
+}
+
+function addSub() {
+  const firstName = document.getElementById('new-sub-first').value.trim();
+  const lastName  = document.getElementById('new-sub-last').value.trim();
+  const hcp       = parseInt(document.getElementById('new-sub-hcp').value) || 0;
+  if (!firstName) { showToast('Please enter a first name'); return; }
+  if (!lastName)  { showToast('Please enter a last name'); return; }
+  const sub = { id: 's' + Date.now(), firstName, lastName, handicap: hcp };
+  if (!DATA.subs) DATA.subs = [];
+  DATA.subs.push(sub);
+  saveData();
+  document.getElementById('new-sub-first').value = '';
+  document.getElementById('new-sub-last').value  = '';
+  document.getElementById('new-sub-hcp').value   = '';
+  renderPlayersList();
+  showToast(`${firstName} ${lastName} added to subs ✓`);
+}
+
+function removeSub(id) {
+  DATA.subs = (DATA.subs || []).filter(s => s.id !== id);
+  saveData();
+  renderPlayersList();
 }
 
 function togglePlayerAdmin(playerId, checked) {
