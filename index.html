@@ -4732,16 +4732,20 @@ function _adjustChatForKeyboard() {
   }
 }
 if (window.visualViewport) {
-  // Must listen to both: iOS fires 'resize' when keyboard height changes
-  // and 'scroll' when the viewport shifts up (offsetTop changes).
+  // Only listen to 'resize' — that fires when the keyboard actually opens/closes.
+  // The 'scroll' event also fires during iOS rubber-band scroll and causes the
+  // panel to jump, so we deliberately skip it.
   window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
-  window.visualViewport.addEventListener('scroll', _adjustChatForKeyboard);
 }
 
 function openChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.add('open');
   panel.style.bottom = '';
+  // Lock body scroll so iOS can't rubber-band the page behind the chat panel
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width    = '100%';
   // mark all as seen
   setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
@@ -4760,6 +4764,10 @@ function closeChat() {
   panel.style.top    = '';
   panel.style.bottom = '';
   panel.style.height = '';
+  // Restore body scroll
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width    = '';
   // Blur input so keyboard dismisses before panel slides away
   const inp = document.getElementById('chat-input');
   if (inp) inp.blur();
