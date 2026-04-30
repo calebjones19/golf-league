@@ -1119,12 +1119,6 @@ const ALL_SECTIONS = ['dashboard','score','leaderboard','skins','standings','adm
 
 var _currentSectionId = 'dashboard';
 function showSection(id) {
-  const order = ALL_SECTIONS; // ['dashboard','score','standings','leaderboard','skins','admin']
-  const prevIdx = order.indexOf(_currentSectionId);
-  const nextIdx = order.indexOf(id);
-  const anim = (prevIdx < 0 || prevIdx === nextIdx) ? 'fadeIn' :
-               nextIdx > prevIdx ? 'slideInRight' : 'slideInLeft';
-
   ALL_SECTIONS.forEach(s => {
     const sec = document.getElementById('sec-'+s);
     const nav = document.getElementById('nav-'+s);
@@ -1135,19 +1129,24 @@ function showSection(id) {
   const nav = document.getElementById('nav-'+id);
   if (sec) {
     sec.classList.add('active');
-    sec.style.animation = anim + ' 0.22s ease';
     sec.scrollTop = 0;
-    // Clear animation after it completes so it doesn't replay
-    setTimeout(() => { if (sec) sec.style.animation = ''; }, 230);
+    // Build content first, then fade in — avoids jank from animating during DOM rebuild
+    if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
+    if (id === 'score')       buildScoring();
+    if (id === 'leaderboard') buildLeaderboard();
+    if (id === 'skins')       buildSkins();
+    if (id === 'standings')   buildStandings();
+    if (id === 'admin')       buildAdmin();
+    // Start fade after content is ready
+    sec.style.opacity = '0';
+    requestAnimationFrame(() => {
+      sec.style.transition = 'opacity 0.18s ease';
+      sec.style.opacity = '1';
+      setTimeout(() => { if (sec) { sec.style.transition = ''; sec.style.opacity = ''; } }, 200);
+    });
   }
   if (nav) nav.classList.add('active');
   _currentSectionId = id;
-  if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
-  if (id === 'score')       buildScoring();
-  if (id === 'leaderboard') buildLeaderboard();
-  if (id === 'skins')       buildSkins();
-  if (id === 'standings')   buildStandings();
-  if (id === 'admin')       buildAdmin();
 }
 
 function buildBottomNav() {
