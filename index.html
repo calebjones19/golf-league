@@ -3457,7 +3457,7 @@ function buildLandingNotInLeague(user) {
 function signInWithGoogle() {
   auth.signInWithPopup(googleProvider)
     .then(result => {
-      // Handle result directly — don't rely on onAuthStateChanged firing correctly after popup
+      initialAuthChecked = true; // prevent the popup's onAuthStateChanged echo from firing again
       handleAuthState(result.user);
     })
     .catch(e => {
@@ -4579,21 +4579,38 @@ if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
   throw new Error('Firebase not loaded');
 }
 
-// onAuthStateChanged only used for initial page-load auth check.
-// Popup results are handled directly in signInWithGoogle().
 let initialAuthChecked = false;
 let signingOut = false;
 
-// Fallback: if auth doesn't resolve in 6s show sign-in
+// Hard fallback — if Firebase never fires (e.g. blocked), show sign-in after 5s
 setTimeout(() => {
   if (!initialAuthChecked) { initialAuthChecked = true; buildLandingSignIn(); }
-}, 6000);
+}, 5000);
 
 auth.onAuthStateChanged(user => {
-  if (signingOut) return;         // Handled by signOut() directly
-  if (initialAuthChecked) return; // Ignore subsequent fires (popup intermediate states)
-  initialAuthChecked = true;
-  try { handleAuthState(user); } catch(e) { console.error(e); buildLandingSignIn(); }
+  if (signingOut) return;
+
+  if (user) {
+    // User is present — handle immediately, even if we've been here before
+    // (covers the case where Firebase fires null first, then restores the user)
+    initialAuthChecked = true;
+    try { handleAuthState(user); } catch(e) { console.error(e); }
+    return;
+  }
+
+  // user is null
+  if (initialAuthChecked) return; // already resolved — ignore popup intermediate nulls
+
+  // First null: Firebase may not have restored the session from IndexedDB yet.
+  // Wait briefly — if a signed-in user is coming, onAuthStateChanged fires again with them.
+  // If still null after the wait, the user is genuinely signed out.
+  setTimeout(() => {
+    if (initialAuthChecked) return; // user came through in the meantime
+    initialAuthChecked = true;
+    if (!auth.currentUser) {
+      try { handleAuthState(null); } catch(e) { buildLandingSignIn(); }
+    }
+  }, 600);
 });
 </script>
 </body>
