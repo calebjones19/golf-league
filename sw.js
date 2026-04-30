@@ -1,6 +1,6 @@
 /* Fairway Service Worker */
 const CACHE = 'golf-league-v3';
-const ICON  = '/golf-league/icon-192-v2.png';
+const ICON  = '/golf-league/icon-192-v3.png';
 
 // ── Install / Activate ──────────────────────────────────────────
 self.addEventListener('install',  () => self.skipWaiting());
