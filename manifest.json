@@ -1,7 +1,7 @@
 {
-  "name": "Golf League",
-  "short_name": "Golf League",
-  "description": "League scoring, matchups, skins, and chat",
+  "name": "Fairway",
+  "short_name": "Fairway",
+  "description": "Golf league scoring, matchups, skins, and chat",
   "start_url": "/golf-league/",
   "scope": "/golf-league/",
   "display": "standalone",
