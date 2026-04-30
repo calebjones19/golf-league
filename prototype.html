@@ -3887,7 +3887,10 @@ function closeAdminLogin(e) {
 function submitAdminLogin() {
   const email = document.getElementById('admin-email-input').value.trim().toLowerCase();
   if (!email) return;
+  const u = (typeof auth !== 'undefined') ? auth.currentUser : null;
+  const signedInEmail = u ? u.email.toLowerCase() : null;
   const hasAnyAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
+
   if (!hasAnyAdmin) {
     // First admin — claim it
     DATA.adminEmail = email;
@@ -3899,7 +3902,16 @@ function submitAdminLogin() {
     setTimeout(() => showSection('admin'), 220);
     return;
   }
-  if (isAdminEmail(email)) {
+
+  // Check by entered email against admin list, OR by signed-in Google UID (UID is ground truth)
+  const matchByEmail = isAdminEmail(email);
+  const matchByUid   = u && isAdminUid(u.uid);
+  // Also accept if the entered email matches their signed-in Google email AND that email is in admin list
+  const matchBySignedIn = signedInEmail && email === signedInEmail && isAdminEmail(signedInEmail);
+
+  if (matchByEmail || matchByUid || matchBySignedIn) {
+    // Ensure their email is in adminEmails (in case it was missing)
+    if (!isAdminEmail(email)) grantAdmin(email);
     setAdmin(true);
     closeCenterModalAnimated('admin-login-modal', () => showSection('admin'));
   } else {
@@ -3910,6 +3922,11 @@ function submitAdminLogin() {
 function setAdmin(val) {
   isAdmin = val;
   localStorage.setItem('golf_is_admin', val ? 'true' : 'false');
+  if (val) {
+    // Stamp UID into Firestore so future logins use UID check (survives cache wipes)
+    const u = (typeof auth !== 'undefined') ? auth.currentUser : null;
+    if (u) _registerAdminUid(u.uid);
+  }
   buildBottomNav();
   updateAvatarBtn();
 }
