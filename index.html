@@ -994,6 +994,7 @@ const SEEN_KEY    = 'golf_league_seen';
 let DATA = {
   adminEmail:    null,   // legacy — kept for migration
   adminEmails:   [],     // array of lowercase google emails with admin access
+  adminUids:     [],     // array of Google UIDs — survives email changes and cache wipes
   currentUserId: null,
   league:        null,
   players:       [],
@@ -1031,6 +1032,7 @@ function _applyRemoteData(raw) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
   }
   if (!DATA.adminEmails) DATA.adminEmails = [];
+  if (!DATA.adminUids)   DATA.adminUids   = [];
   // If remote has fewer players than local, push local back to Firestore.
   // Use setTimeout so _firestoreLoaded is true by the time the write runs.
   if (localPlayers.length > remotePlayers.length) {
@@ -1080,14 +1082,20 @@ function startFirestoreSync() {
     // Re-attempt player matching if we still don't know who the user is.
     // This handles the race where auth resolved before Firestore data arrived.
     const user = auth.currentUser;
-    if (user && !DATA.currentUserId) {
+    if (user) {
       const email = user.email.toLowerCase();
-      // Re-check admin now that Firestore data is loaded (might not have been set at auth time)
-      if (!isAdmin && isAdminEmail(email)) {
+      // Always re-check admin against fresh Firestore data — adminEmails/adminUids
+      // may have been empty on cold-start if localStorage was wiped.
+      // This runs even when DATA.currentUserId is already set (admin + player case).
+      if (!isAdmin && (isAdminUid(user.uid) || isAdminEmail(email))) {
         isAdmin = true;
         localStorage.setItem('golf_is_admin', 'true');
+        _registerAdminUid(user.uid);
         buildBottomNav();
       }
+    }
+    if (user && !DATA.currentUserId) {
+      const email = user.email.toLowerCase();
       let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
       if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
       const landingOpen = !document.getElementById('landing-overlay').classList.contains('hidden');
@@ -2924,6 +2932,20 @@ function isAdminEmail(email) {
   if (DATA.adminEmail) return e === DATA.adminEmail.toLowerCase();
   return false;
 }
+function isAdminUid(uid) {
+  if (!uid) return false;
+  return !!(DATA.adminUids && DATA.adminUids.includes(uid));
+}
+function _registerAdminUid(uid) {
+  // Called when admin is confirmed — stashes their UID in Firestore so
+  // admin status survives cache wipes and email changes.
+  if (!uid) return;
+  if (!DATA.adminUids) DATA.adminUids = [];
+  if (!DATA.adminUids.includes(uid)) {
+    DATA.adminUids.push(uid);
+    saveData(); // persists to Firestore
+  }
+}
 function grantAdmin(email) {
   if (!email) return;
   const e = email.toLowerCase();
@@ -4653,10 +4675,11 @@ function handleAuthState(user) {
 
   const email = user.email.toLowerCase();
 
-  // Check admin by Google email
-  if (isAdminEmail(email)) {
+  // Check admin by UID (most durable) or email — UID check works even after cache wipe
+  if (isAdminUid(user.uid) || isAdminEmail(email)) {
     isAdmin = true;
     localStorage.setItem('golf_is_admin', 'true');
+    _registerAdminUid(user.uid); // stamp UID into Firestore so future sign-ins use UID check
     buildBottomNav();
   }
 
