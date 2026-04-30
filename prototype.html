@@ -4284,26 +4284,24 @@ function _isStandalone() {
 }
 
 function signInWithGoogle() {
-  if (_isStandalone()) {
-    // signInWithPopup is unreliable in iOS standalone PWA mode — the Google
-    // redirect returns to Safari instead of back to the app. Use redirect flow.
-    auth.signInWithRedirect(googleProvider).catch(e => {
-      showToast('Sign-in failed: ' + (e.code || e.message));
+  // Always use signInWithPopup — signInWithRedirect in iOS standalone PWA bounces
+  // through Safari which has separate storage; the PWA never receives the auth token.
+  auth.signInWithPopup(googleProvider)
+    .then(result => {
+      initialAuthChecked = true;
+      handleAuthState(result.user);
+    })
+    .catch(e => {
+      if (e.code === 'auth/popup-blocked') {
+        // Popup was blocked — fall back to redirect as last resort
+        showToast('Opening Google sign-in…');
+        auth.signInWithRedirect(googleProvider).catch(e2 => {
+          showToast('Sign-in failed: ' + (e2.code || e2.message));
+        });
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        showToast('Sign-in failed: ' + (e.code || e.message));
+      }
     });
-  } else {
-    auth.signInWithPopup(googleProvider)
-      .then(result => {
-        initialAuthChecked = true;
-        handleAuthState(result.user);
-      })
-      .catch(e => {
-        if (e.code === 'auth/popup-blocked') {
-          showToast('Popup blocked — please allow popups and try again.');
-        } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-          showToast('Sign-in failed: ' + (e.code || e.message));
-        }
-      });
-  }
 }
 
 function claimAdmin() {
