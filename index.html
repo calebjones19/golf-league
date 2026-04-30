@@ -235,6 +235,66 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .course-searching{padding:12px 14px;font-size:12px;color:#6B7280;text-align:center}
 /* Divider */
 .divider{height:1px;background:#F3F4F6;margin:0 16px}
+/* Chat button */
+.chat-btn{width:34px;height:34px;border-radius:50%;background:transparent;border:none;color:#a0bfab;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;padding:0;transition:color 0.15s}
+.chat-btn:active{color:#C9A84C}
+.chat-unread-dot{position:absolute;top:0px;right:0px;width:9px;height:9px;border-radius:50%;background:#C9A84C;border:2px solid #1B4332;display:none}
+.chat-unread-dot.show{display:block}
+/* Chat panel */
+.chat-panel{position:fixed;inset:0;background:#F5F0E8;z-index:600;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);max-width:430px;left:50%;margin-left:-215px}
+@media(max-width:430px){.chat-panel{left:0;margin-left:0;max-width:100%}}
+.chat-panel.open{transform:translateX(0)}
+.chat-header{background:#1B4332;color:#fff;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px;height:calc(50px + env(safe-area-inset-top));flex-shrink:0}
+.chat-back-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-header-title{font-size:15px;font-weight:700;color:#C9A84C;font-family:'Space Grotesk',sans-serif;flex:1}
+.chat-header-sub{font-size:11px;color:#a0bfab}
+.chat-messages{flex:1;overflow-y:auto;padding:12px 12px 8px;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}
+.chat-day-label{text-align:center;font-size:11px;color:#9CA3AF;font-weight:500;padding:8px 0;margin:4px 0}
+.msg-row{display:flex;align-items:flex-end;gap:8px;margin-bottom:1px}
+.msg-row.mine{flex-direction:row-reverse}
+.msg-row.mine .msg-avatar{display:none}
+.msg-avatar{width:28px;height:28px;border-radius:50%;background:#2D6A4F;color:#C9A84C;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Space Grotesk',sans-serif;align-self:flex-end;margin-bottom:0}
+.msg-col{display:flex;flex-direction:column;max-width:72%;gap:2px}
+.msg-row.mine .msg-col{align-items:flex-end}
+.msg-sender{font-size:10px;font-weight:600;color:#6B7280;margin-left:4px;margin-bottom:2px}
+.msg-row.mine .msg-sender{display:none}
+.msg-bubble{background:#fff;border-radius:18px 18px 18px 4px;padding:10px 14px;font-size:14px;color:#1A1A1A;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,0.08);cursor:pointer;position:relative;word-break:break-word}
+.msg-row.mine .msg-bubble{background:#1B4332;color:#fff;border-radius:18px 18px 4px 18px}
+.msg-bubble.deleted{font-style:italic;color:#9CA3AF;background:#F3F4F6;font-size:12px}
+.msg-row.mine .msg-bubble.deleted{background:#2D6A4F;color:#a0bfab}
+.msg-time{font-size:10px;color:#9CA3AF;margin:0 4px;align-self:flex-end}
+.msg-reactions{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;margin-left:4px}
+.msg-row.mine .msg-reactions{justify-content:flex-end;margin-right:4px;margin-left:0}
+.reaction-pill{display:inline-flex;align-items:center;gap:2px;background:#fff;border:1.5px solid #E5E7EB;border-radius:10px;padding:1px 6px;font-size:12px;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+.reaction-pill.mine{background:#F0FFF4;border-color:#86efac}
+.reaction-pill span{font-size:10px;font-weight:700;color:#374151}
+.reply-preview{background:rgba(0,0,0,0.04);border-left:3px solid #C9A84C;border-radius:4px;padding:5px 8px;font-size:11px;color:#6B7280;margin-bottom:4px;cursor:pointer;max-width:100%}
+.msg-row.mine .reply-preview{border-left-color:#a0bfab;background:rgba(255,255,255,0.12);color:#a0bfab}
+.reply-preview-name{font-weight:700;margin-bottom:1px}
+/* Chat input */
+.chat-input-bar{background:#fff;border-top:1px solid #E5E7EB;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.chat-reply-bar{display:flex;align-items:center;gap:8px;background:#F9FAFB;border-radius:8px;padding:6px 10px;font-size:12px;color:#6B7280}
+.chat-reply-bar-inner{flex:1;min-width:0}
+.chat-reply-name{font-weight:700;color:#1B4332;margin-bottom:1px}
+.chat-reply-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-input-row{display:flex;align-items:flex-end;gap:8px}
+.chat-input{flex:1;border:1.5px solid #E5E7EB;border-radius:22px;padding:10px 16px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:40px;max-height:120px;line-height:1.4;color:#1A1A1A;background:#F9FAFB;transition:border-color 0.15s}
+.chat-input:focus{border-color:#1B4332;background:#fff}
+.chat-send-btn{width:36px;height:36px;border-radius:50%;background:#1B4332;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s}
+.chat-send-btn:disabled{opacity:0.4;cursor:default}
+/* Reaction picker */
+.reaction-picker{position:fixed;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:10px 14px;display:flex;gap:6px;z-index:700;animation:popIn 0.15s ease;border:1px solid #E5E7EB}
+@keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+.reaction-picker-emoji{font-size:22px;cursor:pointer;padding:4px;border-radius:8px;transition:background 0.1s;border:none;background:none}
+.reaction-picker-emoji:hover{background:#F3F4F6}
+/* Msg context menu */
+.msg-context-menu{position:fixed;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.15);padding:6px;z-index:700;min-width:160px;animation:popIn 0.15s ease;border:1px solid #E5E7EB}
+.msg-context-item{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;border-radius:8px;transition:background 0.1s;border:none;background:none;width:100%;font-family:'DM Sans',sans-serif}
+.msg-context-item:hover{background:#F3F4F6}
+.msg-context-item.danger{color:#DC2626}
+/* League setup banner */
+.league-setup-banner{background:#1B4332;border-radius:14px;margin:12px 16px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.league-setup-banner:active{opacity:0.85}
 </style>
 </head>
 <body>
@@ -259,9 +319,45 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="top-bar-title" id="top-bar-title">Golf League</div>
       <div class="top-bar-sub" id="top-bar-sub">Loading...</div>
     </div>
-    <button class="avatar-btn" id="avatar-btn" onclick="openAdminLogin()" title="Admin Sign In">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="chat-btn" id="chat-btn" onclick="openChat()" title="League Chat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <div class="chat-unread-dot" id="chat-unread-dot"></div>
+      </button>
+      <button class="avatar-btn" id="avatar-btn" onclick="openAdminLogin()" title="Admin Sign In">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <button class="chat-back-btn" onclick="closeChat()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div>
+        <div class="chat-header-title">League Chat</div>
+        <div class="chat-header-sub" id="chat-header-sub">...</div>
+      </div>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-bar" id="chat-input-bar">
+      <div class="chat-reply-bar" id="chat-reply-bar" style="display:none">
+        <div class="chat-reply-bar-inner">
+          <div class="chat-reply-name" id="chat-reply-name"></div>
+          <div class="chat-reply-text" id="chat-reply-text"></div>
+        </div>
+        <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;padding:2px;font-size:16px;line-height:1" onclick="clearReply()">✕</button>
+      </div>
+      <div class="chat-input-row">
+        <button onclick="openEmojiPicker()" style="width:36px;height:36px;border-radius:50%;background:#F3F4F6;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">😊</button>
+        <textarea class="chat-input" id="chat-input" placeholder="Message…" rows="1" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)"></textarea>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== DASHBOARD ===== -->
@@ -572,7 +668,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </div>
       </div>
       <button id="profile-admin-btn" class="btn-green" style="width:100%;margin-bottom:10px;display:none" onclick="closeProfileSheet();showSection('admin')">Admin Panel</button>
-      <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="signOut()">Sign Out</button>
+      <button style="width:100%;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px" onclick="signOut()">Sign Out</button>
+      <button onclick="hardRefresh();closeProfileSheet(null)" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;font-family:'DM Sans',sans-serif"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Update to latest version</button>
+      <div style="text-align:center;font-size:10px;color:#D1D5DB;margin-top:8px" id="profile-version"></div>
     </div>
   </div>
 
@@ -685,8 +783,9 @@ let DATA = {
   schedule:      [],
   rounds:        [],
   announcements: [],
-  scoringConfig: { scoringType: 'bestball', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: false, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: false, hcpRounds: 6, hcpPercent: 90, hcpMax: 36 },
-  matchups: []
+  scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36 },
+  matchups: [],
+  messages: []
 };
 
 let seenAnnouncements = [];
@@ -787,20 +886,12 @@ function formatTeeTime(t) {
 
 function buildDashboard() {
   const el = document.getElementById('dashboard-content');
-
-  if (!DATA.league) {
-    el.style.cssText = 'display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 124px);padding:0';
-    el.innerHTML = '<div style="padding:0 16px"><div class="card-dark"><div class="hero-badge">WELCOME</div><div class="hero-title">Set Up Your Golf League</div><div class="hero-sub">Get started by configuring your league details, adding players, and creating your schedule.</div><div class="hero-btns">' +
-      (isAdmin ? '<button class="btn-gold" onclick="showSection(\'admin\')">League Setup →</button>' : '<div style="font-size:12px;color:#a0bfab">Ask your league admin to finish setup.</div>') +
-      '</div></div></div>' + UPDATE_FOOTER;
-    return;
-  }
-
   el.style.cssText = '';
+
   const rounds   = DATA.rounds || [];
   const weeksPlayed = rounds.length > 0 ? Math.max.apply(null, rounds.map(function(r){ return r.week; })) : 0;
 
-  // --- Compute team standings for my team card ---
+  // --- Compute team standings ---
   const teamStats = {};
   DATA.teams.forEach(function(t){ teamStats[t.id] = { id:t.id, name:t.name, W:0, L:0, T:0, pts:0 }; });
   rounds.forEach(function(r){
@@ -827,7 +918,7 @@ function buildDashboard() {
   const weekMatchups = (DATA.matchups || []).filter(function(m){ return m.week === thisWeek; });
 
   // --- Skins earnings ---
-  const hasSkins = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
+  const hasSkins = (DATA.scoringConfig || {}).skinsEnabled;
   const fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
   const skinsTotals = {};
   if (hasSkins) {
@@ -849,11 +940,31 @@ function buildDashboard() {
     });
   }
 
-  // --- Build HTML sections ---
+  // --- Build HTML ---
   var html = '';
 
-  // Announcement
-  if (latestAnnounce) {
+  // League setup banner (if no league configured)
+  if (!DATA.league) {
+    if (isAdmin) {
+      html += '<div class="league-setup-banner" onclick="showSection(\'admin\')">' +
+        '<div style="width:40px;height:40px;border-radius:10px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">⛳</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;margin-bottom:3px">LEAGUE SETUP</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff">Finish setting up your league</div>' +
+          '<div style="font-size:11px;color:#a0bfab;margin-top:2px">Add players, form teams, and set your schedule</div>' +
+        '</div>' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0bfab" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
+      '</div>';
+    } else {
+      html += '<div style="margin:12px 16px;background:#fff;border-radius:14px;padding:14px 16px;border:1px solid #E5E7EB;display:flex;align-items:center;gap:10px">' +
+        '<span style="font-size:20px">⛳</span>' +
+        '<div style="font-size:13px;color:#6B7280">Your league is being set up. Check back soon!</div>' +
+      '</div>';
+    }
+  }
+
+  // Announcement (takes top slot once league is active)
+  if (latestAnnounce && DATA.league) {
     const d = new Date(latestAnnounce.createdAt);
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
     html += '<div class="card" style="cursor:pointer;margin-top:12px" onclick="openAnnouncementById(\'' + latestAnnounce.id + '\')">' +
@@ -871,9 +982,9 @@ function buildDashboard() {
   // My team card
   if (myTeam && myStats) {
     const record = myStats.W + '-' + myStats.L + (myStats.T > 0 ? '-' + myStats.T : '');
-    const posLabel = weeksPlayed > 0 ? ordinal(myRank) + ' place after week ' + weeksPlayed : 'No rounds yet';
+    const posLabel = weeksPlayed > 0 ? ordinal(myRank) + ' place after week ' + weeksPlayed : 'Season not started';
     const mySkinsTotal = myTeam.playerIds.reduce(function(sum,pid){ return sum + (skinsTotals[pid]||0); }, 0);
-    html += '<div class="card-dark" style="margin-top:0">' +
+    html += '<div class="card-dark" style="margin-top:' + (DATA.league ? '0' : '4px') + '">' +
       '<div style="font-size:10px;font-weight:700;color:#a0bfab;letter-spacing:0.5px;margin-bottom:6px">YOUR TEAM</div>' +
       '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:4px">' + myTeam.name + '</div>' +
       '<div style="font-size:13px;color:#C9A84C;font-weight:600;margin-bottom:10px">' + posLabel + '</div>' +
@@ -884,6 +995,31 @@ function buildDashboard() {
       '</div>' +
     '</div>';
   }
+
+  // This week's matchups
+  html += '<div class="card" style="cursor:pointer;margin-top:0" onclick="showSection(\'leaderboard\')">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+      '<div style="font-size:13px;font-weight:700;color:#1A1A1A">⛳ This Week\'s Matchups</div>' +
+      '<div style="display:flex;align-items:center;gap:6px">' + (DATA.league ? '<span style="font-size:11px;color:#6B7280">Week ' + thisWeek + '</span>' : '') + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>' +
+    '</div>' +
+    (weekMatchups.length > 0
+      ? weekMatchups.map(function(m){
+          const tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
+          const tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
+          if (!tA || !tB) return '';
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name + '</div>' +
+            '<div style="font-size:12px;font-weight:600;color:#1B4332">' + formatTeeTime(m.teeTime) + '</div>' +
+          '</div>';
+        }).join('')
+      : '<div style="font-size:12px;color:#9CA3AF;text-align:center;padding:8px 0">' +
+          (!DATA.league
+            ? (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="event.stopPropagation();showSection(\'admin\')">+ Finish league setup first</span>' : 'League setup in progress')
+            : (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="event.stopPropagation();showSection(\'admin\')">+ Schedule this week\'s matchups</span>' : 'No matchups scheduled yet')
+          ) +
+        '</div>'
+    ) +
+  '</div>';
 
   // Skins board teaser
   if (hasSkins) {
@@ -908,34 +1044,13 @@ function buildDashboard() {
               '<div style="font-size:13px;font-weight:700;color:#16A34A">$' + x.amt + '</div>' +
             '</div>';
           }).join('')
-        : '<div style="font-size:12px;color:#9CA3AF;text-align:center;padding:8px 0">No skins won yet</div>'
+        : '<div style="font-size:12px;color:#9CA3AF;text-align:center;padding:8px 0">No skins won yet — season in progress</div>'
       ) +
     '</div>';
   }
 
-  // This week's matchups
-  html += '<div class="card" style="cursor:pointer;margin-top:0" onclick="showSection(\'leaderboard\')">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-      '<div style="font-size:13px;font-weight:700;color:#1A1A1A">⛳ This Week\'s Matchups</div>' +
-      '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#6B7280">Week ' + thisWeek + '</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>' +
-    '</div>' +
-    (weekMatchups.length > 0
-      ? weekMatchups.map(function(m){
-          const tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
-          const tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
-          if (!tA || !tB) return '';
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
-            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name + '</div>' +
-            '<div style="font-size:12px;font-weight:600;color:#1B4332">' + formatTeeTime(m.teeTime) + '</div>' +
-          '</div>';
-        }).join('')
-      : '<div style="font-size:12px;color:#9CA3AF;text-align:center;padding:8px 0">' + (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="event.stopPropagation();showSection(\'admin\')">+ Schedule this week\'s matchups</span>' : 'No matchups scheduled yet') + '</div>'
-    ) +
-  '</div>';
-
-  // Full standings
+  // Standings
   if (DATA.teams.length > 0) {
-    const hasSk = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
     function pname(pid){ var p=DATA.players.find(function(pl){return pl.id===pid;}); return p?playerFirstName(p):''; }
     html += '<div style="padding:0 16px 4px"><div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:8px">Standings</div></div>' +
       '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
@@ -955,9 +1070,15 @@ function buildDashboard() {
           }).join('') +
         '</tbody>' +
       '</table></div>';
+  } else if (DATA.league) {
+    html += '<div class="card" style="text-align:center;padding:24px 16px">' +
+      '<div style="font-size:28px;margin-bottom:8px">🏌️</div>' +
+      '<div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:4px">No teams yet</div>' +
+      '<div style="font-size:12px;color:#6B7280">' + (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="showSection(\'admin\')">Add players and form teams →</span>' : 'Teams will appear here once the admin adds them.') + '</div>' +
+    '</div>';
   }
 
-  html += UPDATE_FOOTER;
+  html += '<div style="height:16px"></div>';
   el.innerHTML = html;
 }
 
@@ -2603,14 +2724,14 @@ function loadScoringForm() {
   if (el2) el2.value = cfg.tiePoints ?? 0.5;
   if (el3) el3.value = cfg.matchBonus ?? 1;
   if (el6) el6.value = cfg.medalBonus ?? 1;
-  if (el4) { el4.checked = cfg.skinsEnabled || false; toggleSkinsSection(el4); }
+  if (el4) { el4.checked = cfg.skinsEnabled ?? true; toggleSkinsSection(el4); }
   if (el5) el5.value = cfg.skinsFee ?? 5;
-  const typeRadio = document.querySelector(`input[name="cfg-scoring-type"][value="${cfg.scoringType || 'bestball'}"]`);
+  const typeRadio = document.querySelector(`input[name="cfg-scoring-type"][value="${cfg.scoringType || 'total'}"]`);
   if (typeRadio) typeRadio.checked = true;
   const stablefordRadio = document.querySelector(`input[name="cfg-stableford"][value="${cfg.stablefordVariant || 'standard'}"]`);
   if (stablefordRadio) stablefordRadio.checked = true;
   const autoEl = document.getElementById('cfg-auto-hcp');
-  if (autoEl) { autoEl.checked = cfg.autoHandicap || false; toggleAutoHcp(autoEl); }
+  if (autoEl) { autoEl.checked = cfg.autoHandicap ?? true; toggleAutoHcp(autoEl); }
   const hcpR = document.getElementById('cfg-hcp-rounds');
   const hcpP = document.getElementById('cfg-hcp-pct');
   const hcpM = document.getElementById('cfg-hcp-max');
@@ -2635,7 +2756,7 @@ function updateHcpPreview() {
 
 function saveScoringConfig() {
   DATA.scoringConfig = {
-    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'bestball',
+    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'total',
     pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) ?? 1,
     tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  ?? 0.5,
     matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value) ?? 1,
@@ -2974,6 +3095,8 @@ function openProfileSheet() {
   }
 
   if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
+  const vEl = document.getElementById('profile-version');
+  if (vEl) vEl.textContent = 'v' + APP_VERSION;
   document.getElementById('profile-overlay').classList.add('open');
 }
 
@@ -3015,6 +3138,7 @@ function updateAvatarBtn() {
     btn.onclick = openAdminLogin;
     btn.title   = 'Sign In';
   }
+  updateChatBadge();
 }
 
 // ============================================================
@@ -3078,11 +3202,409 @@ function handleAuthState(user) {
 }
 
 // ============================================================
+// CHAT
+// ============================================================
+var chatReplyingTo = null;     // {id, senderName, text}
+var chatSeenKey = 'golf_chat_seen';
+var chatSeenCount = 0;
+
+function getChatSeen() {
+  try { return parseInt(localStorage.getItem(chatSeenKey)||'0'); } catch(e){ return 0; }
+}
+function setChatSeen(n) {
+  try { localStorage.setItem(chatSeenKey, String(n)); } catch(e){}
+}
+
+function updateChatBadge() {
+  const msgs = DATA.messages || [];
+  const seen = getChatSeen();
+  const dot  = document.getElementById('chat-unread-dot');
+  if (dot) dot.classList.toggle('show', msgs.length > seen);
+}
+
+function openChat() {
+  const panel = document.getElementById('chat-panel');
+  panel.classList.add('open');
+  // mark all as seen
+  setChatSeen((DATA.messages||[]).length);
+  updateChatBadge();
+  renderChatMessages();
+  updateChatHeaderSub();
+  // scroll to bottom
+  setTimeout(function(){
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }, 50);
+}
+
+function closeChat() {
+  document.getElementById('chat-panel').classList.remove('open');
+  dismissReactionPicker();
+  dismissContextMenu();
+}
+
+function updateChatHeaderSub() {
+  const sub = document.getElementById('chat-header-sub');
+  if (!sub) return;
+  const count = (DATA.messages||[]).filter(m=>!m.deleted).length;
+  const players = DATA.players.length;
+  sub.textContent = (DATA.league ? DATA.league.name + ' · ' : '') + players + ' members';
+}
+
+function chatSenderName() {
+  const player = DATA.players.find(p => p.id === DATA.currentUserId);
+  if (player) return playerName(player);
+  const user = (typeof auth !== 'undefined') ? auth.currentUser : null;
+  if (user) return user.displayName || user.email || 'Unknown';
+  return null;
+}
+
+function chatSenderId() {
+  if (DATA.currentUserId) return DATA.currentUserId;
+  const user = (typeof auth !== 'undefined') ? auth.currentUser : null;
+  return user ? 'g_' + user.uid : null;
+}
+
+function chatInputChanged(el) {
+  // auto-grow
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  const btn = document.getElementById('chat-send-btn');
+  if (btn) btn.disabled = el.value.trim() === '';
+}
+
+function chatInputKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text  = (input ? input.value : '').trim();
+  if (!text) return;
+
+  const senderName = chatSenderName();
+  const senderId   = chatSenderId();
+  if (!senderId) { showToast('Sign in to chat'); return; }
+
+  if (!DATA.messages) DATA.messages = [];
+  const msg = {
+    id:         'm' + Date.now(),
+    senderId:   senderId,
+    senderName: senderName,
+    text:       text,
+    timestamp:  new Date().toISOString(),
+    reactions:  {},
+    replyTo:    chatReplyingTo ? chatReplyingTo.id : null,
+    deleted:    false
+  };
+  DATA.messages.push(msg);
+  saveData();
+
+  if (input) { input.value = ''; input.style.height = 'auto'; }
+  const btn = document.getElementById('chat-send-btn');
+  if (btn) btn.disabled = true;
+  clearReply();
+
+  // mark seen
+  setChatSeen(DATA.messages.length);
+  updateChatBadge();
+  renderChatMessages();
+  setTimeout(function(){
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }, 30);
+}
+
+function setReply(msgId) {
+  const msg = (DATA.messages||[]).find(m=>m.id===msgId);
+  if (!msg) return;
+  chatReplyingTo = { id: msg.id, senderName: msg.senderName, text: msg.text };
+  const bar = document.getElementById('chat-reply-bar');
+  if (bar) bar.style.display = 'flex';
+  const rn = document.getElementById('chat-reply-name');
+  const rt = document.getElementById('chat-reply-text');
+  if (rn) rn.textContent = msg.senderName;
+  if (rt) rt.textContent = msg.text;
+  const input = document.getElementById('chat-input');
+  if (input) input.focus();
+  dismissContextMenu();
+}
+
+function clearReply() {
+  chatReplyingTo = null;
+  const bar = document.getElementById('chat-reply-bar');
+  if (bar) bar.style.display = 'none';
+}
+
+function toggleReaction(msgId, emoji) {
+  const msg = (DATA.messages||[]).find(m=>m.id===msgId);
+  if (!msg) return;
+  const me = chatSenderId();
+  if (!me) { showToast('Sign in to react'); return; }
+  if (!msg.reactions) msg.reactions = {};
+  if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+  const idx = msg.reactions[emoji].indexOf(me);
+  if (idx >= 0) msg.reactions[emoji].splice(idx, 1);
+  else msg.reactions[emoji].push(me);
+  if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji];
+  saveData();
+  dismissReactionPicker();
+  renderChatMessages();
+  // restore scroll
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+function deleteMessage(msgId) {
+  const msg = (DATA.messages||[]).find(m=>m.id===msgId);
+  if (!msg) return;
+  msg.deleted = true;
+  msg.text = '';
+  saveData();
+  dismissContextMenu();
+  renderChatMessages();
+}
+
+// Reaction picker
+var _reactionPickerEl = null;
+var _contextMenuEl = null;
+
+function dismissReactionPicker() {
+  if (_reactionPickerEl) { _reactionPickerEl.remove(); _reactionPickerEl = null; }
+}
+function dismissContextMenu() {
+  if (_contextMenuEl) { _contextMenuEl.remove(); _contextMenuEl = null; }
+}
+
+function showReactionPicker(msgId, anchorEl) {
+  dismissReactionPicker();
+  dismissContextMenu();
+  const EMOJIS = ['❤️','😂','👍','🔥','⛳','😮','👏','🤣'];
+  const picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  EMOJIS.forEach(function(em){
+    const btn = document.createElement('button');
+    btn.className = 'reaction-picker-emoji';
+    btn.textContent = em;
+    btn.onclick = function(e){ e.stopPropagation(); toggleReaction(msgId, em); };
+    picker.appendChild(btn);
+  });
+  document.body.appendChild(picker);
+  _reactionPickerEl = picker;
+  // position above the bubble
+  const rect = anchorEl.getBoundingClientRect();
+  const pw = picker.offsetWidth || 300;
+  let left = rect.left + rect.width/2 - pw/2;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  picker.style.left = left + 'px';
+  picker.style.top  = (rect.top - 60) + 'px';
+  // dismiss on outside tap
+  setTimeout(function(){
+    document.addEventListener('click', dismissReactionPicker, {once:true});
+  }, 0);
+}
+
+function showMsgContextMenu(msgId, anchorEl, isMine) {
+  dismissContextMenu();
+  dismissReactionPicker();
+  const me = chatSenderId();
+  const isOwner = isMine;
+
+  const menu = document.createElement('div');
+  menu.className = 'msg-context-menu';
+
+  const replyBtn = document.createElement('button');
+  replyBtn.className = 'msg-context-item';
+  replyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg> Reply';
+  replyBtn.onclick = function(){ setReply(msgId); };
+  menu.appendChild(replyBtn);
+
+  const reactBtn = document.createElement('button');
+  reactBtn.className = 'msg-context-item';
+  reactBtn.innerHTML = '<span style="font-size:14px">😊</span> React';
+  reactBtn.onclick = function(){ dismissContextMenu(); showReactionPicker(msgId, anchorEl); };
+  menu.appendChild(reactBtn);
+
+  if (isOwner) {
+    const delBtn = document.createElement('button');
+    delBtn.className = 'msg-context-item danger';
+    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg> Delete';
+    delBtn.onclick = function(){ deleteMessage(msgId); };
+    menu.appendChild(delBtn);
+  }
+
+  document.body.appendChild(menu);
+  _contextMenuEl = menu;
+
+  const rect = anchorEl.getBoundingClientRect();
+  const mw = menu.offsetWidth || 170;
+  let left = isMine ? rect.right - mw : rect.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+  let top = rect.bottom + 6;
+  if (top + 120 > window.innerHeight) top = rect.top - 120;
+  menu.style.left = left + 'px';
+  menu.style.top  = top + 'px';
+
+  setTimeout(function(){
+    document.addEventListener('click', function handler(e){
+      if (!menu.contains(e.target)){ dismissContextMenu(); document.removeEventListener('click', handler); }
+    });
+  }, 0);
+}
+
+function openEmojiPicker() {
+  // Simple emoji insertion into chat input
+  const EMOJIS = ['⛳','🏌️','🏆','🔥','❤️','😂','👍','🎉','💪','😮','👏','🤣','😎','🙌','💰'];
+  dismissContextMenu();
+  dismissReactionPicker();
+  const picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  picker.style.flexWrap = 'wrap';
+  picker.style.maxWidth = '260px';
+  picker.style.padding = '10px';
+  picker.style.gap = '4px';
+  EMOJIS.forEach(function(em){
+    const btn = document.createElement('button');
+    btn.className = 'reaction-picker-emoji';
+    btn.textContent = em;
+    btn.onclick = function(e){
+      e.stopPropagation();
+      const input = document.getElementById('chat-input');
+      if (input) {
+        const pos = input.selectionStart || input.value.length;
+        input.value = input.value.slice(0,pos) + em + input.value.slice(pos);
+        input.focus();
+        chatInputChanged(input);
+      }
+      dismissReactionPicker();
+    };
+    picker.appendChild(btn);
+  });
+  document.body.appendChild(picker);
+  _reactionPickerEl = picker;
+  const emojiBtn = document.querySelector('.chat-input-bar button');
+  if (emojiBtn) {
+    const rect = emojiBtn.getBoundingClientRect();
+    picker.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+    picker.style.left   = Math.max(8, rect.left - 10) + 'px';
+    picker.style.top    = 'auto';
+  }
+  setTimeout(function(){
+    document.addEventListener('click', dismissReactionPicker, {once:true});
+  }, 0);
+}
+
+function formatChatTime(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if (hrs < 48)  return 'Yesterday ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function formatChatDayLabel(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = today - msgDay;
+  if (diff < 86400000) return 'Today';
+  if (diff < 172800000) return 'Yesterday';
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+}
+
+function renderChatMessages() {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  const msgs = DATA.messages || [];
+  const me   = chatSenderId();
+  if (msgs.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px"><div style="font-size:32px;margin-bottom:10px">⛳</div><div style="font-size:14px;font-weight:600;color:#6B7280">No messages yet</div><div style="font-size:12px;color:#9CA3AF;margin-top:4px">Be the first to say something!</div></div>';
+    return;
+  }
+
+  let html = '';
+  let lastDay = '';
+
+  msgs.forEach(function(msg) {
+    const dayLabel = formatChatDayLabel(msg.timestamp);
+    if (dayLabel !== lastDay) {
+      html += '<div class="chat-day-label">' + dayLabel + '</div>';
+      lastDay = dayLabel;
+    }
+
+    const isMine = msg.senderId === me;
+    const initStr = (msg.senderName||'?').split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
+
+    // reply preview
+    var replyHtml = '';
+    if (msg.replyTo) {
+      const orig = msgs.find(function(m){return m.id === msg.replyTo;});
+      if (orig) {
+        replyHtml = '<div class="reply-preview" onclick="scrollToMsg(\'' + orig.id + '\')">' +
+          '<div class="reply-preview-name">' + (orig.senderName||'') + '</div>' +
+          '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + (orig.deleted ? 'Message deleted' : orig.text) + '</div>' +
+        '</div>';
+      }
+    }
+
+    // reactions
+    var reactHtml = '';
+    const rxKeys = Object.keys(msg.reactions||{}).filter(function(k){ return (msg.reactions[k]||[]).length > 0; });
+    if (rxKeys.length) {
+      reactHtml = '<div class="msg-reactions">';
+      rxKeys.forEach(function(em){
+        const reactors = msg.reactions[em];
+        const iMine = reactors.includes(me);
+        reactHtml += '<div class="reaction-pill' + (iMine?' mine':'') + '" onclick="toggleReaction(\'' + msg.id + '\',\'' + em + '\')">' +
+          em + '<span>' + reactors.length + '</span>' +
+        '</div>';
+      });
+      reactHtml += '</div>';
+    }
+
+    const bubbleClass = 'msg-bubble' + (msg.deleted ? ' deleted' : '');
+    const bubbleText  = msg.deleted ? 'Message deleted' : msg.text;
+    const msgTime = formatChatTime(msg.timestamp);
+
+    html += '<div class="msg-row' + (isMine?' mine':'') + '" id="msg-' + msg.id + '">' +
+      (!isMine ? '<div class="msg-avatar">' + initStr + '</div>' : '') +
+      '<div class="msg-col">' +
+        (!isMine ? '<div class="msg-sender">' + (msg.senderName||'') + '</div>' : '') +
+        replyHtml +
+        '<div class="' + bubbleClass + '" ' +
+          'onclick="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ')">' +
+          bubbleText +
+        '</div>' +
+        reactHtml +
+        '<div class="msg-time">' + msgTime + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function scrollToMsg(msgId) {
+  const el = document.getElementById('msg-' + msgId);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// ============================================================
 // INIT
 // ============================================================
 loadData();
 checkVersion();
 buildLandingLoading();
+updateChatBadge();
 
 if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
   document.getElementById('landing-body').innerHTML = `
