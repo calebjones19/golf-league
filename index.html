@@ -2230,27 +2230,31 @@ function renderPlayersList() {
   const listHtml = DATA.players.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet.</div>'
     : DATA.players.map(p => {
-        const team    = DATA.teams.find(t => t.playerIds.includes(p.id));
-        const claimed = !!(p.googleUid || p.googleEmail);
+        const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
+        const claimed  = !!(p.googleUid || p.googleEmail);
         const pIsAdmin = claimed && isAdminEmail(p.googleEmail);
         const claimBadge = claimed
           ? '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Linked</span>'
           : '<span style="background:#F3F4F6;color:#9CA3AF;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Unclaimed</span>';
-        const adminBadge = pIsAdmin
+        const adminBadge = (!on && pIsAdmin)
           ? '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">👑 Admin</span>'
           : '';
-        const adminToggle = on && claimed
-          ? (pIsAdmin
-              ? '<button class="btn-sm btn-edit" style="margin-left:4px" onclick="removePlayerAdmin(\'' + p.id + '\')">Revoke Admin</button>'
-              : '<button class="btn-sm btn-outline" style="margin-left:4px" onclick="makePlayerAdmin(\'' + p.id + '\')">Make Admin</button>')
+
+        // Admin checkbox — visible in edit mode; disabled if player hasn't linked yet
+        const adminCheckbox = on
+          ? '<label style="display:flex;align-items:center;gap:5px;cursor:' + (claimed ? 'pointer' : 'not-allowed') + ';opacity:' + (claimed ? '1' : '0.4') + ';margin-right:2px" title="' + (claimed ? 'Toggle admin access' : 'Player must sign in first') + '">' +
+              '<input type="checkbox" ' + (pIsAdmin ? 'checked' : '') + ' ' + (claimed ? '' : 'disabled') + ' onchange="togglePlayerAdmin(\'' + p.id + '\',this.checked)" style="width:15px;height:15px;accent-color:#1B4332;cursor:inherit">' +
+              '<span style="font-size:10px;font-weight:600;color:#374151">Admin</span>' +
+            '</label>'
           : '';
+
         return '<div class="player-row">' +
           avatarHtml(playerInitials(p), '#E5E7EB', '#6B7280', 32) +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(p) + claimBadge + adminBadge + '</div>' +
             '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(p) + (p.leagueHandicap != null && (DATA.scoringConfig||{}).autoHandicap ? ' <span style="color:#C9A84C">(auto)</span>' : '') + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
           '</div>' +
-          (on ? '<div style="display:flex;gap:4px;align-items:center">' + adminToggle + '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
+          (on ? '<div style="display:flex;align-items:center;gap:8px">' + adminCheckbox + '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
         '</div>';
       }).join('');
 
@@ -2266,37 +2270,7 @@ function renderPlayersList() {
       '<button class="btn-green" style="width:100%" onclick="addPlayer()">+ Add Player</button>' +
     '</div>';
 
-  // Admins section — always visible
-  const adminEmails = DATA.adminEmails || [];
-  const adminListHtml = adminEmails.length === 0
-    ? '<div style="font-size:12px;color:#9CA3AF;padding:6px 0">No admins set yet.</div>'
-    : adminEmails.map(e => {
-        const linkedPlayer = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === e.toLowerCase());
-        const label = linkedPlayer ? playerName(linkedPlayer) + ' <span style="color:#9CA3AF;font-weight:400">(' + e + ')</span>' : e;
-        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #F3F4F6">' +
-          '<div style="flex:1;font-size:12px;font-weight:600;color:#1A1A1A">' + label + '</div>' +
-          (on ? '<button class="btn-sm btn-delete" onclick="revokeAdminByEmail(\'' + e + '\')">Remove</button>' : '') +
-        '</div>';
-      }).join('');
-
-  const adminAddHtml = on
-    ? '<div style="display:flex;gap:8px;margin-top:10px">' +
-        '<input class="form-input" id="new-admin-email" placeholder="Google email address" style="flex:1" type="email">' +
-        '<button class="btn-green" style="white-space:nowrap;padding:11px 14px;font-size:13px" onclick="addAdminByEmail()">Add</button>' +
-      '</div>'
-    : '';
-
-  const adminsSection =
-    '<div style="margin-top:16px;border-top:1.5px solid #F3F4F6;padding-top:14px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-        '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px">ADMINS</div>' +
-        '<div style="font-size:11px;color:#9CA3AF">Google sign-in email</div>' +
-      '</div>' +
-      adminListHtml +
-      adminAddHtml +
-    '</div>';
-
-  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml + adminsSection;
+  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml;
 }
 
 function addPlayer() {
@@ -2316,44 +2290,24 @@ function addPlayer() {
   showToast(`${firstName} ${lastName} added ✓`);
 }
 
-function makePlayerAdmin(playerId) {
-  const p = DATA.players.find(pl => pl.id === playerId);
-  if (!p || !p.googleEmail) { showToast('Player must be linked first'); return; }
-  grantAdmin(p.googleEmail);
-  renderPlayersList();
-  showToast(`${playerFirstName(p)} is now an admin ✓`);
-}
-
-function removePlayerAdmin(playerId) {
+function togglePlayerAdmin(playerId, checked) {
   const p = DATA.players.find(pl => pl.id === playerId);
   if (!p || !p.googleEmail) return;
-  revokeAdmin(p.googleEmail);
-  renderPlayersList();
-  showToast(`Admin access removed`);
-}
-
-function addAdminByEmail() {
-  const input = document.getElementById('new-admin-email');
-  if (!input) return;
-  const email = input.value.trim().toLowerCase();
-  if (!email || !email.includes('@')) { showToast('Enter a valid email'); return; }
-  if (isAdminEmail(email)) { showToast('Already an admin'); return; }
-  grantAdmin(email);
-  input.value = '';
-  renderPlayersList();
-  showToast('Admin added ✓ — they\'ll have access on next sign-in');
-}
-
-function revokeAdminByEmail(email) {
-  // Don't let admin revoke themselves
+  // Prevent removing your own admin access
   const currentUser = auth.currentUser;
-  if (currentUser && currentUser.email.toLowerCase() === email.toLowerCase()) {
+  if (!checked && currentUser && currentUser.email.toLowerCase() === p.googleEmail.toLowerCase()) {
     showToast('You can\'t remove your own admin access');
+    renderPlayersList(); // re-render to reset checkbox
     return;
   }
-  revokeAdmin(email);
+  if (checked) {
+    grantAdmin(p.googleEmail);
+    showToast(`${playerFirstName(p)} is now an admin ✓`);
+  } else {
+    revokeAdmin(p.googleEmail);
+    showToast(`${playerFirstName(p)}'s admin access removed`);
+  }
   renderPlayersList();
-  showToast('Admin access removed');
 }
 
 function removePlayer(id) {
