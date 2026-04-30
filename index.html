@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1B4332">
+<meta name="apple-mobile-web-app-title" content="Golf League">
+<link rel="apple-touch-icon" href="/golf-league/icon-192.png">
+<link rel="manifest" href="/golf-league/manifest.json">
 <title>Golf League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -240,8 +244,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 /* Chat button */
 .chat-btn{width:34px;height:34px;border-radius:50%;background:transparent;border:none;color:#a0bfab;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;padding:0;transition:color 0.15s}
 .chat-btn:active{color:#C9A84C}
-.chat-unread-dot{position:absolute;top:0px;right:0px;width:9px;height:9px;border-radius:50%;background:#C9A84C;border:2px solid #1B4332;display:none}
-.chat-unread-dot.show{display:block}
+.chat-unread-dot{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#DC2626;border:2px solid #1B4332;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:'DM Sans',sans-serif;line-height:1;box-sizing:border-box}
+.chat-unread-dot.show{display:flex}
 /* Chat panel */
 .chat-panel{position:fixed;inset:0;background:#F5F0E8;z-index:600;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);max-width:430px;left:50%;margin-left:-215px}
 @media(max-width:430px){.chat-panel{left:0;margin-left:0;max-width:100%}}
@@ -932,7 +936,7 @@ function showSection(id) {
   const nav = document.getElementById('nav-'+id);
   if (sec) { sec.classList.add('active'); sec.scrollTop = 0; }
   if (nav) nav.classList.add('active');
-  if (id === 'dashboard')   buildDashboard();
+  if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
   if (id === 'score')       buildScoring();
   if (id === 'leaderboard') buildLeaderboard();
   if (id === 'skins')       buildSkins();
@@ -1579,16 +1583,27 @@ function renderEntryCard(tA, tB) {
   else if (hasAny)   saveBtnHtml = '<button class="save-btn ready"  onclick="saveHoleScores()" style="margin-top:8px;width:100%">Save Hole Scores</button>';
   else               saveBtnHtml = '<button class="save-btn disabled" style="margin-top:8px;width:100%">Save Hole Scores</button>';
 
+  // My team always renders on top; opponent below
+  var myIsB = myTeamInMatch === 'B';
+  var firstIds   = myIsB ? idsB2 : idsA2;
+  var secondIds  = myIsB ? idsA2 : idsB2;
+  var firstTeam  = myIsB ? tB : tA;
+  var secondTeam = myIsB ? tA : tB;
+  var canEditFirst  = myIsB ? canEditB : canEditA;
+  var canEditSecond = myIsB ? canEditA : canEditB;
+  var firstColor  = myIsB ? '#DC2626' : '#1B4332';
+  var secondColor = myIsB ? '#1B4332' : '#DC2626';
+
   inner.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
       '<div style="width:32px;height:32px;background:#C9A84C;color:#fff;border-radius:10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">'+(h+1)+'</div>' +
       '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+'</div>' +
       (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
       '</div></div>' +
-    '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+(canEditA?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
-    makePlayerRows(idsA2, false, canEditA) +
-    '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+(canEditB?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
-    makePlayerRows(idsB2, false, canEditB) +
+    '<div style="font-size:10px;font-weight:700;color:'+firstColor+';letter-spacing:0.5px;margin-bottom:4px">'+firstTeam.name+(canEditFirst?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
+    makePlayerRows(firstIds, false, canEditFirst) +
+    '<div style="font-size:10px;font-weight:700;color:'+secondColor+';letter-spacing:0.5px;margin:8px 0 4px">'+secondTeam.name+(canEditSecond?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
+    makePlayerRows(secondIds, false, canEditSecond) +
     saveBtnHtml +
     '<div class="hole-nav" style="margin-top:8px">' +
       '<button class="hole-nav-btn" '+(h===0?'disabled':'')+' onclick="prevHole()">← Prev</button>' +
@@ -3568,6 +3583,7 @@ var chatSeenKey = 'golf_chat_seen';
 var chatSeenCount = 0;
 
 function getChatSeen() {
+  // Returns count of non-deleted messages seen
   try { return parseInt(localStorage.getItem(chatSeenKey)||'0'); } catch(e){ return 0; }
 }
 function setChatSeen(n) {
@@ -3575,10 +3591,24 @@ function setChatSeen(n) {
 }
 
 function updateChatBadge() {
-  const msgs = DATA.messages || [];
-  const seen = getChatSeen();
-  const dot  = document.getElementById('chat-unread-dot');
-  if (dot) dot.classList.toggle('show', msgs.length > seen);
+  const msgs    = (DATA.messages || []).filter(m => !m.deleted);
+  const seen    = getChatSeen();
+  const unread  = Math.max(0, msgs.length - seen);
+  const dot     = document.getElementById('chat-unread-dot');
+  if (dot) {
+    if (unread > 0) {
+      dot.textContent = unread > 99 ? '99+' : String(unread);
+      dot.classList.add('show');
+    } else {
+      dot.textContent = '';
+      dot.classList.remove('show');
+    }
+  }
+  // PWA home-screen badge
+  if ('setAppBadge' in navigator) {
+    if (unread > 0) navigator.setAppBadge(unread).catch(()=>{});
+    else            navigator.clearAppBadge().catch(()=>{});
+  }
 }
 
 function _adjustChatForKeyboard() {
@@ -3604,7 +3634,7 @@ function openChat() {
   panel.classList.add('open');
   panel.style.bottom = '';
   // mark all as seen
-  setChatSeen((DATA.messages||[]).length);
+  setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
   renderChatMessages();
   updateChatHeaderSub();
@@ -3699,8 +3729,8 @@ function sendMessage() {
   clearPendingAttachment();
   clearReply();
 
-  // mark seen
-  setChatSeen(DATA.messages.length);
+  // mark seen (your own message is obviously seen)
+  setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
   renderChatMessages();
   setTimeout(function(){
@@ -4183,6 +4213,119 @@ function viewFullImage(msgId) {
     '<button style="position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>';
   overlay.onclick = function(){ overlay.remove(); };
   document.body.appendChild(overlay);
+}
+
+// ============================================================
+// NOTIFICATIONS & SERVICE WORKER
+// ============================================================
+
+var _swReg = null; // holds ServiceWorkerRegistration once ready
+
+// Register SW
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/golf-league/sw.js').then(function(reg) {
+    _swReg = reg;
+  }).catch(function(){});
+
+  // Listen for SW messages (e.g. OPEN_CHAT from notification click)
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'OPEN_CHAT') {
+      if (!document.getElementById('chat-panel').classList.contains('open')) openChat();
+    }
+  });
+}
+
+// Cross-tab sync: when another tab writes new messages → update badge / show notification
+window.addEventListener('storage', function(e) {
+  if (e.key !== STORAGE_KEY || !e.newValue) return;
+  try {
+    const prev = (DATA.messages || []).length;
+    const next = JSON.parse(e.newValue);
+    // Merge messages only — avoid clobbering in-progress match state
+    if (next && next.messages) DATA.messages = next.messages;
+    const newMsgs = (DATA.messages || []).filter(function(m){ return !m.deleted; });
+    const added   = newMsgs.slice(prev);
+    updateChatBadge();
+    if (added.length > 0) {
+      const last = added[added.length - 1];
+      // Don't notify if it's our own message or chat is already open
+      const ours = last.senderId && last.senderId === chatSenderId();
+      const chatOpen = document.getElementById('chat-panel').classList.contains('open');
+      if (!ours && !chatOpen) _triggerNotification(last);
+    }
+    // If chat is open, re-render
+    if (document.getElementById('chat-panel').classList.contains('open')) renderChatMessages();
+  } catch(_) {}
+});
+
+function _triggerNotification(msg) {
+  const title = msg.senderName || 'League Chat';
+  const body  = msg.attachment
+    ? (msg.text || '') + (msg.attachment.type === 'gif' ? ' 🎞️ GIF' : ' 📎')
+    : (msg.text || '');
+
+  // Via Service Worker (works in background tab)
+  if (_swReg && _swReg.active) {
+    _swReg.active.postMessage({ type: 'SHOW_NOTIFICATION', title: title, body: body, tag: 'league-chat' });
+    return;
+  }
+  // Fallback: direct Notification API (foreground only)
+  if (Notification.permission === 'granted') {
+    var n = new Notification(title, {
+      body:  body,
+      icon:  '/golf-league/icon-192.png',
+      badge: '/golf-league/icon-192.png',
+      tag:   'league-chat',
+      renotify: true
+    });
+    n.onclick = function() { window.focus(); openChat(); };
+  }
+}
+
+// Prompt for notification permission — shown once, non-intrusively
+var _notifPromptShown = false;
+function maybePromptNotifications() {
+  if (_notifPromptShown) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'default') return;
+  _notifPromptShown = true;
+
+  // Show a soft in-app prompt instead of immediately hitting the browser dialog
+  setTimeout(function() {
+    showNotifPrompt();
+  }, 2000);
+}
+
+function showNotifPrompt() {
+  var existing = document.getElementById('notif-prompt');
+  if (existing) return;
+  var el = document.createElement('div');
+  el.id = 'notif-prompt';
+  el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:398px;background:#1B4332;color:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:900;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:slideUp 0.3s ease';
+  el.innerHTML =
+    '<div style="font-size:22px;flex-shrink:0">🔔</div>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:13px;font-weight:700">Enable notifications?</div>' +
+      '<div style="font-size:11px;color:#a0bfab;margin-top:2px">Get notified when teammates chat.</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-shrink:0">' +
+      '<button onclick="dismissNotifPrompt()" style="border:none;background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif">Later</button>' +
+      '<button onclick="requestNotifPermission()" style="border:none;background:#C9A84C;color:#1B4332;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif">Allow</button>' +
+    '</div>';
+  document.body.appendChild(el);
+}
+
+function dismissNotifPrompt() {
+  var el = document.getElementById('notif-prompt');
+  if (el) el.remove();
+}
+
+function requestNotifPermission() {
+  dismissNotifPrompt();
+  if (!('Notification' in window)) return;
+  Notification.requestPermission().then(function(perm) {
+    if (perm === 'granted') showToast('Notifications enabled ✓');
+  });
 }
 
 // ============================================================
