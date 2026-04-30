@@ -2254,20 +2254,49 @@ function renderPlayersList() {
         '</div>';
       }).join('');
 
-  const addFormHtml = on ? (
+  // Add form — always visible
+  const addFormHtml =
     '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
-      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Player</div>' +
+      '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">ADD PLAYER</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px">' +
         '<div style="flex:1"><input class="form-input" id="new-player-first" placeholder="First name"></div>' +
         '<div style="flex:1"><input class="form-input" id="new-player-last" placeholder="Last name"></div>' +
-        '<div style="width:64px"><input class="compact-num" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>' +
+        '<div style="width:64px"><input class="compact-num" id="new-player-hcp" placeholder="0" type="number" min="0" max="54"></div>' +
       '</div>' +
-      '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">Players will link their Google account on first sign-in.</div>' +
-      '<button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>' +
-    '</div>'
-  ) : '';
+      '<button class="btn-green" style="width:100%" onclick="addPlayer()">+ Add Player</button>' +
+    '</div>';
 
-  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml;
+  // Admins section — always visible
+  const adminEmails = DATA.adminEmails || [];
+  const adminListHtml = adminEmails.length === 0
+    ? '<div style="font-size:12px;color:#9CA3AF;padding:6px 0">No admins set yet.</div>'
+    : adminEmails.map(e => {
+        const linkedPlayer = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === e.toLowerCase());
+        const label = linkedPlayer ? playerName(linkedPlayer) + ' <span style="color:#9CA3AF;font-weight:400">(' + e + ')</span>' : e;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #F3F4F6">' +
+          '<div style="flex:1;font-size:12px;font-weight:600;color:#1A1A1A">' + label + '</div>' +
+          (on ? '<button class="btn-sm btn-delete" onclick="revokeAdminByEmail(\'' + e + '\')">Remove</button>' : '') +
+        '</div>';
+      }).join('');
+
+  const adminAddHtml = on
+    ? '<div style="display:flex;gap:8px;margin-top:10px">' +
+        '<input class="form-input" id="new-admin-email" placeholder="Google email address" style="flex:1" type="email">' +
+        '<button class="btn-green" style="white-space:nowrap;padding:11px 14px;font-size:13px" onclick="addAdminByEmail()">Add</button>' +
+      '</div>'
+    : '';
+
+  const adminsSection =
+    '<div style="margin-top:16px;border-top:1.5px solid #F3F4F6;padding-top:14px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+        '<div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px">ADMINS</div>' +
+        '<div style="font-size:11px;color:#9CA3AF">Google sign-in email</div>' +
+      '</div>' +
+      adminListHtml +
+      adminAddHtml +
+    '</div>';
+
+  wrap.innerHTML = editModeBar('players', 'Players', 'exitEditMode(\'players\')') + listHtml + addFormHtml + adminsSection;
 }
 
 function addPlayer() {
@@ -2301,6 +2330,30 @@ function removePlayerAdmin(playerId) {
   revokeAdmin(p.googleEmail);
   renderPlayersList();
   showToast(`Admin access removed`);
+}
+
+function addAdminByEmail() {
+  const input = document.getElementById('new-admin-email');
+  if (!input) return;
+  const email = input.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { showToast('Enter a valid email'); return; }
+  if (isAdminEmail(email)) { showToast('Already an admin'); return; }
+  grantAdmin(email);
+  input.value = '';
+  renderPlayersList();
+  showToast('Admin added ✓ — they\'ll have access on next sign-in');
+}
+
+function revokeAdminByEmail(email) {
+  // Don't let admin revoke themselves
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.email.toLowerCase() === email.toLowerCase()) {
+    showToast('You can\'t remove your own admin access');
+    return;
+  }
+  revokeAdmin(email);
+  renderPlayersList();
+  showToast('Admin access removed');
 }
 
 function removePlayer(id) {
@@ -2837,7 +2890,7 @@ function buildLandingSignIn() {
     </div>`;
 }
 
-function buildLandingClaimProfile(user) {
+function buildLandingClaimProfile(user, isAdminFlow) {
   buildLandingTop();
   const unclaimed = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
   document.getElementById('landing-body').innerHTML =
@@ -2854,9 +2907,15 @@ function buildLandingClaimProfile(user) {
         '</button>'
       ).join('') +
     '</div>' +
-    '<div style="text-align:center;padding:4px 0">' +
+    '<div style="text-align:center;padding:4px 0;display:flex;flex-direction:column;gap:4px">' +
+      (isAdminFlow ? '<button style="background:none;border:none;color:#C9A84C;font-size:13px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="skipClaimToAdmin()">Skip → Go to Admin Panel</button>' : '') +
       '<button style="background:none;border:none;color:#6b9e82;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="signOut()">Sign out</button>' +
     '</div>';
+}
+
+function skipClaimToAdmin() {
+  closeLanding();
+  showSection('admin');
 }
 
 function claimProfile(playerId) {
@@ -3015,12 +3074,19 @@ function handleAuthState(user) {
     showSection('dashboard');
     checkAnnouncements();
   } else if (isAdmin) {
-    // Admin but not a player — let them into admin panel
+    // Admin signed in but no player profile matched yet
+    // If there's exactly one unclaimed player, offer to link; otherwise go to admin panel
     DATA.currentUserId = null;
     saveData();
     updateAvatarBtn();
-    closeLanding();
-    showSection('admin');
+    const unclaimedPlayers = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
+    if (DATA.players.length > 0 && unclaimedPlayers.length > 0) {
+      // Show claim screen so admin can also link their own player profile
+      buildLandingClaimProfile(user, true);
+    } else {
+      closeLanding();
+      showSection('admin');
+    }
   } else {
     // Signed in but no player match — show claim screen
     DATA.currentUserId = null;
