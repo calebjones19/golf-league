@@ -417,16 +417,63 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
       <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
       <div class="form-group">
-        <label class="form-label">Points per hole win</label>
-        <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0.5" step="0.5" style="max-width:100px" disabled>
+        <label class="form-label">Scoring Type</label>
+        <div class="radio-group" style="flex-direction:column;gap:8px">
+          <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="bestball" checked disabled> <div><div style="font-weight:600">Best Ball</div><div style="font-size:11px;color:#9CA3AF">Each team uses the lower net score of their two players</div></div></label>
+          <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="total" disabled> <div><div style="font-weight:600">Total Score</div><div style="font-size:11px;color:#9CA3AF">Team's combined net score per hole competes vs opponent</div></div></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="margin-bottom:10px">Points</label>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">PER HOLE WIN</div>
+            <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0" step="0.5" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+          </div>
+          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MATCH WIN</div>
+            <input class="form-input" type="number" id="cfg-pts-match" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+          </div>
+          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MEDAL</div>
+            <input class="form-input" type="number" id="cfg-pts-medal" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:8px;line-height:1.5">
+          <b>Match Win</b> = bonus for winning most holes · <b>Medal</b> = bonus for best total net score
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Points for a tied hole</label>
         <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:100px" disabled>
       </div>
-      <div class="form-group">
-        <label class="form-label">Match win bonus points</label>
-        <input class="form-input" type="number" id="cfg-pts-match" value="2" min="0" style="max-width:100px" disabled>
+      <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">HANDICAPS</div>
+      <div class="toggle-wrap" style="padding:0 0 10px">
+        <div>
+          <div class="toggle-label">Auto-calculate handicaps</div>
+          <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Calculate from submitted round scores</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="cfg-auto-hcp" onchange="toggleAutoHcp(this)" disabled><span class="toggle-slider"></span></label>
+      </div>
+      <div id="auto-hcp-settings" style="display:none">
+        <div style="display:flex;gap:10px;margin-bottom:10px">
+          <div style="flex:1">
+            <label class="form-label">Rounds used</label>
+            <input class="form-input" type="number" id="cfg-hcp-rounds" value="6" min="1" max="20" disabled>
+          </div>
+          <div style="flex:1">
+            <label class="form-label">% factor</label>
+            <input class="form-input" type="number" id="cfg-hcp-pct" value="90" min="50" max="100" disabled>
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Max HCP</label>
+            <input class="form-input" type="number" id="cfg-hcp-max" value="36" min="0" max="72" disabled>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.5">
+          Uses last <b id="hcp-rounds-preview">6</b> rounds · takes best half · multiplied by <b id="hcp-pct-preview">90</b>% · capped at <b id="hcp-max-preview">36</b>. Recalculates after every submitted round.
+        </div>
       </div>
       <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
       <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">STABLEFORD</div>
@@ -445,6 +492,15 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div class="form-group" style="margin-top:10px">
           <label class="form-label">Entry fee per player per week ($)</label>
           <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:100px" disabled>
+        </div>
+        <div style="background:#F9FAFB;border-radius:10px;padding:12px;margin-top:4px">
+          <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">RULES</div>
+          <div style="font-size:12px;color:#374151;line-height:1.8">
+            🏌️ Players must pay in to be eligible to win<br>
+            🤝 Tied hole = no winner, pot carries over<br>
+            💰 Multiple winners split the pot<br>
+            🔁 Unclaimed pot rolls to the next week
+          </div>
         </div>
       </div>
     </div>
@@ -629,7 +685,7 @@ let DATA = {
   schedule:      [],
   rounds:        [],
   announcements: [],
-  scoringConfig: { pointsPerHole: 1, tiePoints: 0.5, matchBonus: 2, skinsEnabled: false, skinsFee: 5, teeTimeDefault: '17:30', teeOverrides: [] },
+  scoringConfig: { scoringType: 'bestball', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: false, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: false, hcpRounds: 6, hcpPercent: 90, hcpMax: 36 },
   matchups: []
 };
 
@@ -923,6 +979,13 @@ function playerStrokesOnHole(playerHcp, holeRank, numHoles) {
   return Math.floor(playerHcp / numHoles) + (holeRank <= (playerHcp % numHoles) ? 1 : 0);
 }
 
+function effectiveHandicap(player) {
+  // Use league auto-calculated handicap if enabled and available; fall back to manual
+  const cfg = DATA.scoringConfig || {};
+  if (cfg.autoHandicap && player.leagueHandicap != null) return player.leagueHandicap;
+  return player.handicap || 0;
+}
+
 function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
   const numHoles = scoringPars.length;
   let bestNet = null;
@@ -932,16 +995,50 @@ function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
     const gross = scores[pid] && scores[pid][holeIdx];
     if (gross == null) continue;
     const rank    = scoringHoleHcp[holeIdx];
-    const strokes = playerStrokesOnHole(player.handicap || 0, rank, numHoles);
+    const strokes = playerStrokesOnHole(effectiveHandicap(player), rank, numHoles);
     const net     = gross - strokes;
     if (bestNet === null || net < bestNet) bestNet = net;
   }
   return bestNet;
 }
 
+function teamTotalNet(teamPlayerIds, holeIdx, scores) {
+  const numHoles = scoringPars.length;
+  let total = 0, hasAny = false;
+  for (const pid of teamPlayerIds) {
+    const player = DATA.players.find(p => p.id === pid);
+    if (!player) continue;
+    const gross = scores[pid] && scores[pid][holeIdx];
+    if (gross == null) continue;
+    const rank    = scoringHoleHcp[holeIdx];
+    const strokes = playerStrokesOnHole(effectiveHandicap(player), rank, numHoles);
+    total += gross - strokes;
+    hasAny = true;
+  }
+  return hasAny ? total : null;
+}
+
+function teamNetForHole(teamPlayerIds, holeIdx, scores) {
+  const type = (DATA.scoringConfig || {}).scoringType || 'bestball';
+  return type === 'total'
+    ? teamTotalNet(teamPlayerIds, holeIdx, scores)
+    : teamBestBallNet(teamPlayerIds, holeIdx, scores);
+}
+
+function teamTotalNetScore(teamPlayerIds, scores) {
+  // Sum all net scores across all holes for medal comparison
+  const numHoles = scoringPars.length;
+  let total = 0;
+  for (let h = 0; h < numHoles; h++) {
+    const net = teamBestBallNet(teamPlayerIds, h, scores); // always use best ball for medal
+    if (net != null) total += net;
+  }
+  return total;
+}
+
 function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores) {
-  const netA = teamBestBallNet(teamAIds, holeIdx, scores);
-  const netB = teamBestBallNet(teamBIds, holeIdx, scores);
+  const netA = teamNetForHole(teamAIds, holeIdx, scores);
+  const netB = teamNetForHole(teamBIds, holeIdx, scores);
   if (netA === null || netB === null) return null;
   if (netA < netB) return 'A';
   if (netB < netA) return 'B';
@@ -964,9 +1061,20 @@ function computeMatchPoints(teamAIds, teamBIds, scores) {
     else if (result === 'B') pointsB += ptsWin;
     else                   { pointsA += ptsTie; pointsB += ptsTie; }
   }
-  const bonus = cfg.matchBonus != null ? cfg.matchBonus : 2;
-  if (allPlayed && pointsA > pointsB) pointsA += bonus;
-  else if (allPlayed && pointsB > pointsA) pointsB += bonus;
+  if (allPlayed) {
+    // Match win bonus (most holes)
+    const matchBonus = cfg.matchBonus != null ? cfg.matchBonus : 1;
+    if (pointsA > pointsB) pointsA += matchBonus;
+    else if (pointsB > pointsA) pointsB += matchBonus;
+    // Medal bonus (best total net score)
+    const medalBonus = cfg.medalBonus != null ? cfg.medalBonus : 1;
+    if (medalBonus > 0) {
+      const totalA = teamTotalNetScore(teamAIds, scores);
+      const totalB = teamTotalNetScore(teamBIds, scores);
+      if (totalA < totalB) pointsA += medalBonus;
+      else if (totalB < totalA) pointsB += medalBonus;
+    }
+  }
   return { pointsA, pointsB, holeResults, allPlayed };
 }
 
@@ -1001,39 +1109,141 @@ function buildScoring() {
   renderScoringUI(el);
 }
 
+// Track sub overrides while building a match
+var pendingSubs = {}; // { originalPlayerId: subPlayerId }
+
 function renderMatchPicker(el) {
   const readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
   const opts = readyTeams.map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
-  el.innerHTML = '<div style="padding:16px;padding-top:8px"><div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="showSection(\'dashboard\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button><span style="font-size:15px;font-weight:700;color:#1A1A1A">Score Entry</span><div style="width:48px"></div></div><div class="card"><div style="font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:4px;font-family:\'Space Grotesk\',sans-serif">⛳ Start Match</div><div style="font-size:12px;color:#6B7280;margin-bottom:16px">Select today\'s matchup</div><div class="form-group"><label class="form-label">Team A</label><select class="form-select" id="pick-teamA">'+opts+'</select></div><div class="form-group" style="margin-bottom:16px"><label class="form-label">Team B</label><select class="form-select" id="pick-teamB">'+opts+'</select></div><button class="btn-green" style="width:100%" onclick="startMatch()">Start Match →</button></div></div>';
+
+  el.innerHTML =
+    '<div style="padding:16px;padding-top:8px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px">' +
+        '<button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="showSection(\'dashboard\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button>' +
+        '<span style="font-size:15px;font-weight:700;color:#1A1A1A">Score Entry</span>' +
+        '<div style="width:48px"></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div style="font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:4px;font-family:\'Space Grotesk\',sans-serif">⛳ Start Match</div>' +
+        '<div style="font-size:12px;color:#6B7280;margin-bottom:16px">Select today\'s matchup</div>' +
+        '<div class="form-group"><label class="form-label">Team A</label><select class="form-select" id="pick-teamA" onchange="refreshSubsUI()">' + opts + '</select></div>' +
+        '<div class="form-group"><label class="form-label">Team B</label><select class="form-select" id="pick-teamB" onchange="refreshSubsUI()">' + opts + '</select></div>' +
+        '<div id="subs-section"></div>' +
+        '<button class="btn-green" style="width:100%" onclick="startMatch()">Start Match →</button>' +
+      '</div>' +
+    '</div>';
+
   var selB = document.getElementById('pick-teamB');
   if (selB && readyTeams.length > 1) selB.selectedIndex = 1;
+  pendingSubs = {};
+  refreshSubsUI();
+}
+
+function refreshSubsUI() {
+  var teamAId = document.getElementById('pick-teamA')?.value;
+  var teamBId = document.getElementById('pick-teamB')?.value;
+  var wrap = document.getElementById('subs-section');
+  if (!wrap || !teamAId || !teamBId || teamAId === teamBId) { if(wrap) wrap.innerHTML=''; return; }
+
+  var tA = DATA.teams.find(function(t){return t.id===teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id===teamBId;});
+  if (!tA || !tB) { wrap.innerHTML=''; return; }
+
+  // Available subs: all players not on either team + not already a sub
+  var allMatchIds = tA.playerIds.concat(tB.playerIds);
+  var availSubs = DATA.players.filter(function(p){ return !allMatchIds.includes(p.id); });
+
+  function subOpts(excludeIds) {
+    return '<option value="">— No Sub —</option>' +
+      availSubs
+        .filter(function(p){ return !Object.values(pendingSubs).includes(p.id) || excludeIds.includes(p.id); })
+        .map(function(p){ return '<option value="'+p.id+'">'+playerName(p)+' (Hcp '+(p.handicap||0)+')</option>'; }).join('');
+  }
+
+  function teamRows(team) {
+    return team.playerIds.map(function(pid) {
+      var p = DATA.players.find(function(pl){return pl.id===pid;});
+      if (!p) return '';
+      var subPid = pendingSubs[pid];
+      var subP = subPid ? DATA.players.find(function(pl){return pl.id===subPid;}) : null;
+      var hcp = subP ? effectiveHandicap(subP) : effectiveHandicap(p);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6">' +
+        '<div style="flex:1">' +
+          '<div style="font-size:12px;font-weight:600;color:'+(subP?'#9CA3AF':'#1A1A1A')+'">' + playerName(p) + (subP ? ' <span style="color:#DC2626;font-size:10px">(out)</span>' : '') + '</div>' +
+          (subP ? '<div style="font-size:11px;font-weight:700;color:#1B4332">↳ ' + playerName(subP) + ' (Hcp '+effectiveHandicap(subP)+')</div>' : '<div style="font-size:10px;color:#9CA3AF">Hcp '+hcp+'</div>') +
+        '</div>' +
+        '<select style="font-size:11px;border:1.5px solid #E5E7EB;border-radius:6px;padding:4px 6px;color:#1A1A1A;background:#fff;font-family:\'DM Sans\',sans-serif;max-width:130px" onchange="setSub(\''+pid+'\',this.value)">' +
+          subOpts([subPid || '']) +
+        '</select>' +
+      '</div>';
+    }).join('');
+  }
+
+  wrap.innerHTML =
+    '<div style="margin-bottom:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:8px;letter-spacing:0.5px">SUBSTITUTIONS (optional)</div>' +
+      '<div style="font-size:11px;color:#6B7280;margin-bottom:8px">' + tA.name + '</div>' + teamRows(tA) +
+      '<div style="font-size:11px;color:#6B7280;margin-top:10px;margin-bottom:8px">' + tB.name + '</div>' + teamRows(tB) +
+    '</div>';
+}
+
+function setSub(originalId, subId) {
+  if (subId) pendingSubs[originalId] = subId;
+  else delete pendingSubs[originalId];
+  refreshSubsUI();
 }
 
 function startMatch() {
   var teamAId = document.getElementById('pick-teamA').value;
   var teamBId = document.getElementById('pick-teamB').value;
   if (teamAId === teamBId) { showToast('Select two different teams'); return; }
-  var readyTeams = DATA.teams.filter(function(t){return t.playerIds.length >= 2;});
-  var tA = readyTeams.find(function(t){return t.id === teamAId;});
-  var tB = readyTeams.find(function(t){return t.id === teamBId;});
+  var tA = DATA.teams.find(function(t){return t.id === teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === teamBId;});
   if (!tA || !tB) { showToast('Invalid team selection'); return; }
+
+  // Build effective player ID lists (substitute where needed)
+  var resolveIds = function(pids) {
+    return pids.map(function(pid){ return pendingSubs[pid] || pid; });
+  };
+  var effectiveA = resolveIds(tA.playerIds);
+  var effectiveB = resolveIds(tB.playerIds);
+
   var numHoles = scoringPars.length;
   var scores = {}, saved = {};
-  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+  effectiveA.concat(effectiveB).forEach(function(pid) {
     scores[pid] = Array(numHoles).fill(null);
     saved[pid]  = Array(numHoles).fill(false);
   });
-  activeMatch = { teamAId: teamAId, teamBId: teamBId, week: getCurrentWeek(), scores: scores, saved: saved };
+  activeMatch = {
+    teamAId: teamAId, teamBId: teamBId,
+    teamAPlayerIds: effectiveA, teamBPlayerIds: effectiveB,
+    week: getCurrentWeek(),
+    scores: scores, saved: saved,
+    subs: Object.assign({}, pendingSubs)
+  };
+  pendingSubs = {};
   currentHole = 0;
   renderScoringUI(document.getElementById('score-content'));
 }
 
-function renderScoringUI(el) {
-  if (!activeMatch) return;
+function getActiveTeams() {
   var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
   var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
-  if (!tA || !tB) { activeMatch = null; buildScoring(); return; }
-  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  if (!tA || !tB) return null;
+  // Use effective (sub-resolved) player IDs if available
+  return {
+    tA: tA, tB: tB,
+    idsA: activeMatch.teamAPlayerIds || tA.playerIds,
+    idsB: activeMatch.teamBPlayerIds || tB.playerIds
+  };
+}
+
+function renderScoringUI(el) {
+  if (!activeMatch) return;
+  var teams = getActiveTeams();
+  if (!teams) { activeMatch = null; buildScoring(); return; }
+  var tA = teams.tA, tB = teams.tB;
+  var mp = computeMatchPoints(teams.idsA, teams.idsB, activeMatch.scores);
   var numHoles = scoringPars.length;
   var holeCols = scoringPars.map(function(_,i){return '<th>'+(i+1)+'</th>';}).join('');
   el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0;flex-shrink:0"><button style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:14px;font-weight:600;color:#1B4332;cursor:pointer;background:none;border:none;font-family:\'DM Sans\',sans-serif" onclick="confirmEndMatch()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> End Match</button><span class="badge-live"><span class="pulse-dot" style="width:6px;height:6px"></span>LIVE</span></div><div style="padding:4px 16px 0;flex-shrink:0"><div id="match-banner" style="background:#1B4332;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tA.name+'</div><div id="score-a" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsA+'</div></div><div style="font-size:11px;font-weight:700;color:#6b9e82;padding:0 8px">vs</div><div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:2px">'+tB.name+'</div><div id="score-b" style="font-size:26px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">'+mp.pointsB+'</div></div></div><div class="hole-chips" id="hole-chips"></div><div class="score-entry-card" id="score-card-wrap" style="margin:8px 0 0"><div id="entry-inner" style="padding:12px 14px 10px"></div></div></div><div style="padding:4px 16px 2px;font-size:13px;font-weight:600;color:#6B7280;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">Scorecard</div><div class="scorecard-wrap"><table class="scorecard" id="scorecard-table" style="box-shadow:none;border-radius:0"><thead><tr><th style="text-align:left;padding-left:6px">Player</th>'+holeCols+'<th>Tot</th></tr></thead><tbody id="scorecard-body"></tbody></table></div>';
@@ -1045,7 +1255,8 @@ function renderScoringUI(el) {
 function buildHoleChips(tA, tB) {
   var wrap = document.getElementById('hole-chips');
   if (!wrap || !activeMatch) return;
-  var allPids = tA.playerIds.concat(tB.playerIds);
+  var teams = getActiveTeams();
+  var allPids = teams ? teams.idsA.concat(teams.idsB) : tA.playerIds.concat(tB.playerIds);
   wrap.innerHTML = scoringPars.map(function(_,i) {
     var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][i];});
     var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][i] != null;});
@@ -1064,17 +1275,21 @@ function renderEntryCard(tA, tB) {
   var par      = scoringPars[h];
   var holeRank = scoringHoleHcp[h];
   var numHoles = scoringPars.length;
-  var winner   = computeHoleWinner(tA.playerIds, tB.playerIds, h, activeMatch.scores);
+  var teams2   = getActiveTeams();
+  var idsA2    = teams2 ? teams2.idsA : tA.playerIds;
+  var idsB2    = teams2 ? teams2.idsB : tB.playerIds;
+  var winner   = computeHoleWinner(idsA2, idsB2, h, activeMatch.scores);
   var winColor = winner==='A' ? '#2D6A4F' : winner==='B' ? '#DC2626' : '#C9A84C';
   var winLabel = winner==='A' ? tA.name+' wins hole' : winner==='B' ? tB.name+' wins hole' : winner==='T' ? 'Hole tied' : '';
 
-  function makePlayerRows(teamObj) {
-    return teamObj.playerIds.map(function(pid) {
+  function makePlayerRows(playerIds, isSub) {
+    return playerIds.map(function(pid) {
       var p = DATA.players.find(function(pl){return pl.id === pid;});
       if (!p) return '';
-      var strokes = playerStrokesOnHole(p.handicap || 0, holeRank, numHoles);
+      var hcp     = effectiveHandicap(p);
+      var strokes = playerStrokesOnHole(hcp, holeRank, numHoles);
       var gross   = activeMatch.scores[pid] && activeMatch.scores[pid][h];
-      var isSaved = activeMatch.saved[pid]  && activeMatch.saved[pid][h];
+      var saved   = activeMatch.saved[pid]  && activeMatch.saved[pid][h];
       var net     = gross != null ? gross - strokes : null;
       var relPar  = net  != null ? net - par : null;
       var netHtml = '';
@@ -1085,14 +1300,17 @@ function renderEntryCard(tA, tB) {
       var strokePill = strokes > 0
         ? '<span style="font-size:10px;color:#16A34A;font-weight:700">+'+strokes+' stroke'+(strokes>1?'s':'')+'</span>'
         : '<span style="font-size:10px;color:#9CA3AF">No strokes</span>';
+      var subTag = isSub ? ' <span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px">SUB</span>' : '';
       var dispVal = gross != null ? gross : '—';
       var dispCls = gross != null ? 'score-display' : 'score-display empty';
-      var disAttr = isSaved ? 'disabled' : '';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+playerFirstName(p)+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+(p.handicap||0)+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
+      var disAttr = saved ? 'disabled' : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+playerFirstName(p)+subTag+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+hcp+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
     }).join('');
   }
 
-  var allPids  = tA.playerIds.concat(tB.playerIds);
+  var subsMap  = activeMatch.subs || {};
+  var isSubId  = function(pid){ return Object.values(subsMap).includes(pid); };
+  var allPids  = idsA2.concat(idsB2);
   var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][h];});
   var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][h] != null;});
   var allDone  = scoringPars.every(function(_,hi){return allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][hi];});});
@@ -1110,9 +1328,9 @@ function renderEntryCard(tA, tB) {
       (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
       '</div></div>' +
     '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+'</div>' +
-    makePlayerRows(tA) +
+    makePlayerRows(idsA2, false) +
     '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+'</div>' +
-    makePlayerRows(tB) +
+    makePlayerRows(idsB2, false) +
     saveBtnHtml +
     '<div class="hole-nav" style="margin-top:8px">' +
       '<button class="hole-nav-btn" '+(h===0?'disabled':'')+' onclick="prevHole()">← Prev</button>' +
@@ -1121,31 +1339,36 @@ function renderEntryCard(tA, tB) {
     '</div>';
 
   // Update live score banner
-  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var mpLive = computeMatchPoints(idsA2, idsB2, activeMatch.scores);
   var sa = document.getElementById('score-a'), sb = document.getElementById('score-b');
-  if (sa) sa.textContent = mp.pointsA;
-  if (sb) sb.textContent = mp.pointsB;
+  if (sa) sa.textContent = mpLive.pointsA;
+  if (sb) sb.textContent = mpLive.pointsB;
+}
+
+function getActivePids() {
+  if (!activeMatch) return [];
+  var teams = getActiveTeams();
+  return teams ? teams.idsA.concat(teams.idsB) : [];
 }
 
 function adjustScore(pid, delta) {
   if (!activeMatch || (activeMatch.saved[pid] && activeMatch.saved[pid][currentHole])) return;
   var cur = activeMatch.scores[pid][currentHole];
   activeMatch.scores[pid][currentHole] = cur === null ? scoringPars[currentHole] : Math.max(1, cur + delta);
-  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
-  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
-  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
+  var teams = getActiveTeams();
+  if (teams) { buildHoleChips(teams.tA, teams.tB); renderEntryCard(teams.tA, teams.tB); renderScorecard(teams.tA, teams.tB); }
 }
 
 function saveHoleScores() {
   if (!activeMatch) return;
-  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
-  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
-  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
+  var teams = getActiveTeams();
+  if (!teams) return;
+  var allPids = teams.idsA.concat(teams.idsB);
+  allPids.forEach(function(pid) {
     if (activeMatch.scores[pid] && activeMatch.scores[pid][currentHole] != null)
       activeMatch.saved[pid][currentHole] = true;
   });
-  buildHoleChips(tA, tB); renderEntryCard(tA, tB); renderScorecard(tA, tB);
-  var allPids = tA.playerIds.concat(tB.playerIds);
+  buildHoleChips(teams.tA, teams.tB); renderEntryCard(teams.tA, teams.tB); renderScorecard(teams.tA, teams.tB);
   var next = -1;
   for (var i = currentHole + 1; i < scoringPars.length; i++) {
     if (allPids.some(function(pid){return !activeMatch.saved[pid][i];})) { next = i; break; }
@@ -1155,19 +1378,18 @@ function saveHoleScores() {
 
 function editHoleScores() {
   if (!activeMatch) return;
-  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
-  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
-  tA.playerIds.concat(tB.playerIds).forEach(function(pid) {
-    activeMatch.saved[pid][currentHole] = false;
-  });
-  buildHoleChips(tA, tB); renderEntryCard(tA, tB);
+  var teams = getActiveTeams();
+  if (!teams) return;
+  var allPids = teams.idsA.concat(teams.idsB);
+  allPids.forEach(function(pid) { activeMatch.saved[pid][currentHole] = false; });
+  buildHoleChips(teams.tA, teams.tB); renderEntryCard(teams.tA, teams.tB);
 }
 
 function goToHole(i) {
   currentHole = i;
-  var tA = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamAId);});
-  var tB = DATA.teams.find(function(t){return t.id === (activeMatch && activeMatch.teamBId);});
-  if (tA && tB) { buildHoleChips(tA, tB); renderEntryCard(tA, tB); }
+  if (!activeMatch) return;
+  var teams = getActiveTeams();
+  if (teams) { buildHoleChips(teams.tA, teams.tB); renderEntryCard(teams.tA, teams.tB); }
 }
 function prevHole() { if (currentHole > 0) goToHole(currentHole - 1); }
 function nextHole() { if (currentHole < scoringPars.length - 1) goToHole(currentHole + 1); }
@@ -1178,11 +1400,47 @@ function confirmEndMatch() {
   }
 }
 
+function recalcHandicaps() {
+  var cfg = DATA.scoringConfig || {};
+  if (!cfg.autoHandicap) return;
+  var numRounds = cfg.hcpRounds || 6;
+  var pct       = (cfg.hcpPercent || 90) / 100;
+  var maxHcp    = cfg.hcpMax || 36;
+  var par       = scoringPars.reduce(function(a,v){return a+v;}, 0);
+  if (!par) return;
+
+  DATA.players.forEach(function(p) {
+    // Gather all round totals for this player
+    var totals = (DATA.rounds || [])
+      .filter(function(r) {
+        var sc = r.scores && r.scores[p.id];
+        return sc && sc.some(function(s){return s != null;});
+      })
+      .map(function(r) {
+        var sc = r.scores[p.id] || [];
+        return sc.reduce(function(a,s){return a + (s||0);}, 0);
+      });
+
+    if (totals.length === 0) return;
+
+    // Take last N rounds, calculate differentials vs par
+    var recent = totals.slice(-numRounds);
+    var diffs  = recent.map(function(t){ return t - par; });
+    // Sort ascending, take best half (rounds to ceiling)
+    var sorted = diffs.slice().sort(function(a,b){return a-b;});
+    var numUse = Math.max(1, Math.ceil(sorted.length / 2));
+    var best   = sorted.slice(0, numUse);
+    var avg    = best.reduce(function(a,v){return a+v;}, 0) / best.length;
+    p.leagueHandicap = Math.min(maxHcp, Math.max(0, Math.round(avg * pct)));
+  });
+  saveData();
+}
+
 function submitRound() {
   if (!activeMatch) return;
-  var tA = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
-  var tB = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
-  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, activeMatch.scores);
+  var effectiveA = activeMatch.teamAPlayerIds || DATA.teams.find(function(t){return t.id === activeMatch.teamAId;}).playerIds;
+  var effectiveB = activeMatch.teamBPlayerIds || DATA.teams.find(function(t){return t.id === activeMatch.teamBId;}).playerIds;
+  var mp = computeMatchPoints(effectiveA, effectiveB, activeMatch.scores);
   var round = {
     id: 'r' + Date.now(),
     week: activeMatch.week,
@@ -1192,13 +1450,15 @@ function submitRound() {
     pointsA: mp.pointsA,
     pointsB: mp.pointsB,
     holeResults: mp.holeResults,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
+    subs: activeMatch.subs || {}
   };
   if (!DATA.rounds) DATA.rounds = [];
   DATA.rounds.push(round);
   var week = DATA.schedule.find(function(w){return w.week === activeMatch.week;});
   if (week) week.status = 'completed';
   saveData();
+  recalcHandicaps();
   activeMatch = null; currentHole = 0;
   showToast('Round submitted! 🏌️');
   showSection('leaderboard');
@@ -1219,6 +1479,9 @@ function renderScorecard(tA, tB) {
   var tbody = document.getElementById('scorecard-body');
   if (!tbody || !activeMatch) return;
   var parTot = scoringPars.reduce(function(a,v){return a+v;}, 0);
+  var teams  = getActiveTeams();
+  var idsA   = teams ? teams.idsA : tA.playerIds;
+  var idsB   = teams ? teams.idsB : tB.playerIds;
 
   function makePlayerRow(pid) {
     var p = DATA.players.find(function(pl){return pl.id === pid;});
@@ -1227,14 +1490,16 @@ function renderScorecard(tA, tB) {
     var tot = sc.reduce(function(a,s){return a+(s||0);}, 0);
     var played = sc.filter(function(s){return s!=null;});
     var totStr = played.length === 0 ? '—' : '<span style="color:'+(tot>parTot?'#DC2626':tot<parTot?'#16A34A':'#374151')+'">'+tot+'</span>';
-    return '<tr><td>'+playerFirstName(p)+'('+( p.handicap||0)+')</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
+    var isSub = activeMatch.subs && Object.values(activeMatch.subs).includes(pid);
+    var label = playerFirstName(p) + (isSub ? '*' : '') + '(' + effectiveHandicap(p) + ')';
+    return '<tr><td>'+label+'</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
   }
 
   var numCols = scoringPars.length + 2;
   var parRow  = '<tr class="par-row"><td>Par</td>'+scoringPars.map(function(p){return '<td>'+p+'</td>';}).join('')+'<td class="tot-cell">'+parTot+'</td></tr>';
   var labelA  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#1B4332;background:#F0F7F3;padding:3px 6px;text-align:left">'+tA.name+'</td></tr>';
   var labelB  = '<tr><td colspan="'+numCols+'" style="font-size:9px;font-weight:700;color:#DC2626;background:#FEF2F2;padding:3px 6px;text-align:left">'+tB.name+'</td></tr>';
-  tbody.innerHTML = parRow + labelA + tA.playerIds.map(makePlayerRow).join('') + labelB + tB.playerIds.map(makePlayerRow).join('');
+  tbody.innerHTML = parRow + labelA + idsA.map(makePlayerRow).join('') + labelB + idsB.map(makePlayerRow).join('');
 }
 
 // ============================================================
@@ -1350,46 +1615,67 @@ function buildSkins() {
   var fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
   var numHoles = scoringPars.length || 9;
   var skinResults = [];
-  var carryover = 0;
+  var carryover = 0; // tracks how many holes are in the pot (including current)
 
   rounds.forEach(function(r) {
     var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
     var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
-    var allPids = (tA ? tA.playerIds : []).concat(tB ? tB.playerIds : []);
+    // Use effective player IDs if subs were recorded
+    var idsA = (r.subs && Object.keys(r.subs).length > 0)
+      ? (tA ? tA.playerIds.map(function(pid){ return r.subs[pid] || pid; }) : [])
+      : (tA ? tA.playerIds : []);
+    var idsB = (r.subs && Object.keys(r.subs).length > 0)
+      ? (tB ? tB.playerIds.map(function(pid){ return r.subs[pid] || pid; }) : [])
+      : (tB ? tB.playerIds : []);
+    var allPids = idsA.concat(idsB);
     var potPerHole = allPids.length * fee;
+
     for (var h = 0; h < numHoles; h++) {
-      var holeSc = allPids.map(function(pid){ return { pid: pid, gross: r.scores && r.scores[pid] && r.scores[pid][h] }; }).filter(function(s){return s.gross != null;});
+      var holeSc = allPids
+        .map(function(pid){ return { pid: pid, gross: r.scores && r.scores[pid] && r.scores[pid][h] }; })
+        .filter(function(s){return s.gross != null;});
       if (holeSc.length === 0) continue;
+
       var minScore = Math.min.apply(null, holeSc.map(function(s){return s.gross;}));
       var winners  = holeSc.filter(function(s){return s.gross === minScore;});
       carryover++;
+
       if (winners.length === 1) {
+        // Clean win — player takes the pot
         var wp = DATA.players.find(function(p){return p.id === winners[0].pid;});
-        skinResults.push({ hole: h+1, winner: wp ? playerName(wp) : '?', amount: potPerHole * carryover, carryover: carryover > 1 });
+        skinResults.push({ hole: h+1, pid: winners[0].pid, winner: wp ? playerName(wp) : '?', amount: potPerHole * carryover, carryover: carryover > 1, multi: false });
         carryover = 0;
-      } else {
+      } else if (winners.length > 1) {
+        // Tie — pot carries over to next hole per rules
         var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? playerFirstName(p) : '?'; }).join(' & ');
-        skinResults.push({ hole: h+1, winner: null, tied: tiedNames, amount: 0 });
+        skinResults.push({ hole: h+1, pid: null, winner: null, tied: tiedNames, amount: 0, carryover: true });
+        // carryover stays incremented (hole pot rolls forward)
       }
     }
   });
 
-  var winnings = {};
-  skinResults.filter(function(s){return s.winner;}).forEach(function(s) {
-    winnings[s.winner] = (winnings[s.winner] || 0) + s.amount;
+  // Tally by player ID for accuracy
+  var winningsByPid = {};
+  skinResults.filter(function(s){return s.pid && s.amount > 0;}).forEach(function(s) {
+    winningsByPid[s.pid] = (winningsByPid[s.pid] || 0) + s.amount;
   });
-  var topEarners = Object.entries(winnings).sort(function(a,b){return b[1]-a[1];}).slice(0, 5);
+  var topEarners = Object.keys(winningsByPid)
+    .map(function(pid){
+      var p = DATA.players.find(function(pl){return pl.id===pid;});
+      return { pid: pid, name: p ? playerName(p) : '?', initials: p ? playerInitials(p) : '?', amt: winningsByPid[pid] };
+    })
+    .sort(function(a,b){return b.amt - a.amt;})
+    .slice(0, 5);
 
   var earnerHtml = '';
   if (topEarners.length > 0) {
     earnerHtml = '<div class="card"><div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;letter-spacing:0.5px">TOP EARNERS</div>' +
       topEarners.map(function(entry, i) {
-        var name = entry[0], amt = entry[1];
         var bg = i === 0 ? '#FEF9EE' : '#E5E7EB', col = i === 0 ? '#C9A84C' : '#6B7280';
         return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
-          avatarHtml(initials(name||''), bg, col, 30) +
-          '<div style="flex:1;margin-left:10px"><div style="font-size:13px;font-weight:600;color:#1A1A1A">'+name+'</div></div>' +
-          '<div style="font-size:16px;font-weight:700;color:#16A34A">$'+amt+'</div></div>';
+          avatarHtml(entry.initials, bg, col, 30) +
+          '<div style="flex:1;margin-left:10px"><div style="font-size:13px;font-weight:600;color:#1A1A1A">'+entry.name+'</div></div>' +
+          '<div style="font-size:16px;font-weight:700;color:#16A34A">$'+entry.amt+'</div></div>';
       }).join('') + '</div>';
   }
 
@@ -1962,7 +2248,7 @@ function renderPlayersList() {
           avatarHtml(playerInitials(p), '#E5E7EB', '#6B7280', 32) +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(p) + claimBadge + adminBadge + '</div>' +
-            '<div style="font-size:11px;color:#6B7280">Hcp ' + (p.handicap||0) + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(p) + (p.leagueHandicap != null && (DATA.scoringConfig||{}).autoHandicap ? ' <span style="color:#C9A84C">(auto)</span>' : '') + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
           '</div>' +
           (on ? '<div style="display:flex;gap:4px;align-items:center">' + adminToggle + '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
         '</div>';
@@ -2293,6 +2579,11 @@ function updateStablefordTable() {
     '</tbody></table>';
 }
 
+function toggleAutoHcp(el) {
+  const settings = document.getElementById('auto-hcp-settings');
+  if (settings) settings.style.display = el.checked ? 'block' : 'none';
+}
+
 function loadScoringForm() {
   const cfg = DATA.scoringConfig || {};
   const el1 = document.getElementById('cfg-pts-hole');
@@ -2300,24 +2591,55 @@ function loadScoringForm() {
   const el3 = document.getElementById('cfg-pts-match');
   const el4 = document.getElementById('cfg-skins-on');
   const el5 = document.getElementById('cfg-skins-fee');
+  const el6 = document.getElementById('cfg-pts-medal');
   if (el1) el1.value = cfg.pointsPerHole ?? 1;
   if (el2) el2.value = cfg.tiePoints ?? 0.5;
-  if (el3) el3.value = cfg.matchBonus ?? 2;
+  if (el3) el3.value = cfg.matchBonus ?? 1;
+  if (el6) el6.value = cfg.medalBonus ?? 1;
   if (el4) { el4.checked = cfg.skinsEnabled || false; toggleSkinsSection(el4); }
   if (el5) el5.value = cfg.skinsFee ?? 5;
+  const typeRadio = document.querySelector(`input[name="cfg-scoring-type"][value="${cfg.scoringType || 'bestball'}"]`);
+  if (typeRadio) typeRadio.checked = true;
   const stablefordRadio = document.querySelector(`input[name="cfg-stableford"][value="${cfg.stablefordVariant || 'standard'}"]`);
   if (stablefordRadio) stablefordRadio.checked = true;
+  const autoEl = document.getElementById('cfg-auto-hcp');
+  if (autoEl) { autoEl.checked = cfg.autoHandicap || false; toggleAutoHcp(autoEl); }
+  const hcpR = document.getElementById('cfg-hcp-rounds');
+  const hcpP = document.getElementById('cfg-hcp-pct');
+  const hcpM = document.getElementById('cfg-hcp-max');
+  if (hcpR) hcpR.value = cfg.hcpRounds ?? 6;
+  if (hcpP) hcpP.value = cfg.hcpPercent ?? 90;
+  if (hcpM) hcpM.value = cfg.hcpMax ?? 36;
+  updateHcpPreview();
   updateStablefordTable();
+}
+
+function updateHcpPreview() {
+  const r = document.getElementById('cfg-hcp-rounds');
+  const p = document.getElementById('cfg-hcp-pct');
+  const m = document.getElementById('cfg-hcp-max');
+  const pr = document.getElementById('hcp-rounds-preview');
+  const pp = document.getElementById('hcp-pct-preview');
+  const pm = document.getElementById('hcp-max-preview');
+  if (pr && r) pr.textContent = r.value;
+  if (pp && p) pp.textContent = p.value;
+  if (pm && m) pm.textContent = m.value;
 }
 
 function saveScoringConfig() {
   DATA.scoringConfig = {
-    pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) || 1,
-    tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  || 0.5,
-    matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value)|| 2,
+    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'bestball',
+    pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) ?? 1,
+    tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  ?? 0.5,
+    matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value) ?? 1,
+    medalBonus:        parseFloat(document.getElementById('cfg-pts-medal').value) ?? 1,
     skinsEnabled:      document.getElementById('cfg-skins-on').checked,
-    skinsFee:          parseFloat(document.getElementById('cfg-skins-fee').value)|| 5,
-    stablefordVariant: document.querySelector('input[name="cfg-stableford"]:checked')?.value || 'standard'
+    skinsFee:          parseFloat(document.getElementById('cfg-skins-fee').value) || 5,
+    stablefordVariant: document.querySelector('input[name="cfg-stableford"]:checked')?.value || 'standard',
+    autoHandicap:      document.getElementById('cfg-auto-hcp').checked,
+    hcpRounds:         parseInt(document.getElementById('cfg-hcp-rounds').value) || 6,
+    hcpPercent:        parseInt(document.getElementById('cfg-hcp-pct').value) || 90,
+    hcpMax:            parseInt(document.getElementById('cfg-hcp-max').value) || 36,
   };
   if (DATA.league) DATA.league.skinsEnabled = DATA.scoringConfig.skinsEnabled;
   saveData();
