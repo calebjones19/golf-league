@@ -472,7 +472,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
   <div class="center-modal" id="admin-login-modal" onclick="closeAdminLogin(event)">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-title" id="admin-modal-title">Admin Sign In</div>
-      <div class="modal-sub" id="admin-modal-sub">Enter your admin email to access league management.</div>
+      <div class="modal-sub" id="admin-modal-sub">Enter your Google email to access league management.</div>
       <div class="form-group">
         <input class="form-input" type="email" id="admin-email-input" placeholder="your@email.com">
       </div>
@@ -620,7 +620,8 @@ const STORAGE_KEY = 'golf_league_data';
 const SEEN_KEY    = 'golf_league_seen';
 
 let DATA = {
-  adminEmail:    null,
+  adminEmail:    null,   // legacy — kept for migration
+  adminEmails:   [],     // array of lowercase google emails with admin access
   currentUserId: null,
   league:        null,
   players:       [],
@@ -639,6 +640,11 @@ function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) DATA = { ...DATA, ...JSON.parse(raw) };
+    // Migrate legacy single adminEmail → adminEmails array
+    if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
+      DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
+    }
+    if (!DATA.adminEmails) DATA.adminEmails = [];
     const seen = localStorage.getItem(SEEN_KEY);
     if (seen) seenAnnouncements = JSON.parse(seen);
     isAdmin = sessionStorage.getItem('golf_is_admin') === 'true';
@@ -826,7 +832,7 @@ function buildDashboard() {
   // Skins board teaser
   if (hasSkins) {
     const topSkins = DATA.players
-      .map(function(p){ return {name:p.name, pid:p.id, amt: skinsTotals[p.id]||0}; })
+      .map(function(p){ return {name:playerName(p), pid:p.id, amt: skinsTotals[p.id]||0}; })
       .filter(function(x){ return x.amt > 0; })
       .sort(function(a,b){ return b.amt - a.amt; })
       .slice(0,3);
@@ -840,8 +846,8 @@ function buildDashboard() {
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F3F4F6">' +
               '<div style="display:flex;align-items:center;gap:8px">' +
                 '<div style="font-size:11px;color:#9CA3AF;width:14px">' + (i+1) + '</div>' +
-                avatarHtml(initials(x.name),'#E5E7EB','#6B7280',26) +
-                '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + x.name.split(' ')[0] + '</div>' +
+                avatarHtml(initials(x.name||''),'#E5E7EB','#6B7280',26) +
+                '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + (x.name ? x.name.split(' ')[0] : '') + '</div>' +
               '</div>' +
               '<div style="font-size:13px;font-weight:700;color:#16A34A">$' + x.amt + '</div>' +
             '</div>';
@@ -874,7 +880,7 @@ function buildDashboard() {
   // Full standings
   if (DATA.teams.length > 0) {
     const hasSk = DATA.scoringConfig && DATA.scoringConfig.skinsEnabled;
-    function pname(pid){ var p=DATA.players.find(function(pl){return pl.id===pid;}); return p?p.name.split(' ')[0]:''; }
+    function pname(pid){ var p=DATA.players.find(function(pl){return pl.id===pid;}); return p?playerFirstName(p):''; }
     html += '<div style="padding:0 16px 4px"><div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:8px">Standings</div></div>' +
       '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
       '<table class="standings-table" style="margin:0">' +
@@ -1082,7 +1088,7 @@ function renderEntryCard(tA, tB) {
       var dispVal = gross != null ? gross : '—';
       var dispCls = gross != null ? 'score-display' : 'score-display empty';
       var disAttr = isSaved ? 'disabled' : '';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+p.name.split(' ')[0]+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+(p.handicap||0)+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+playerFirstName(p)+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+(p.handicap||0)+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
     }).join('');
   }
 
@@ -1221,7 +1227,7 @@ function renderScorecard(tA, tB) {
     var tot = sc.reduce(function(a,s){return a+(s||0);}, 0);
     var played = sc.filter(function(s){return s!=null;});
     var totStr = played.length === 0 ? '—' : '<span style="color:'+(tot>parTot?'#DC2626':tot<parTot?'#16A34A':'#374151')+'">'+tot+'</span>';
-    return '<tr><td>'+p.name.split(' ')[0]+'('+( p.handicap||0)+')</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
+    return '<tr><td>'+playerFirstName(p)+'('+( p.handicap||0)+')</td>'+sc.map(function(s,i){return '<td>'+scoreCell(s, scoringPars[i])+'</td>';}).join('')+'<td class="tot-cell">'+totStr+'</td></tr>';
   }
 
   var numCols = scoringPars.length + 2;
@@ -1283,7 +1289,7 @@ function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel
 
   function pname(pid) {
     var p = DATA.players.find(function(pl){return pl.id === pid;});
-    return p ? p.name.split(' ')[0] : '';
+    return p ? playerFirstName(p) : '';
   }
 
   var dotsA = holeResults.map(function(r) {
@@ -1359,10 +1365,10 @@ function buildSkins() {
       carryover++;
       if (winners.length === 1) {
         var wp = DATA.players.find(function(p){return p.id === winners[0].pid;});
-        skinResults.push({ hole: h+1, winner: wp ? wp.name : '?', amount: potPerHole * carryover, carryover: carryover > 1 });
+        skinResults.push({ hole: h+1, winner: wp ? playerName(wp) : '?', amount: potPerHole * carryover, carryover: carryover > 1 });
         carryover = 0;
       } else {
-        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? p.name.split(' ')[0] : '?'; }).join(' & ');
+        var tiedNames = winners.map(function(w){ var p = DATA.players.find(function(pl){return pl.id === w.pid;}); return p ? playerFirstName(p) : '?'; }).join(' & ');
         skinResults.push({ hole: h+1, winner: null, tied: tiedNames, amount: 0 });
       }
     }
@@ -1381,7 +1387,7 @@ function buildSkins() {
         var name = entry[0], amt = entry[1];
         var bg = i === 0 ? '#FEF9EE' : '#E5E7EB', col = i === 0 ? '#C9A84C' : '#6B7280';
         return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
-          avatarHtml(initials(name), bg, col, 30) +
+          avatarHtml(initials(name||''), bg, col, 30) +
           '<div style="flex:1;margin-left:10px"><div style="font-size:13px;font-weight:600;color:#1A1A1A">'+name+'</div></div>' +
           '<div style="font-size:16px;font-weight:700;color:#16A34A">$'+amt+'</div></div>';
       }).join('') + '</div>';
@@ -1450,7 +1456,7 @@ function buildMatchPlayStandings() {
 
   function pname(pid) {
     var p = DATA.players.find(function(pl){return pl.id === pid;});
-    return p ? p.name.split(' ')[0] : '';
+    return p ? playerFirstName(p) : '';
   }
 
   var rows = sorted.map(function(s, i) {
@@ -1536,7 +1542,7 @@ function buildStablefordLeaderboard() {
   // Tally stableford points per player across all rounds
   var playerTotals = {};
   DATA.players.forEach(function(p) {
-    playerTotals[p.id] = { id: p.id, name: p.name, handicap: p.handicap || 0, total: 0, rounds: 0, best: null };
+    playerTotals[p.id] = { id: p.id, name: playerName(p), handicap: p.handicap || 0, total: 0, rounds: 0, best: null };
   });
 
   rounds.forEach(function(r) {
@@ -1885,6 +1891,47 @@ function initials(name) {
   return (name||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
 }
 
+// Player name helpers — handle both new {firstName,lastName} and legacy {name} structure
+function playerName(p) {
+  if (!p) return '';
+  if (p.firstName || p.lastName) return ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
+  return p.name || '';
+}
+function playerFirstName(p) {
+  if (!p) return '';
+  if (p.firstName) return p.firstName;
+  return p.name ? p.name.split(' ')[0] : '';
+}
+function playerInitials(p) {
+  if (!p) return '';
+  if (p.firstName || p.lastName) {
+    return ((p.firstName||'')[0]||'').toUpperCase() + ((p.lastName||'')[0]||'').toUpperCase();
+  }
+  return initials(p.name);
+}
+
+// Admin email helpers
+function isAdminEmail(email) {
+  if (!email) return false;
+  const e = email.toLowerCase();
+  if (DATA.adminEmails && DATA.adminEmails.length) return DATA.adminEmails.includes(e);
+  if (DATA.adminEmail) return e === DATA.adminEmail.toLowerCase();
+  return false;
+}
+function grantAdmin(email) {
+  if (!email) return;
+  const e = email.toLowerCase();
+  if (!DATA.adminEmails) DATA.adminEmails = [];
+  if (!DATA.adminEmails.includes(e)) DATA.adminEmails.push(e);
+  saveData();
+}
+function revokeAdmin(email) {
+  if (!email) return;
+  const e = email.toLowerCase();
+  DATA.adminEmails = (DATA.adminEmails || []).filter(x => x !== e);
+  saveData();
+}
+
 function avatarHtml(init, bg, color, size=32) {
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${color};font-weight:700;font-size:${Math.round(size*0.38)}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${init}</div>`;
 }
@@ -1897,14 +1944,27 @@ function renderPlayersList() {
   const listHtml = DATA.players.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No players yet.</div>'
     : DATA.players.map(p => {
-        const team = DATA.teams.find(t => t.playerIds.includes(p.id));
+        const team    = DATA.teams.find(t => t.playerIds.includes(p.id));
+        const claimed = !!(p.googleUid || p.googleEmail);
+        const pIsAdmin = claimed && isAdminEmail(p.googleEmail);
+        const claimBadge = claimed
+          ? '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Linked</span>'
+          : '<span style="background:#F3F4F6;color:#9CA3AF;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Unclaimed</span>';
+        const adminBadge = pIsAdmin
+          ? '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">👑 Admin</span>'
+          : '';
+        const adminToggle = on && claimed
+          ? (pIsAdmin
+              ? '<button class="btn-sm btn-edit" style="margin-left:4px" onclick="removePlayerAdmin(\'' + p.id + '\')">Revoke Admin</button>'
+              : '<button class="btn-sm btn-outline" style="margin-left:4px" onclick="makePlayerAdmin(\'' + p.id + '\')">Make Admin</button>')
+          : '';
         return '<div class="player-row">' +
-          avatarHtml(initials(p.name), '#E5E7EB', '#6B7280', 32) +
+          avatarHtml(playerInitials(p), '#E5E7EB', '#6B7280', 32) +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + p.name + '</div>' +
-            '<div style="font-size:11px;color:#6B7280">Hcp ' + (p.handicap||0) + (team ? ' · ' + team.name : ' · Unassigned') + (p.email === DATA.adminEmail ? ' · Admin' : '') + '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(p) + claimBadge + adminBadge + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + (p.handicap||0) + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
           '</div>' +
-          (on ? '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button>' : '') +
+          (on ? '<div style="display:flex;gap:4px;align-items:center">' + adminToggle + '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
         '</div>';
       }).join('');
 
@@ -1912,10 +1972,11 @@ function renderPlayersList() {
     '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
       '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Player</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-        '<div style="flex:1"><input class="form-input" id="new-player-name" placeholder="Full name"></div>' +
-        '<div style="width:70px"><input class="form-input" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>' +
+        '<div style="flex:1"><input class="form-input" id="new-player-first" placeholder="First name"></div>' +
+        '<div style="flex:1"><input class="form-input" id="new-player-last" placeholder="Last name"></div>' +
+        '<div style="width:64px"><input class="compact-num" id="new-player-hcp" placeholder="Hcp" type="number" min="0" max="54"></div>' +
       '</div>' +
-      '<input class="form-input" id="new-player-email" placeholder="Google email (required for sign-in)" style="margin-bottom:10px">' +
+      '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">Players will link their Google account on first sign-in.</div>' +
       '<button class="btn-green" style="width:100%" onclick="addPlayer()">Add Player</button>' +
     '</div>'
   ) : '';
@@ -1924,19 +1985,36 @@ function renderPlayersList() {
 }
 
 function addPlayer() {
-  const name  = document.getElementById('new-player-name').value.trim();
-  const hcp   = parseInt(document.getElementById('new-player-hcp').value) || 0;
-  const email = document.getElementById('new-player-email').value.trim();
-  if (!name) { showToast('Please enter a player name'); return; }
-  const player = { id: 'p' + Date.now(), name, handicap: hcp, email: email || null };
+  const firstName = document.getElementById('new-player-first').value.trim();
+  const lastName  = document.getElementById('new-player-last').value.trim();
+  const hcp       = parseInt(document.getElementById('new-player-hcp').value) || 0;
+  if (!firstName) { showToast('Please enter a first name'); return; }
+  if (!lastName)  { showToast('Please enter a last name'); return; }
+  const player = { id: 'p' + Date.now(), firstName, lastName, handicap: hcp, googleEmail: null, googleUid: null, claimed: false };
   DATA.players.push(player);
   saveData();
-  document.getElementById('new-player-name').value = '';
-  document.getElementById('new-player-hcp').value  = '';
-  document.getElementById('new-player-email').value = '';
+  document.getElementById('new-player-first').value = '';
+  document.getElementById('new-player-last').value  = '';
+  document.getElementById('new-player-hcp').value   = '';
   renderPlayersList();
   renderTeamsList();
-  showToast(`${name} added ✓`);
+  showToast(`${firstName} ${lastName} added ✓`);
+}
+
+function makePlayerAdmin(playerId) {
+  const p = DATA.players.find(pl => pl.id === playerId);
+  if (!p || !p.googleEmail) { showToast('Player must be linked first'); return; }
+  grantAdmin(p.googleEmail);
+  renderPlayersList();
+  showToast(`${playerFirstName(p)} is now an admin ✓`);
+}
+
+function removePlayerAdmin(playerId) {
+  const p = DATA.players.find(pl => pl.id === playerId);
+  if (!p || !p.googleEmail) return;
+  revokeAdmin(p.googleEmail);
+  renderPlayersList();
+  showToast(`Admin access removed`);
 }
 
 function removePlayer(id) {
@@ -1971,8 +2049,8 @@ function renderTeamsList() {
       const playerCards = unassigned.map(p => {
         const isSelected = pairingSelection === p.id;
         return '<div onclick="tapPlayerForPairing(\'' + p.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid ' + (isSelected ? '#C9A84C' : '#E5E7EB') + ';background:' + (isSelected ? '#FEF9EE' : '#fff') + ';cursor:pointer;margin-bottom:8px">' +
-          avatarHtml(initials(p.name), isSelected ? '#FEF9EE' : '#E5E7EB', isSelected ? '#C9A84C' : '#6B7280', 34) +
-          '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">' + p.name + '</div><div style="font-size:11px;color:#9CA3AF">Hcp ' + (p.handicap||0) + '</div></div>' +
+          avatarHtml(playerInitials(p), isSelected ? '#FEF9EE' : '#E5E7EB', isSelected ? '#C9A84C' : '#6B7280', 34) +
+          '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">' + playerName(p) + '</div><div style="font-size:11px;color:#9CA3AF">Hcp ' + (p.handicap||0) + '</div></div>' +
           (isSelected ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
         '</div>';
       }).join('');
@@ -1996,8 +2074,8 @@ function renderTeamsList() {
           '<div style="display:flex;gap:8px;margin-top:8px">' +
             members.map(m =>
               '<div style="display:flex;align-items:center;gap:8px;flex:1;background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 10px">' +
-                avatarHtml(initials(m.name), '#d1e7d8', '#1B4332', 26) +
-                '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + m.name + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + (m.handicap||0) + '</div></div>' +
+                avatarHtml(playerInitials(m), '#d1e7d8', '#1B4332', 26) +
+                '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + playerName(m) + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + (m.handicap||0) + '</div></div>' +
                 (on ? '<button class="btn-sm btn-delete" style="padding:3px 8px;flex-shrink:0" onclick="removeFromTeam(\'' + t.id + '\',\'' + m.id + '\')">×</button>' : '') +
               '</div>'
             ).join('') +
@@ -2024,8 +2102,8 @@ function tapPlayerForPairing(pid) {
   const p1 = DATA.players.find(p => p.id === pairingSelection);
   const p2 = DATA.players.find(p => p.id === pid);
   if (!p1 || !p2) return;
-  const defaultName = p1.name.split(' ')[1] || p1.name.split(' ')[0];
-  const teamName = prompt('Team name:', defaultName + ' / ' + (p2.name.split(' ')[1] || p2.name.split(' ')[0]));
+  const defaultName = (p1.lastName || playerFirstName(p1));
+  const teamName = prompt('Team name:', defaultName + ' / ' + (p2.lastName || playerFirstName(p2)));
   if (teamName === null) { pairingSelection = null; renderTeamsList(); return; }
   DATA.teams.push({ id: 't' + Date.now(), name: teamName || 'Team ' + (DATA.teams.length + 1), playerIds: [pairingSelection, pid] });
   pairingSelection = null;
@@ -2322,12 +2400,13 @@ function dismissAnnouncement(e) {
 function openAdminLogin() {
   if (isAdmin) { showSection('admin'); return; }
   const modal = document.getElementById('admin-login-modal');
-  if (!DATA.adminEmail) {
+  const hasAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
+  if (!hasAdmin) {
     document.getElementById('admin-modal-title').textContent = 'Claim Admin';
-    document.getElementById('admin-modal-sub').textContent   = 'Enter your email to become the league admin.';
+    document.getElementById('admin-modal-sub').textContent   = 'Enter your Google email to become the league admin.';
   } else {
     document.getElementById('admin-modal-title').textContent = 'Admin Sign In';
-    document.getElementById('admin-modal-sub').textContent   = 'Enter your admin email to manage the league.';
+    document.getElementById('admin-modal-sub').textContent   = 'Enter your Google email to manage the league.';
   }
   document.getElementById('admin-modal-error').style.display = 'none';
   document.getElementById('admin-email-input').value = '';
@@ -2343,8 +2422,11 @@ function closeAdminLogin(e) {
 function submitAdminLogin() {
   const email = document.getElementById('admin-email-input').value.trim().toLowerCase();
   if (!email) return;
-  if (!DATA.adminEmail) {
+  const hasAnyAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
+  if (!hasAnyAdmin) {
+    // First admin — claim it
     DATA.adminEmail = email;
+    grantAdmin(email);
     saveData();
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
@@ -2352,7 +2434,7 @@ function submitAdminLogin() {
     showSection('admin');
     return;
   }
-  if (email === DATA.adminEmail.toLowerCase()) {
+  if (isAdminEmail(email)) {
     setAdmin(true);
     document.getElementById('admin-login-modal').classList.remove('open');
     showSection('admin');
@@ -2428,20 +2510,59 @@ function buildLandingSignIn() {
         Sign in with Google
       </button>
       <div style="text-align:center;font-size:12px;color:#4d7a5e;line-height:1.6">
-        Sign in to access the league.<br>Your Google account must be registered by the admin.
+        Sign in with your Google account.<br>You'll choose your player profile on first sign-in.
       </div>
     </div>`;
 }
 
+function buildLandingClaimProfile(user) {
+  buildLandingTop();
+  const unclaimed = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
+  document.getElementById('landing-body').innerHTML =
+    '<div style="margin-bottom:16px">' +
+      '<div class="landing-prompt">Who are you?</div>' +
+      '<div style="font-size:13px;color:#6b9e82;margin-bottom:16px;line-height:1.5">Tap your name to link your Google account to your player profile.</div>' +
+      unclaimed.map(p =>
+        '<button class="player-pill" onclick="claimProfile(\'' + p.id + '\')">' +
+          '<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#C9A84C;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">' + playerInitials(p) + '</div>' +
+          '<div>' +
+            '<div class="player-pill-name">' + playerName(p) + '</div>' +
+            '<div class="player-pill-sub">Hcp ' + (p.handicap||0) + '</div>' +
+          '</div>' +
+        '</button>'
+      ).join('') +
+    '</div>' +
+    '<div style="text-align:center;padding:4px 0">' +
+      '<button style="background:none;border:none;color:#6b9e82;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="signOut()">Sign out</button>' +
+    '</div>';
+}
+
+function claimProfile(playerId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const player = DATA.players.find(p => p.id === playerId);
+  if (!player) return;
+  if (player.googleUid || player.googleEmail) { showToast('This profile is already linked'); return; }
+  player.googleUid   = user.uid;
+  player.googleEmail = user.email.toLowerCase();
+  player.claimed     = true;
+  DATA.currentUserId = player.id;
+  saveData();
+  updateAvatarBtn();
+  closeLanding();
+  showSection('dashboard');
+  showToast('Welcome to the league, ' + playerFirstName(player) + '! ⛳');
+}
+
 function buildLandingNotInLeague(user) {
   buildLandingTop();
-  const noAdmin = !DATA.adminEmail;
+  const hasAdmin = DATA.adminEmails && DATA.adminEmails.length > 0;
   document.getElementById('landing-body').innerHTML = `
     <div class="not-in-league-wrap">
       <div class="not-in-league-email">${user.email}</div>
       <div class="not-in-league-title">You're not in this league</div>
-      <div class="not-in-league-sub">${noAdmin ? 'Be the first to set up this league as admin.' : 'Contact your league admin to be added as a player.'}</div>
-      ${noAdmin ? `<button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>` : ''}
+      <div class="not-in-league-sub">${!hasAdmin ? 'Be the first to set up this league as admin.' : 'All player profiles are already linked. Contact your league admin to be added.'}</div>
+      ${!hasAdmin ? `<button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>` : ''}
       <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
     </div>`;
 }
@@ -2464,7 +2585,9 @@ function signInWithGoogle() {
 function claimAdmin() {
   const user = auth.currentUser;
   if (!user) return;
-  DATA.adminEmail = user.email.toLowerCase();
+  const email = user.email.toLowerCase();
+  DATA.adminEmail = email; // keep for compat
+  grantAdmin(email);
   saveData();
   setAdmin(true);
   closeLanding();
@@ -2494,8 +2617,8 @@ async function signOut() {
 function openProfileSheet() {
   const player = DATA.players.find(p => p.id === DATA.currentUserId);
   if (!player) return;
-  document.getElementById('profile-avatar-large').textContent = initials(player.name);
-  document.getElementById('profile-name').textContent = player.name;
+  document.getElementById('profile-avatar-large').textContent = playerInitials(player);
+  document.getElementById('profile-name').textContent = playerName(player);
   document.getElementById('profile-sub').textContent = `Handicap ${player.handicap || 0}${isAdmin ? ' · League Admin' : ''}`;
   const adminBtn = document.getElementById('profile-admin-btn');
   if (adminBtn) adminBtn.style.display = isAdmin ? 'block' : 'none';
@@ -2511,14 +2634,14 @@ function updateAvatarBtn() {
   const btn = document.getElementById('avatar-btn');
   const player = DATA.players.find(p => p.id === DATA.currentUserId);
   if (player) {
-    btn.innerHTML = `<span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">${initials(player.name)}</span>`;
+    btn.innerHTML = `<span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">${playerInitials(player)}</span>`;
     if (isAdmin) {
       const dot = document.createElement('div');
       dot.className = 'avatar-admin-dot';
       btn.appendChild(dot);
     }
     btn.onclick = openProfileSheet;
-    btn.title = player.name;
+    btn.title = playerName(player);
   } else {
     btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     btn.onclick = null;
@@ -2549,16 +2672,20 @@ function handleAuthState(user) {
 
   const email = user.email.toLowerCase();
 
-  // Check admin
-  if (DATA.adminEmail && email === DATA.adminEmail.toLowerCase()) {
+  // Check admin by Google email
+  if (isAdminEmail(email)) {
     isAdmin = true;
     sessionStorage.setItem('golf_is_admin', 'true');
     buildBottomNav();
   }
 
-  // Match to player by email
-  const player = DATA.players.find(p => p.email && p.email.toLowerCase() === email);
+  // Match to player — try googleUid first (most reliable), then googleEmail
+  let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
+  if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
+
   if (player) {
+    // Ensure uid is stored for future lookups
+    if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; saveData(); }
     DATA.currentUserId = player.id;
     saveData();
     updateAvatarBtn();
@@ -2566,18 +2693,23 @@ function handleAuthState(user) {
     showSection('dashboard');
     checkAnnouncements();
   } else if (isAdmin) {
-    // Admin but not a player — let them in to admin panel
+    // Admin but not a player — let them into admin panel
     DATA.currentUserId = null;
     saveData();
     updateAvatarBtn();
     closeLanding();
     showSection('admin');
   } else {
-    // Signed in but not in league
+    // Signed in but no player match — show claim screen
     DATA.currentUserId = null;
     saveData();
     updateAvatarBtn();
-    buildLandingNotInLeague(user);
+    const unclaimed = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
+    if (unclaimed.length > 0) {
+      buildLandingClaimProfile(user);
+    } else {
+      buildLandingNotInLeague(user);
+    }
     showSection('dashboard');
   }
 }
