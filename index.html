@@ -4788,17 +4788,27 @@ function _adjustChatForKeyboard() {
   if (!panel || !panel.classList.contains('open')) return;
   if (!window.visualViewport) return;
   const vv = window.visualViewport;
-  const keyboardHeight = window.innerHeight - vv.height;
-  if (keyboardHeight > 50) {
-    panel.style.height = vv.height + 'px';
+  // vv.offsetTop accounts for any scroll iOS applies when focusing an input.
+  // keyboardHeight = screen area covered by keyboard + accessory bar.
+  const keyboardHeight = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  if (keyboardHeight > 100) {
+    // Keep the panel full-screen so it always covers the bottom nav.
+    // Use padding-bottom + border-box to shrink only the content area,
+    // pushing the input bar up to sit just above the keyboard.
+    panel.style.height      = window.innerHeight + 'px';
+    panel.style.boxSizing   = 'border-box';
+    panel.style.paddingBottom = keyboardHeight + 'px';
     const msgs = document.getElementById('chat-messages');
-    if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
+    if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
   } else {
-    panel.style.height = '';
+    panel.style.height        = '';
+    panel.style.boxSizing     = '';
+    panel.style.paddingBottom = '';
   }
 }
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
+  window.visualViewport.addEventListener('scroll',  _adjustChatForKeyboard);
 }
 
 // ── Stub custom keyboard references (keyboard reverted to native) ─────────────
