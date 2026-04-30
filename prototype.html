@@ -346,9 +346,26 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 /* League setup banner */
 .league-setup-banner{background:#1B4332;border-radius:14px;margin:12px 16px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .league-setup-banner:active{opacity:0.85}
+/* Landscape blocker */
+#landscape-block{display:none;position:fixed;inset:0;z-index:99999;background:#1B4332;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+@media (orientation:landscape){#landscape-block{display:flex}}
+.landscape-icon{animation:rotatePulse 2s ease-in-out infinite}
+@keyframes rotatePulse{0%,100%{transform:rotate(0deg)}40%{transform:rotate(90deg)}60%{transform:rotate(90deg)}}
+.landscape-text{color:#fff;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;opacity:0.9}
+.landscape-sub{color:#a0bfab;font-size:13px;font-family:'DM Sans',sans-serif}
 </style>
 </head>
 <body>
+<div id="landscape-block">
+  <svg class="landscape-icon" width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="14" width="28" height="40" rx="5" stroke="#C9A84C" stroke-width="2.5" fill="none"/>
+    <circle cx="22" cy="49" r="2" fill="#C9A84C"/>
+    <path d="M44 24 L52 28 L44 32" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M52 28 H38" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>
+  <div class="landscape-text">Rotate your device</div>
+  <div class="landscape-sub">Fairway works best in portrait mode</div>
+</div>
 <div id="app">
 
   <!-- LANDING OVERLAY -->
