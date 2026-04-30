@@ -1,5 +1,5 @@
 /* Golf League Service Worker */
-const CACHE = 'golf-league-v1';
+const CACHE = 'golf-league-v2';
 const ICON  = '/golf-league/icon-192.png';
 
 // ── Install / Activate ──────────────────────────────────────────
@@ -10,7 +10,6 @@ self.addEventListener('activate', e  => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {
   const url = e.request.url;
   if (e.request.method !== 'GET') return;
-  // Only cache same-origin HTML/JS/CSS
   if (!url.startsWith(self.location.origin)) return;
 
   e.respondWith(
@@ -24,12 +23,26 @@ self.addEventListener('fetch', e => {
   );
 });
 
+// ── Badge helpers (WorkerNavigator has the Badge API) ───────────
+function swSetBadge(count) {
+  if ('setAppBadge' in navigator) {
+    navigator.setAppBadge(count > 0 ? count : 0).catch(() => {});
+  }
+}
+function swClearBadge() {
+  if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+}
+
 // ── Messages from the page ───────────────────────────────────────
 self.addEventListener('message', e => {
   if (!e.data) return;
 
   if (e.data.type === 'SHOW_NOTIFICATION') {
-    const { title, body, tag } = e.data;
+    const { title, body, tag, badgeCount } = e.data;
+
+    // Update OS badge from SW so it persists when the tab is in background
+    if (badgeCount > 0) swSetBadge(badgeCount);
+
     e.waitUntil(
       self.registration.showNotification(title || 'League Chat', {
         body:      body || '',
@@ -38,9 +51,18 @@ self.addEventListener('message', e => {
         tag:       tag || 'league-chat',
         renotify:  true,
         vibrate:   [150, 80, 150],
-        data:      { url: self.location.origin + '/golf-league/' }
+        data:      { url: self.location.origin + '/golf-league/', badgeCount }
       })
     );
+  }
+
+  if (e.data.type === 'SET_BADGE') {
+    const count = e.data.count || 0;
+    count > 0 ? swSetBadge(count) : swClearBadge();
+  }
+
+  if (e.data.type === 'CLEAR_BADGE') {
+    swClearBadge();
   }
 });
 
@@ -48,6 +70,7 @@ self.addEventListener('message', e => {
 self.addEventListener('push', e => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch(_) {}
+  if (data.badgeCount) swSetBadge(data.badgeCount);
   e.waitUntil(
     self.registration.showNotification(data.title || 'League Chat', {
       body:     data.body || '',
@@ -60,9 +83,11 @@ self.addEventListener('push', e => {
   );
 });
 
-// ── Notification click → focus / open the app ───────────────────
+// ── Notification click → focus/open app + clear badge ──────────
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  swClearBadge();
+
   const target = (e.notification.data && e.notification.data.url) ||
                  self.location.origin + '/golf-league/';
 
