@@ -598,6 +598,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div id="schedule-list"></div>
       </div>
       <div class="form-group">
+        <label class="form-label">Join Code <span style="font-weight:400;color:#9CA3AF">(players enter this to self-register)</span></label>
+        <input class="form-input" id="cfg-league-code" placeholder="e.g. EAGLES25" disabled autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;letter-spacing:2px;text-transform:uppercase">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:5px">Share this with your group. Leave blank to disable self-join.</div>
+      </div>
+      <div class="form-group">
         <label class="form-label">League Format</label>
         <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px">
           <label id="fmt-mp-wrap" style="display:flex;align-items:flex-start;gap:12px;cursor:not-allowed;opacity:0.55">
@@ -2674,6 +2679,7 @@ function loadLeagueForm() {
   const startTimeEl = document.getElementById('cfg-start-time');
   const intervalEl  = document.getElementById('cfg-tee-interval');
   const selEl       = document.getElementById('course-selected');
+  const codeEl  = document.getElementById('cfg-league-code');
   if (nameEl) nameEl.value = L.name || '';
   if (courseEl) courseEl.value = L.course || '';
   if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
@@ -2681,6 +2687,7 @@ function loadLeagueForm() {
   if (weeksEl) weeksEl.value = L.weeks || 18;
   if (startTimeEl) startTimeEl.value = L.startTime || '17:30';
   if (intervalEl) intervalEl.value = L.teeInterval || 8;
+  if (codeEl) codeEl.value = L.leagueCode || '';
   const holesRadio = document.querySelector(`input[name="cfg-holes"][value="${L.holes||9}"]`);
   if (holesRadio) holesRadio.checked = true;
   const mpCheck = document.getElementById('cfg-format-matchplay');
@@ -2703,7 +2710,8 @@ function saveLeagueConfig() {
   if (!name) { showToast('Please enter a league name'); return; }
   const par     = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||null);
   const holeHcp = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
-  DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear() };
+  const leagueCode = ((document.getElementById('cfg-league-code') || {value:''}).value || '').trim().toUpperCase() || null;
+  DATA.league = { name, course, holes, par, holeHcp, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear(), leagueCode };
   DATA.scoringConfig.enableMatchPlay  = enableMatchPlay;
   DATA.scoringConfig.enableStableford = enableStableford;
   generateSchedule();
@@ -4044,11 +4052,12 @@ function _maskEmail(email) {
 
 function buildLandingNotInLeague(user) {
   buildLandingTop();
-  const players   = Array.isArray(DATA.players) ? DATA.players : [];
-  const hasAdmin  = Array.isArray(DATA.adminEmails) && DATA.adminEmails.length > 0;
+  const players  = Array.isArray(DATA.players) ? DATA.players : [];
+  const hasAdmin = Array.isArray(DATA.adminEmails) && DATA.adminEmails.length > 0;
+  const hasCode  = !!(DATA.league && (DATA.league.leagueCode || '').trim());
 
-  if (!hasAdmin && players.length === 0) {
-    // Fresh league — let first user set up as admin
+  if (!hasAdmin && players.length === 0 && !hasCode) {
+    // Completely fresh — first user claims admin
     document.getElementById('landing-body').innerHTML = `
       <div class="not-in-league-wrap">
         <div class="not-in-league-email">${user.email}</div>
@@ -4058,8 +4067,12 @@ function buildLandingNotInLeague(user) {
         <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
       </div>`;
 
+  } else if (hasCode) {
+    // League has a join code — self-service flow
+    buildLandingCodeEntry();
+
   } else if (hasAdmin && players.length === 0) {
-    // Admin exists but player list is empty — recovery mode
+    // Admin set, no players, no code — recovery mode
     const masked = _maskEmail(DATA.adminEmails[0]);
     document.getElementById('landing-body').innerHTML = `
       <div class="not-in-league-wrap">
@@ -4072,7 +4085,7 @@ function buildLandingNotInLeague(user) {
       </div>`;
 
   } else {
-    // Players exist but this email isn't linked to any of them
+    // Has players but email not matched, no code — ask admin
     document.getElementById('landing-body').innerHTML = `
       <div class="not-in-league-wrap">
         <div class="not-in-league-email">${user.email}</div>
@@ -4080,6 +4093,131 @@ function buildLandingNotInLeague(user) {
         <div class="not-in-league-sub">Ask your league admin to add <strong style="color:#C9A84C">${user.email}</strong> to your player profile.</div>
         <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline;margin-top:8px" onclick="signOut()">Sign in with a different account</button>
       </div>`;
+  }
+}
+
+var _joinType = 'member';
+
+function setJoinType(type) {
+  _joinType = type;
+  const memberBtn = document.getElementById('join-type-member');
+  const subBtn    = document.getElementById('join-type-sub');
+  if (!memberBtn || !subBtn) return;
+  if (type === 'member') {
+    memberBtn.style.cssText = 'flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:#C9A84C;color:#fff;font-family:\'DM Sans\',sans-serif';
+    subBtn.style.cssText    = 'flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:1.5px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.15);color:#C9A84C;font-family:\'DM Sans\',sans-serif';
+  } else {
+    subBtn.style.cssText    = 'flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:#C9A84C;color:#fff;font-family:\'DM Sans\',sans-serif';
+    memberBtn.style.cssText = 'flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:1.5px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.15);color:#C9A84C;font-family:\'DM Sans\',sans-serif';
+  }
+}
+
+function buildLandingCodeEntry() {
+  buildLandingTop();
+  const user = auth.currentUser;
+  document.getElementById('landing-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:stretch;gap:14px;width:100%">
+      <div style="text-align:center;margin-bottom:2px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b9e82;margin-bottom:6px">Signed in as</div>
+        <div class="not-in-league-email" style="margin-bottom:0">${user ? user.email : ''}</div>
+      </div>
+      <div>
+        <label class="form-label" style="color:rgba(255,255,255,0.7)">League Code</label>
+        <input id="join-code-input" class="form-input" placeholder="e.g. EAGLES25"
+          autocapitalize="characters" autocorrect="off" spellcheck="false"
+          style="text-transform:uppercase;text-align:center;font-size:20px;font-weight:700;letter-spacing:3px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')verifyLeagueCode()">
+      </div>
+      <button class="btn-gold" style="width:100%;padding:13px;font-size:15px" onclick="verifyLeagueCode()">Continue →</button>
+      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign in with a different account</button>
+    </div>`;
+  setTimeout(() => { const el = document.getElementById('join-code-input'); if (el) el.focus(); }, 350);
+}
+
+function verifyLeagueCode() {
+  const input   = document.getElementById('join-code-input');
+  if (!input) return;
+  const entered = input.value.trim().toUpperCase();
+  const stored  = ((DATA.league && DATA.league.leagueCode) || '').trim().toUpperCase();
+  if (!entered) { showToast('Enter your league code'); input.focus(); return; }
+  if (entered !== stored) { showToast('Incorrect code — check with your admin'); input.focus(); return; }
+  buildLandingJoinForm();
+}
+
+function buildLandingJoinForm() {
+  buildLandingTop();
+  _joinType = 'member';
+  document.getElementById('landing-body').innerHTML = `
+    <div style="width:100%">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:22px;font-weight:700;color:#fff;font-family:'Space Grotesk',sans-serif">You're in!</div>
+        <div style="font-size:13px;color:#6b9e82;margin-top:5px">A couple quick things and you're set.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1">
+          <label class="form-label" style="color:rgba(255,255,255,0.7)">First name</label>
+          <input id="join-first" class="form-input" placeholder="First" autocomplete="given-name"
+            style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
+        </div>
+        <div style="flex:1">
+          <label class="form-label" style="color:rgba(255,255,255,0.7)">Last name</label>
+          <input id="join-last" class="form-input" placeholder="Last" autocomplete="family-name"
+            style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="form-label" style="color:rgba(255,255,255,0.7)">Phone number</label>
+        <input id="join-phone" class="form-input" type="tel" placeholder="(555) 555-5555" autocomplete="tel"
+          style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
+      </div>
+      <div style="margin-bottom:24px">
+        <label class="form-label" style="color:rgba(255,255,255,0.7)">I am a...</label>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button id="join-type-member" onclick="setJoinType('member')"
+            style="flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:#C9A84C;color:#fff;font-family:'DM Sans',sans-serif">Member</button>
+          <button id="join-type-sub" onclick="setJoinType('sub')"
+            style="flex:1;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:1.5px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.15);color:#C9A84C;font-family:'DM Sans',sans-serif">Sub</button>
+        </div>
+      </div>
+      <button class="btn-gold" style="width:100%;padding:14px;font-size:15px" onclick="joinLeague()">Join League ⛳</button>
+    </div>`;
+}
+
+function joinLeague() {
+  const first = ((document.getElementById('join-first') || {value:''}).value || '').trim();
+  const last  = ((document.getElementById('join-last')  || {value:''}).value || '').trim();
+  const phone = ((document.getElementById('join-phone') || {value:''}).value || '').trim();
+  const type  = _joinType || 'member';
+
+  if (!first) { showToast('Please enter your first name'); document.getElementById('join-first')?.focus(); return; }
+  if (!last)  { showToast('Please enter your last name');  document.getElementById('join-last')?.focus();  return; }
+  if (!phone) { showToast('Please enter your phone number'); document.getElementById('join-phone')?.focus(); return; }
+
+  const user = auth.currentUser;
+  if (!user) { showToast('Not signed in — please refresh and try again'); return; }
+
+  const email  = user.email.toLowerCase();
+  const id     = (type === 'sub' ? 's' : 'p') + Date.now();
+  const profile = { id, firstName: first, lastName: last, handicap: 0, phone,
+                    googleEmail: email, googleUid: user.uid, claimed: true };
+
+  if (type === 'sub') {
+    if (!Array.isArray(DATA.subs)) DATA.subs = [];
+    DATA.subs.push(profile);
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('dashboard');
+    showToast('Welcome to the league, ' + first + '! ⛳');
+  } else {
+    DATA.players.push(profile);
+    DATA.currentUserId = profile.id;
+    saveData();
+    updateAvatarBtn();
+    closeLanding();
+    showSection('dashboard');
+    showToast('Welcome to the league, ' + first + '! ⛳');
   }
 }
 
