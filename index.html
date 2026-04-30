@@ -3868,7 +3868,7 @@ function searchGifs(q) {
     return;
   }
   grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px;color:#9CA3AF;font-size:13px">Searching…</div>';
-  fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=18&media_filter=gif&contentfilter=medium')
+  fetch('https://api.tenor.com/v1/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=18&contentfilter=medium&media_filter=minimal')
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (!data.results || data.results.length === 0) {
@@ -3877,14 +3877,15 @@ function searchGifs(q) {
       }
       grid.innerHTML = '';
       data.results.forEach(function(gif) {
-        var formats  = gif.media_formats || {};
-        var thumbUrl = (formats.tinygif && formats.tinygif.url) || (formats.gif && formats.gif.url) || '';
-        var fullUrl  = (formats.gif && formats.gif.url) || thumbUrl;
+        var media    = gif.media && gif.media[0];
+        if (!media) return;
+        var thumbUrl = (media.tinygif && media.tinygif.url) || (media.gif && media.gif.url) || '';
+        var fullUrl  = (media.gif && media.gif.url) || thumbUrl;
         if (!thumbUrl) return;
         var el = document.createElement('div');
         el.className = 'gif-item';
         el.innerHTML = '<img src="' + thumbUrl + '" loading="lazy">';
-        el.onclick = function() { selectGif(fullUrl, gif.content_description || 'GIF'); };
+        el.onclick = function() { selectGif(fullUrl, gif.title || 'GIF'); };
         grid.appendChild(el);
       });
     })
