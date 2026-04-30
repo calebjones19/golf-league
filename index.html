@@ -760,7 +760,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- PROFILE BOTTOM SHEET -->
   <div class="modal-overlay" id="profile-overlay" onclick="closeProfileSheet(event)">
-    <div class="bottom-sheet" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto;padding-bottom:max(24px,env(safe-area-inset-bottom))">
+    <div class="bottom-sheet" id="profile-sheet-inner" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto;padding-bottom:max(24px,env(safe-area-inset-bottom))">
       <div class="sheet-handle"></div>
 
       <!-- Header -->
@@ -4011,8 +4011,64 @@ function sendTestBadge() {
 
 function closeProfileSheet(e) {
   if (e && e.target !== document.getElementById('profile-overlay')) return;
+  const sheet = document.getElementById('profile-sheet-inner');
+  if (sheet) { sheet.style.transform = ''; sheet.style.transition = ''; }
   document.getElementById('profile-overlay').classList.remove('open');
 }
+
+// ── Swipe-down to close profile sheet ───────────────────────
+(function() {
+  var startY = 0, curY = 0, dragging = false;
+
+  function onTouchStart(e) {
+    // Only start drag from the handle area or header (first 60px), or if sheet is scrolled to top
+    const sheet = document.getElementById('profile-sheet-inner');
+    if (!sheet) return;
+    if (sheet.scrollTop > 0) return; // let normal scroll happen when not at top
+    startY = e.touches[0].clientY;
+    curY   = startY;
+    dragging = true;
+    sheet.style.transition = 'none';
+  }
+
+  function onTouchMove(e) {
+    if (!dragging) return;
+    const sheet = document.getElementById('profile-sheet-inner');
+    if (!sheet) return;
+    curY = e.touches[0].clientY;
+    const delta = Math.max(0, curY - startY); // only allow downward drag
+    sheet.style.transform = 'translateY(' + delta + 'px)';
+    if (delta > 10) e.preventDefault(); // prevent page scroll while dragging sheet
+  }
+
+  function onTouchEnd() {
+    if (!dragging) return;
+    dragging = false;
+    const sheet = document.getElementById('profile-sheet-inner');
+    if (!sheet) return;
+    const delta = Math.max(0, curY - startY);
+    sheet.style.transition = 'transform 0.25s ease';
+    if (delta > 100) {
+      // Dragged far enough — close
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(() => closeProfileSheet(null), 220);
+    } else {
+      // Snap back
+      sheet.style.transform = '';
+    }
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    const sheet = document.getElementById('profile-sheet-inner');
+    if (sheet && sheet.contains(e.target)) onTouchStart(e);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (dragging) onTouchMove(e);
+  }, { passive: false });
+
+  document.addEventListener('touchend', onTouchEnd);
+})();
 
 function updateAvatarBtn() {
   const btn    = document.getElementById('avatar-btn');
