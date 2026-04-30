@@ -1,5 +1,5 @@
 /* Fairway Service Worker */
-const CACHE = 'golf-league-v2';
+const CACHE = 'golf-league-v3';
 const ICON  = '/golf-league/icon-192.png';
 
 // ── Install / Activate ──────────────────────────────────────────
