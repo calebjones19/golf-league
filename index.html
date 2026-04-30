@@ -3770,10 +3770,16 @@ function updateChatBadge() {
       dot.classList.remove('show');
     }
   }
-  // PWA home-screen badge
+  // PWA home-screen badge — set from page AND tell SW so it persists in background
   if ('setAppBadge' in navigator) {
     if (unread > 0) navigator.setAppBadge(unread).catch(()=>{});
     else            navigator.clearAppBadge().catch(()=>{});
+  }
+  // Keep SW in sync (SW can set badge even when page is not focused)
+  if (_swReg && _swReg.active) {
+    _swReg.active.postMessage(unread > 0
+      ? { type: 'SET_BADGE', count: unread }
+      : { type: 'CLEAR_BADGE' });
   }
 }
 
@@ -4409,6 +4415,17 @@ var _swReg = null; // holds ServiceWorkerRegistration once ready
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/golf-league/sw.js').then(function(reg) {
     _swReg = reg;
+    // If a new SW is waiting (cache update), activate it immediately
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    reg.addEventListener('updatefound', function() {
+      const newSW = reg.installing;
+      if (newSW) newSW.addEventListener('statechange', function() {
+        if (newSW.state === 'installed' && reg.active) reg.active.postMessage({ type: 'SKIP_WAITING' });
+        if (newSW.state === 'activated') { _swReg = reg; updateChatBadge(); }
+      });
+    });
+    // Sync badge count to SW on registration
+    updateChatBadge();
   }).catch(function(){});
 
   // Listen for SW messages (e.g. OPEN_CHAT from notification click)
@@ -4449,9 +4466,10 @@ function _triggerNotification(msg) {
     ? (msg.text || '') + (msg.attachment.type === 'gif' ? ' 🎞️ GIF' : ' 📎')
     : (msg.text || '');
 
-  // Via Service Worker (works in background tab)
+  // Via Service Worker (works in background tab, also sets OS badge)
   if (_swReg && _swReg.active) {
-    _swReg.active.postMessage({ type: 'SHOW_NOTIFICATION', title: title, body: body, tag: 'league-chat' });
+    const unread = Math.max(0, (DATA.messages||[]).filter(m=>!m.deleted).length - getChatSeen());
+    _swReg.active.postMessage({ type: 'SHOW_NOTIFICATION', title: title, body: body, tag: 'league-chat', badgeCount: unread });
     return;
   }
   // Fallback: direct Notification API (foreground only)
