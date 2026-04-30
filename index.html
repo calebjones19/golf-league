@@ -345,7 +345,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="landing-wordmark">Fairway Golf</div>
       <div class="landing-wordmark-rule"></div>
       <div class="landing-top">
-        <div class="landing-league" id="landing-league-name">Fairway</div>
+        <div class="landing-league" id="landing-league-name" style="display:none"></div>
         <div class="landing-meta" id="landing-meta"></div>
       </div>
       <div class="landing-divider"></div>
@@ -3367,10 +3367,15 @@ function buildLandingTop() {
   const nameEl = document.getElementById('landing-league-name');
   const metaEl = document.getElementById('landing-meta');
   if (DATA.league) {
-    nameEl.textContent = DATA.league.name;
+    const ln = DATA.league.name || '';
+    // Only show league name if it's a custom name (not just "Fairway" which the wordmark already says)
+    const isDefault = !ln || ln.toLowerCase() === 'fairway' || ln.toLowerCase() === 'fairway golf';
+    nameEl.textContent = isDefault ? '' : ln;
+    nameEl.style.display = isDefault ? 'none' : '';
     metaEl.textContent = `${DATA.league.season || new Date().getFullYear()} Season · ${DATA.league.course || ''}`;
   } else {
-    nameEl.textContent = 'Fairway';
+    nameEl.textContent = '';
+    nameEl.style.display = 'none';
     metaEl.textContent = '';
   }
   document.getElementById('landing-overlay').classList.remove('hidden');
