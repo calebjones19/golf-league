@@ -530,6 +530,10 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div class="panel-header">
         <span class="panel-title">League Setup</span>
         <div style="display:flex;gap:8px">
+          <button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
           <button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
           <button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
         </div>
@@ -2704,6 +2708,22 @@ function loadLeagueForm() {
   if (mpCheck) mpCheck.checked = L.enableMatchPlay !== false;
   if (sfCheck) sfCheck.checked = L.enableStableford !== false;
   renderHoleGrids();
+}
+
+function shareLeagueLink() {
+  const url  = window.location.origin + '/golf-league/';
+  const name = (DATA.league && DATA.league.name) ? DATA.league.name : 'Golf League';
+  const code = (DATA.league && DATA.league.leagueCode) ? '\nLeague code: ' + DATA.league.leagueCode : '';
+  if (navigator.share) {
+    navigator.share({ title: name, text: 'Join us on Fairway!' + code, url })
+      .catch(function(e) { if (e.name !== 'AbortError') showToast('Could not share'); });
+  } else {
+    navigator.clipboard.writeText(url).then(function() {
+      showToast('Link copied to clipboard ✓');
+    }).catch(function() {
+      showToast('Link: ' + url);
+    });
+  }
 }
 
 function saveLeagueConfig() {
