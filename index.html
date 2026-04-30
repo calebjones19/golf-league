@@ -886,12 +886,12 @@ function formatTeeTime(t) {
 
 function buildDashboard() {
   const el = document.getElementById('dashboard-content');
-  el.style.cssText = '';
+  el.style.cssText = 'padding:0 0 8px';
 
   const rounds      = DATA.rounds || [];
   const weeksPlayed = rounds.length > 0 ? Math.max.apply(null, rounds.map(function(r){ return r.week; })) : 0;
   const cfg         = DATA.scoringConfig || {};
-  const hasSkins    = cfg.skinsEnabled !== false; // default true
+  const hasSkins    = cfg.skinsEnabled !== false;
   const fee         = cfg.skinsFee || 5;
   const thisWeek    = getCurrentWeek();
 
@@ -943,205 +943,307 @@ function buildDashboard() {
   }
 
   var html = '';
+  var leagueName = DATA.league ? DATA.league.name : 'Golf League';
+  var season = DATA.league ? (DATA.league.season || new Date().getFullYear()) : new Date().getFullYear();
 
-  // ── 1. LEAGUE SETUP BANNER (admin only, when no league yet) ─────────────
+  // ── 1. GREETING HEADER ──────────────────────────────────────────────────
+  var greetHour = new Date().getHours();
+  var greetWord = greetHour < 12 ? 'morning' : greetHour < 17 ? 'afternoon' : 'evening';
+  var greetName = myPlayer ? playerFirstName(myPlayer) : (isAdmin ? 'Admin' : null);
+  html += '<div style="padding:14px 16px 0;display:flex;align-items:flex-start;justify-content:space-between">' +
+    '<div>' +
+      (greetName
+        ? '<div style="font-size:12px;color:#6B7280;font-weight:500">Good ' + greetWord + ',</div>' +
+          '<div style="font-size:22px;font-weight:700;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif;margin-top:1px">' + greetName + ' 👋</div>'
+        : '<div style="font-size:22px;font-weight:700;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">Welcome ⛳</div>'
+      ) +
+    '</div>' +
+    '<div style="text-align:right">' +
+      '<div style="font-size:11px;color:#6B7280">' + leagueName + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:#1B4332">Week ' + thisWeek + '</div>' +
+      (DATA.league && DATA.league.course ? '<div style="font-size:11px;color:#C9A84C;font-weight:500">' + DATA.league.course + '</div>' : '') +
+    '</div>' +
+  '</div>';
+
+  // ── 2. LEAGUE SETUP BANNER (admin, no league yet) ───────────────────────
   if (!DATA.league && isAdmin) {
-    html += '<div class="league-setup-banner" onclick="showSection(\'admin\')">' +
+    html += '<div class="league-setup-banner" onclick="showSection(\'admin\')" style="margin-top:12px">' +
       '<div style="width:40px;height:40px;border-radius:10px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">⛳</div>' +
       '<div style="flex:1">' +
-        '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;margin-bottom:3px">LEAGUE SETUP</div>' +
+        '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;margin-bottom:3px">ACTION NEEDED</div>' +
         '<div style="font-size:14px;font-weight:700;color:#fff">Finish setting up your league</div>' +
-        '<div style="font-size:11px;color:#a0bfab;margin-top:2px">Add players, form teams, and set your schedule</div>' +
+        '<div style="font-size:11px;color:#a0bfab;margin-top:2px">Add players, form teams, set your schedule</div>' +
       '</div>' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0bfab" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
     '</div>';
   }
 
-  // ── 2. ANNOUNCEMENT (top card once league is set up) ────────────────────
+  // ── 3. ANNOUNCEMENT BANNER ──────────────────────────────────────────────
   if (latestAnnounce) {
     const d = new Date(latestAnnounce.createdAt);
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    html += '<div class="card" style="cursor:pointer;margin-top:12px" onclick="openAnnouncementById(\'' + latestAnnounce.id + '\')">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+    html += '<div class="card" style="cursor:pointer;margin-top:12px;background:linear-gradient(135deg,#FFF8E7,#FFFCF0);border-color:#F3E8C0" onclick="openAnnouncementById(\'' + latestAnnounce.id + '\')">' +
+      '<div style="display:flex;align-items:flex-start;gap:10px">' +
+        '<div style="font-size:20px;margin-top:1px">📣</div>' +
         '<div style="flex:1">' +
-          '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:4px">📣 ANNOUNCEMENT · ' + dateStr + '</div>' +
-          '<div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:4px">' + latestAnnounce.title + '</div>' +
+          '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:3px">ANNOUNCEMENT · ' + dateStr + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:3px">' + latestAnnounce.title + '</div>' +
           (latestAnnounce.body ? '<div style="font-size:12px;color:#6B7280;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + latestAnnounce.body + '</div>' : '') +
         '</div>' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" style="flex-shrink:0;margin-top:2px"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2" style="flex-shrink:0;margin-top:3px"><polyline points="9 18 15 12 9 6"/></svg>' +
       '</div>' +
     '</div>';
   }
 
-  // ── 3. MY TEAM CARD (always shown — dark green hero card) ───────────────
-  var teamCardHtml = '';
+  // ── 4. ROUND IN PROGRESS HERO or MY STATS ROW ───────────────────────────
+  // Check for an active round in progress
+  var activeRound = null; // no live round tracking yet — placeholder for future
+  // For now show hero stats card
   if (myTeam && myStats) {
-    const record = myStats.W + '-' + myStats.L + (myStats.T > 0 ? '-' + myStats.T : '');
-    const posLabel = weeksPlayed > 0 ? ordinal(myRank) + ' place · Week ' + weeksPlayed : 'Season hasn\'t started yet';
-    const mySkinsTotal = myTeam.playerIds.reduce(function(sum,pid){ return sum+(skinsTotals[pid]||0); }, 0);
-    const partners = myTeam.playerIds.filter(function(id){return id!==DATA.currentUserId;})
+    // HERO: round-in-progress style card with personal stats
+    var record = myStats.W + '-' + myStats.L + (myStats.T > 0 ? '-' + myStats.T : '');
+    var posLabel = weeksPlayed > 0 ? ordinal(myRank) + ' place' : 'Season starting';
+    var mySkinsTotal = myTeam.playerIds.reduce(function(sum,pid){ return sum+(skinsTotals[pid]||0); }, 0);
+    var partners = myTeam.playerIds.filter(function(id){return id!==DATA.currentUserId;})
       .map(function(id){ var p=DATA.players.find(function(pl){return pl.id===id;}); return p?playerFirstName(p):'?'; });
-    teamCardHtml =
-      '<div class="card-dark" style="margin-top:' + ((!DATA.league && isAdmin) ? '4' : '0') + 'px">' +
-        '<div style="font-size:10px;font-weight:700;color:#a0bfab;letter-spacing:0.5px;margin-bottom:4px">YOUR TEAM</div>' +
-        '<div style="font-size:22px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:2px">' + myTeam.name + '</div>' +
-        (partners.length ? '<div style="font-size:11px;color:#6b9e82;margin-bottom:8px">with ' + partners.join(', ') + '</div>' : '<div style="margin-bottom:8px"></div>') +
-        '<div style="font-size:12px;color:#C9A84C;font-weight:600;margin-bottom:12px">' + posLabel + '</div>' +
-        '<div style="display:flex;gap:8px">' +
-          '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + record + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">RECORD</div>' +
-          '</div>' +
-          '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + myStats.pts + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">POINTS</div>' +
-          '</div>' +
-          (myPlayer ? '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + effectiveHandicap(myPlayer) + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">HCP</div>' +
-          '</div>' : '') +
-          (hasSkins ? '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer" onclick="showSection(\'skins\')">' +
-            '<div style="font-size:20px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">$' + mySkinsTotal + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">SKINS</div>' +
-          '</div>' : '') +
-        '</div>' +
-      '</div>';
-  } else {
-    // Not on a team yet — still show a hero card
-    var leagueName = DATA.league ? DATA.league.name : 'Golf League';
-    var season = DATA.league ? (DATA.league.season || new Date().getFullYear()) : new Date().getFullYear();
-    teamCardHtml =
-      '<div class="card-dark" style="margin-top:' + ((!DATA.league && isAdmin) ? '4' : '0') + 'px">' +
-        '<div style="font-size:10px;font-weight:700;color:#a0bfab;letter-spacing:0.5px;margin-bottom:4px">' + String(season).toUpperCase() + ' SEASON</div>' +
-        '<div style="font-size:22px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:6px">' + leagueName + '</div>' +
-        '<div style="display:flex;gap:8px;margin-top:4px">' +
-          '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + DATA.teams.length + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">TEAMS</div>' +
-          '</div>' +
-          '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + DATA.players.length + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">PLAYERS</div>' +
-          '</div>' +
-          '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + weeksPlayed + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">WEEKS</div>' +
-          '</div>' +
-          (hasSkins ? '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer" onclick="showSection(\'skins\')">' +
-            '<div style="font-size:20px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">$' + fee + '</div>' +
-            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:3px;letter-spacing:0.5px">SKINS FEE</div>' +
-          '</div>' : '') +
-        '</div>' +
-      '</div>';
-  }
-  html += teamCardHtml;
 
-  // ── 4. THIS WEEK'S MATCHUPS ─────────────────────────────────────────────
-  html += '<div class="card" style="cursor:pointer;margin-top:0" onclick="showSection(\'leaderboard\')">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-      '<div style="font-size:13px;font-weight:700;color:#1A1A1A">⛳ This Week\'s Matchups</div>' +
-      '<div style="display:flex;align-items:center;gap:6px">' +
-        (DATA.league ? '<span style="font-size:11px;color:#6B7280">Week ' + thisWeek + '</span>' : '') +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
+    html += '<div style="position:relative;background:#1B4332;border-radius:16px;overflow:hidden;margin:12px 16px 0;padding:18px 16px">' +
+      // decorative circles
+      '<div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.04)"></div>' +
+      '<div style="position:absolute;bottom:-30px;left:-10px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.03)"></div>' +
+      '<div style="position:relative">' +
+        '<div style="font-size:10px;font-weight:700;color:#6b9e82;letter-spacing:0.8px;margin-bottom:6px">YOUR TEAM</div>' +
+        '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:2px">' + myTeam.name + '</div>' +
+        (partners.length ? '<div style="font-size:12px;color:#a0bfab;margin-bottom:12px">with ' + partners.join(', ') + '</div>' : '<div style="margin-bottom:12px"></div>') +
+        // 3 stat squares
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr' + (hasSkins ? ' 1fr' : '') + ';gap:8px">' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + record + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">W · L · T</div>' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + myStats.pts + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">POINTS</div>' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + (myPlayer ? effectiveHandicap(myPlayer) : '—') + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">HANDICAP</div>' +
+          '</div>' +
+          (hasSkins ? '<div style="background:rgba(201,168,76,0.18);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer" onclick="showSection(\'skins\')">' +
+            '<div style="font-size:20px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">$' + mySkinsTotal + '</div>' +
+            '<div style="font-size:9px;color:#a07c2d;font-weight:600;margin-top:4px;letter-spacing:0.5px">SKINS</div>' +
+          '</div>' : '') +
+        '</div>' +
+        // position badge
+        '<div style="margin-top:12px;display:flex;align-items:center;gap:6px">' +
+          '<div style="font-size:11px;color:#C9A84C;font-weight:600">' + posLabel + (weeksPlayed > 0 ? ' after week ' + weeksPlayed : '') + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  } else {
+    // Not on a team — show league overview stat squares
+    html += '<div style="position:relative;background:#1B4332;border-radius:16px;overflow:hidden;margin:12px 16px 0;padding:18px 16px">' +
+      '<div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.04)"></div>' +
+      '<div style="position:relative">' +
+        '<div style="font-size:10px;font-weight:700;color:#6b9e82;letter-spacing:0.8px;margin-bottom:6px">' + String(season) + ' SEASON</div>' +
+        '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif;margin-bottom:14px">' + leagueName + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr' + (hasSkins ? ' 1fr' : '') + ';gap:8px">' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + DATA.teams.length + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">TEAMS</div>' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + DATA.players.length + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">PLAYERS</div>' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.09);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' + weeksPlayed + '</div>' +
+            '<div style="font-size:9px;color:#6b9e82;font-weight:600;margin-top:4px;letter-spacing:0.5px">WEEKS</div>' +
+          '</div>' +
+          (hasSkins ? '<div style="background:rgba(201,168,76,0.18);border-radius:12px;padding:12px 8px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">$' + fee + '</div>' +
+            '<div style="font-size:9px;color:#a07c2d;font-weight:600;margin-top:4px;letter-spacing:0.5px">SKINS FEE</div>' +
+          '</div>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // ── 5. THIS WEEK'S MATCH ─────────────────────────────────────────────────
+  html += '<div class="card" style="margin-top:12px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
+      '<div style="font-size:14px;font-weight:700;color:#1A1A1A;display:flex;align-items:center;gap:6px">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' +
+        'This Week\'s Match' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="showSection(\'leaderboard\')">' +
+        '<span style="font-size:11px;color:#1B4332;font-weight:600">All matches</span>' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
       '</div>' +
     '</div>' +
     (weekMatchups.length > 0
       ? weekMatchups.map(function(m){
-          const tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
-          const tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
+          var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
+          var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
           if (!tA || !tB) return '';
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
-            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name + '</div>' +
-            '<div style="font-size:12px;font-weight:600;color:#1B4332">' + formatTeeTime(m.teeTime) + '</div>' +
+          var isMyMatch = myTeam && (myTeam.id===tA.id || myTeam.id===tB.id);
+          return '<div style="background:' + (isMyMatch?'#F0FFF4':'#F9FAFB') + ';border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1px solid ' + (isMyMatch?'#BBF7D0':'#F3F4F6') + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between">' +
+              '<div style="font-size:14px;font-weight:700;color:#1A1A1A">' + tA.name + '</div>' +
+              '<div style="font-size:11px;font-weight:700;color:#9CA3AF;background:#E5E7EB;border-radius:6px;padding:3px 8px">VS</div>' +
+              '<div style="font-size:14px;font-weight:700;color:#1A1A1A">' + tB.name + '</div>' +
+            '</div>' +
+            (m.teeTime ? '<div style="font-size:11px;color:#6B7280;margin-top:6px;text-align:center">🕐 ' + formatTeeTime(m.teeTime) + '</div>' : '') +
+            (isMyMatch ? '<div style="font-size:10px;font-weight:700;color:#16A34A;text-align:center;margin-top:4px">YOUR MATCH</div>' : '') +
           '</div>';
         }).join('')
-      : '<div style="font-size:12px;color:#9CA3AF;text-align:center;padding:8px 0">' +
-          (isAdmin
-            ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="event.stopPropagation();showSection(\'admin\')">' +
-                (DATA.league ? '+ Schedule this week\'s matchups' : '+ Finish league setup first') +
-              '</span>'
-            : (DATA.league ? 'No matchups scheduled yet' : 'Season coming soon')
-          ) +
+      : '<div style="text-align:center;padding:16px 0">' +
+          '<div style="font-size:28px;margin-bottom:8px">⛳</div>' +
+          '<div style="font-size:13px;font-weight:600;color:#6B7280;margin-bottom:4px">No matchups yet</div>' +
+          '<div style="font-size:12px;color:#9CA3AF">' +
+            (isAdmin
+              ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="showSection(\'admin\')">' + (DATA.league ? '+ Schedule this week' : '+ Finish league setup') + '</span>'
+              : 'Check back when your admin schedules this week'
+            ) +
+          '</div>' +
         '</div>'
     ) +
   '</div>';
 
-  // ── 5. SKINS BOARD TEASER (always shown when skins enabled) ────────────
+  // ── 6. SEASON STANDINGS (top 5 rows, iMessage-contact style) ────────────
+  html += '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">' +
+      '<div style="font-size:14px;font-weight:700;color:#1A1A1A;display:flex;align-items:center;gap:6px">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' +
+        'Season Standings' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="showSection(\'standings\')">' +
+        '<span style="font-size:11px;color:#1B4332;font-weight:600">Full table</span>' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
+      '</div>' +
+    '</div>';
+
+  if (sorted.length > 0) {
+    function pname(pid){ var p=DATA.players.find(function(pl){return pl.id===pid;}); return p?playerFirstName(p):''; }
+    var top5 = sorted.slice(0,5);
+    html += '<div>';
+    top5.forEach(function(s, i){
+      var isMe = myTeam && myTeam.id === s.id;
+      var teamObj = DATA.teams.find(function(t){return t.id===s.id;});
+      var members = teamObj ? teamObj.playerIds.map(pname).filter(Boolean).join(' & ') : '';
+      var rankColor = i===0 ? '#C9A84C' : i===1 ? '#9CA3AF' : i===2 ? '#B45309' : '#E5E7EB';
+      var rankTextColor = i < 3 ? '#fff' : '#6B7280';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F5F0E8;background:' + (isMe?'rgba(27,67,50,0.04)':'transparent') + ';cursor:pointer" onclick="showSection(\'standings\')">' +
+        '<div style="width:24px;height:24px;border-radius:50%;background:' + rankColor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<span style="font-size:11px;font-weight:700;color:' + rankTextColor + '">' + (i===0?'🏆':i+1) + '</span>' +
+        '</div>' +
+        '<div style="width:34px;height:34px;border-radius:50%;background:#1B4332;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<span style="font-size:11px;font-weight:700;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif">' + (s.name||'').split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2) + '</span>' +
+        '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:600;color:#1A1A1A;display:flex;align-items:center;gap:6px">' +
+            s.name +
+            (isMe ? '<span style="font-size:9px;background:rgba(27,67,50,0.1);color:#1B4332;padding:1px 6px;border-radius:10px;font-weight:700">You</span>' : '') +
+          '</div>' +
+          '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + s.W + 'W · ' + s.L + 'L · ' + s.T + 'T · ' + members + '</div>' +
+        '</div>' +
+        '<div style="text-align:right">' +
+          '<div style="font-size:15px;font-weight:700;color:#1B4332">' + s.pts + '</div>' +
+          '<div style="font-size:10px;color:#9CA3AF">pts</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:20px 16px">' +
+      '<div style="font-size:28px;margin-bottom:8px">🏌️</div>' +
+      '<div style="font-size:13px;font-weight:600;color:#6B7280;margin-bottom:4px">No teams yet</div>' +
+      '<div style="font-size:12px;color:#9CA3AF">' + (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="showSection(\'admin\')">Add players and form teams →</span>' : 'Teams appear here once the season is set up.') + '</div>' +
+    '</div>';
+  }
+  html += '</div>';
+
+  // ── 7. RECENT SKINS ─────────────────────────────────────────────────────
   if (hasSkins) {
-    const allSkinsPlayers = DATA.players
-      .map(function(p){ return { p:p, name:playerName(p), amt:skinsTotals[p.id]||0 }; })
-      .sort(function(a,b){ return b.amt-a.amt; });
-    const topSkins = allSkinsPlayers.filter(function(x){ return x.amt>0; }).slice(0,5);
-    html += '<div class="card" style="cursor:pointer;margin-top:0" onclick="showSection(\'skins\')">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-        '<div style="font-size:13px;font-weight:700;color:#1A1A1A">🚩 Skins Earnings</div>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          (DATA.players.length > 0 ? '<span style="font-size:11px;color:#6B7280">$' + fee + '/hole</span>' : '') +
-          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
+    // Build per-hole skins from the most recent round
+    var recentRound = rounds.length > 0 ? rounds[rounds.length-1] : null;
+    var holeSkinsRows = [];
+    if (recentRound) {
+      var rTa = DATA.teams.find(function(t){return t.id===recentRound.teamAId;});
+      var rTb = DATA.teams.find(function(t){return t.id===recentRound.teamBId;});
+      var rPids = (rTa?rTa.playerIds:[]).concat(rTb?rTb.playerIds:[]);
+      var numH = recentRound.holeResults ? recentRound.holeResults.length : 9;
+      var carry2 = 0;
+      for (var h=0; h<numH; h++) {
+        var holeSc2 = rPids.map(function(pid){ return {pid:pid, gross: recentRound.scores&&recentRound.scores[pid]&&recentRound.scores[pid][h]}; }).filter(function(s2){return s2.gross!=null;});
+        if (!holeSc2.length) continue;
+        var minG2 = Math.min.apply(null, holeSc2.map(function(s2){return s2.gross;}));
+        var wins2 = holeSc2.filter(function(s2){return s2.gross===minG2;});
+        carry2++;
+        if (wins2.length===1) {
+          var wp = DATA.players.find(function(pl){return pl.id===wins2[0].pid;});
+          holeSkinsRows.push({ hole:h+1, winner:wp?playerName(wp):'Unknown', amt: rPids.length*fee*carry2 });
+          carry2=0;
+        }
+      }
+    }
+    var topSkins3 = holeSkinsRows.slice(-3).reverse();
+
+    html += '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A1A;display:flex;align-items:center;gap:6px">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>' +
+          'Recent Skins' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="showSection(\'skins\')">' +
+          '<span style="font-size:11px;color:#1B4332;font-weight:600">Skins board</span>' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>' +
       '</div>' +
-      (topSkins.length > 0
-        ? topSkins.map(function(x, i){
-            return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F3F4F6">' +
-              '<div style="display:flex;align-items:center;gap:8px">' +
-                '<div style="font-size:12px;font-weight:700;color:' + (i===0?'#C9A84C':'#9CA3AF') + ';width:16px">' + (i===0?'🥇':i+1) + '</div>' +
-                avatarHtml(playerInitials(x.p),'#E5E7EB','#6B7280',28) +
-                '<div>' +
-                  '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + playerName(x.p) + '</div>' +
-                  (x.p.leagueHandicap!=null && cfg.autoHandicap ? '<div style="font-size:10px;color:#9CA3AF">Hcp ' + x.p.leagueHandicap + '</div>' : '') +
+      (recentRound && topSkins3.length > 0
+        ? '<div>' +
+            topSkins3.map(function(sk){
+              return '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #F5F0E8">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:rgba(27,67,50,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+                  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>' +
                 '</div>' +
-              '</div>' +
-              '<div style="font-size:14px;font-weight:700;color:#16A34A">$' + x.amt + '</div>' +
-            '</div>';
-          }).join('')
-        : (DATA.players.length === 0
-            ? '<div style="text-align:center;padding:12px 0">' +
-                '<div style="font-size:24px;margin-bottom:6px">🏌️</div>' +
-                '<div style="font-size:12px;color:#9CA3AF">Players will appear here once the season starts</div>' +
-              '</div>'
-            : '<div style="text-align:center;padding:12px 0">' +
-                '<div style="font-size:24px;margin-bottom:6px">🎯</div>' +
-                '<div style="font-size:12px;font-weight:600;color:#6B7280">No skins won yet</div>' +
-                '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">Play a round to start earning</div>' +
-              '</div>'
-          )
+                '<div style="flex:1">' +
+                  '<div style="font-size:13px;font-weight:600;color:#1A1A1A">Hole ' + sk.hole + '</div>' +
+                  '<div style="font-size:11px;color:#6B7280">' + sk.winner + '</div>' +
+                '</div>' +
+                '<div style="font-size:14px;font-weight:700;color:#C9A84C">$' + sk.amt + '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>'
+        : '<div style="text-align:center;padding:16px">' +
+            '<div style="font-size:28px;margin-bottom:8px">🎯</div>' +
+            '<div style="font-size:13px;font-weight:600;color:#6B7280;margin-bottom:3px">No skins yet</div>' +
+            '<div style="font-size:11px;color:#9CA3AF">$' + fee + '/hole · Play a round to start winning</div>' +
+          '</div>'
       ) +
     '</div>';
   }
 
-  // ── 6. STANDINGS TABLE (always shown) ───────────────────────────────────
-  function pname(pid){ var p=DATA.players.find(function(pl){return pl.id===pid;}); return p?playerFirstName(p):''; }
-  html += '<div style="padding:0 16px 4px;display:flex;align-items:center;justify-content:space-between">' +
-    '<div style="font-size:14px;font-weight:700;color:#1A1A1A">Standings</div>' +
-    (DATA.league ? '<div style="font-size:11px;color:#6B7280">Week ' + weeksPlayed + ' of ' + (DATA.schedule ? DATA.schedule.filter(function(w){return w.status!=='cancelled';}).length : 0) + '</div>' : '') +
-  '</div>';
-
-  if (sorted.length > 0) {
-    html += '<div class="card" style="margin-top:0;padding:0;overflow:hidden">' +
-      '<table class="standings-table" style="margin:0">' +
-        '<thead><tr><th style="width:28px;padding-left:12px">#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Pts</th></tr></thead>' +
-        '<tbody>' +
-          sorted.map(function(s, i){
-            const isMe = myTeam && myTeam.id === s.id;
-            const teamObj = DATA.teams.find(function(t){return t.id===s.id;});
-            return '<tr' + (isMe?' style="background:#F0FFF4"':'') + '>' +
-              '<td style="padding-left:12px"><div style="font-size:' + (i===0?'14':'13') + 'px;font-weight:600;color:' + (i===0?'#C9A84C':'#9CA3AF') + '">' + (i===0?'🏆':i+1) + '</div></td>' +
-              '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">' + s.name + (isMe?'<span class="you-badge">You</span>':'') + '</div><div style="font-size:10px;color:#9CA3AF">' + (teamObj ? teamObj.playerIds.map(pname).filter(Boolean).join(' & ') : '') + '</div></td>' +
-              '<td style="color:#16A34A;font-weight:600">' + s.W + '</td>' +
-              '<td style="color:#DC2626;font-weight:600">' + s.L + '</td>' +
-              '<td style="color:#6B7280;font-weight:600">' + s.T + '</td>' +
-              '<td class="td-pts">' + s.pts + '</td>' +
-            '</tr>';
-          }).join('') +
-        '</tbody>' +
-      '</table></div>';
-  } else {
-    html += '<div class="card" style="margin-top:0;text-align:center;padding:20px 16px">' +
-      '<div style="font-size:24px;margin-bottom:8px">🏌️</div>' +
-      '<div style="font-size:13px;font-weight:600;color:#6B7280;margin-bottom:4px">No teams formed yet</div>' +
-      '<div style="font-size:12px;color:#9CA3AF">' + (isAdmin ? '<span style="color:#1B4332;cursor:pointer;font-weight:600" onclick="showSection(\'admin\')">Add players and form teams →</span>' : 'Teams will appear here once the season is set up.') + '</div>' +
+  // ── 8. QUICK LINKS 2×2 GRID ─────────────────────────────────────────────
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-top:0">';
+  var quickLinks = [
+    { icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>', iconColor:'#1B4332', bg:'rgba(27,67,50,0.08)', label:'Standings', sub:'Full season', section:'standings' },
+    { icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>', iconColor:'#C9A84C', bg:'rgba(201,168,76,0.1)', label:'Skins Board', sub:'This week', section:'skins' },
+    { icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>', iconColor:'#2D6A4F', bg:'rgba(45,106,79,0.08)', label:'Score', sub:'Enter round scores', section:'score' },
+    { icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>', iconColor:'#374151', bg:'rgba(55,65,81,0.07)', label:'Players', sub:DATA.players.length + ' members', section:'admin' },
+  ];
+  quickLinks.forEach(function(ql){
+    html += '<div style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #E5E7EB;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="showSection(\'' + ql.section + '\')">' +
+      '<div style="width:38px;height:38px;border-radius:10px;background:' + ql.bg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + ql.iconColor + '" stroke-width="2">' + ql.icon + '</svg>' +
+      '</div>' +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + ql.label + '</div>' +
+        '<div style="font-size:11px;color:#6B7280;margin-top:1px">' + ql.sub + '</div>' +
+      '</div>' +
     '</div>';
-  }
+  });
+  html += '</div>';
 
   html += '<div style="height:16px"></div>';
   el.innerHTML = html;
