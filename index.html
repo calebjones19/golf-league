@@ -3088,14 +3088,46 @@ function savePlayerPage(id) {
 function confirmRemovePlayer(id) {
   const p = DATA.players.find(pl => pl.id === id);
   if (!p) return;
-  if (!confirm(`Remove ${playerName(p)} from the league?`)) return;
+
+  const existing = document.getElementById('remove-player-sheet');
+  if (existing) existing.remove();
+
+  const sheet = document.createElement('div');
+  sheet.id = 'remove-player-sheet';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:970;display:flex;flex-direction:column;justify-content:flex-end';
+  sheet.innerHTML =
+    '<div onclick="closeRemovePlayerSheet()" style="flex:1;background:rgba(0,0,0,0.5)"></div>' +
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom))">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="text-align:center;margin-bottom:20px">' +
+        '<div style="width:52px;height:52px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>' +
+        '</div>' +
+        '<div style="font-size:17px;font-weight:700;color:#1A1A1A;margin-bottom:6px">Remove ' + playerName(p) + '?</div>' +
+        '<div style="font-size:14px;color:#6B7280;line-height:1.4">They\'ll be removed from the league and any team. This can\'t be undone.</div>' +
+      '</div>' +
+      '<button onclick="doRemovePlayer(\'' + id + '\')" style="width:100%;background:#DC2626;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:10px">Remove Player</button>' +
+      '<button onclick="closeRemovePlayerSheet()" style="width:100%;background:#F3F4F6;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;color:#374151;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(sheet);
+}
+
+function closeRemovePlayerSheet() {
+  const s = document.getElementById('remove-player-sheet');
+  if (s) s.remove();
+}
+
+function doRemovePlayer(id) {
+  const p = DATA.players.find(pl => pl.id === id);
+  const name = p ? playerName(p) : '';
   DATA.players = DATA.players.filter(pl => pl.id !== id);
   DATA.teams.forEach(t => { t.playerIds = t.playerIds.filter(pid => pid !== id); });
   saveData();
+  closeRemovePlayerSheet();
   closePlayerPage();
   renderPlayersList();
   renderTeamsList();
-  showToast(`${playerName(p)} removed`);
+  showToast(`${name} removed`);
 }
 
 // ============================================================
