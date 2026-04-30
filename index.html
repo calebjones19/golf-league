@@ -1050,11 +1050,17 @@ function startFirestoreSync() {
         showSection('dashboard');
         return;
       } else {
-        // Firestore data is confirmed loaded and still no player match — truly not in league.
-        // Guard against re-rendering on every subsequent snapshot update.
-        if (!document.querySelector('.not-in-league-wrap')) {
+        // Firestore loaded, still no match. Show profile picker if there are
+        // claimable players (covers lost-link case); otherwise "not in league".
+        // Guard: don't re-render on every subsequent snapshot update.
+        if (!document.querySelector('.not-in-league-wrap') && !document.querySelector('.player-pill')) {
           updateAvatarBtn();
-          buildLandingNotInLeague(user);
+          const claimable = getClaimablePlayers(user);
+          if (claimable.length > 0) {
+            buildLandingClaimProfile(user, isAdmin);
+          } else {
+            buildLandingNotInLeague(user);
+          }
           showSection('dashboard');
         }
         return;
@@ -3900,14 +3906,24 @@ function buildLandingSignIn() {
     </div>`;
 }
 
+// Returns players this user can claim: unclaimed ones + any whose email matches
+// (catches the case where googleUid was lost but email is on record)
+function getClaimablePlayers(user) {
+  const email = user.email.toLowerCase();
+  return DATA.players.filter(p =>
+    (!p.googleUid && !p.googleEmail) ||            // totally unclaimed
+    (p.googleEmail && p.googleEmail.toLowerCase() === email) // same email, uid may differ
+  );
+}
+
 function buildLandingClaimProfile(user, isAdminFlow) {
   buildLandingTop();
-  const unclaimed = DATA.players.filter(p => !p.googleUid && !p.googleEmail);
+  const claimable = getClaimablePlayers(user);
   document.getElementById('landing-body').innerHTML =
     '<div style="margin-bottom:16px">' +
       '<div class="landing-prompt">Who are you?</div>' +
       '<div style="font-size:13px;color:#6b9e82;margin-bottom:16px;line-height:1.5">Tap your name to link your Google account to your player profile.</div>' +
-      unclaimed.map(p =>
+      claimable.map(p =>
         '<button class="player-pill" onclick="claimProfile(\'' + p.id + '\')">' +
           '<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#C9A84C;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">' + playerInitials(p) + '</div>' +
           '<div>' +
@@ -3933,7 +3949,11 @@ function claimProfile(playerId) {
   if (!user) return;
   const player = DATA.players.find(p => p.id === playerId);
   if (!player) return;
-  if (player.googleUid || player.googleEmail) { showToast('This profile is already linked'); return; }
+  // Block re-link only if claimed by a DIFFERENT user (same email = re-linking is fine)
+  const curEmail = user.email.toLowerCase();
+  if (player.googleUid && player.googleUid !== user.uid && player.googleEmail && player.googleEmail.toLowerCase() !== curEmail) {
+    showToast('This profile is linked to a different account'); return;
+  }
 
   // Show phone number prompt before confirming
   const existing = document.getElementById('claim-phone-sheet');
@@ -4397,14 +4417,24 @@ function handleAuthState(user) {
     showSection('dashboard');
     checkAnnouncements();
   } else {
-    // Signed in but no player match.
-    // NEVER show "not in league" here — onAuthStateChanged fires handleAuthState twice
-    // when using a popup (once from signInWithGoogle, once from the listener), and by the
-    // second call _firestoreLoaded may already be true even though the match is valid.
-    // The onSnapshot callback below is the only place with a reliable, single-fire
-    // confirmation that Firestore data is loaded — "not in league" is shown there.
+    // Signed in but no player match yet.
     DATA.currentUserId = null;
     updateAvatarBtn();
+    if (_firestoreLoaded) {
+      // Firestore is already loaded — show claim screen or not-in-league now.
+      // (onSnapshot won't re-fire just because we need it to.)
+      const claimable = getClaimablePlayers(user);
+      if (claimable.length > 0) {
+        buildLandingClaimProfile(user, isAdmin);
+      } else {
+        buildLandingNotInLeague(user);
+      }
+      showSection('dashboard');
+    } else {
+      // Firestore not loaded yet — show a brief loading indicator.
+      // onSnapshot will retry matching and close the landing when data arrives.
+      buildLandingLoading();
+    }
   }
 }
 
