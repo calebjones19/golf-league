@@ -274,7 +274,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .msg-row.mine .reply-preview{border-left-color:#a0bfab;background:rgba(255,255,255,0.12);color:#a0bfab}
 .reply-preview-name{font-weight:700;margin-bottom:1px}
 /* Chat input */
-.chat-input-bar{background:#fff;border-top:1px solid #E5E7EB;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.chat-input-bar{background:#fff;border-top:1px solid #E5E7EB;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;flex-shrink:0;position:relative}
 .chat-reply-bar{display:flex;align-items:center;gap:8px;background:#F9FAFB;border-radius:8px;padding:6px 10px;font-size:12px;color:#6B7280}
 .chat-reply-bar-inner{flex:1;min-width:0}
 .chat-reply-name{font-weight:700;color:#1B4332;margin-bottom:1px}
@@ -375,19 +375,19 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
-    <!-- GIF search panel (sits above input bar) -->
-    <div class="gif-panel" id="gif-panel">
-      <div class="gif-search-bar">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="gif-search-input" id="gif-search-input" placeholder="Search GIFs…" oninput="searchGifsDebounced(this.value)" />
-        <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;font-size:16px;padding:0;line-height:1" onclick="closeGifPanel()">✕</button>
-      </div>
-      <div class="gif-grid" id="gif-grid">
-        <div style="grid-column:span 3;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>
-      </div>
-    </div>
 
     <div class="chat-input-bar" id="chat-input-bar">
+      <!-- GIF search panel — positioned relative to input bar so bottom:100% sits just above it -->
+      <div class="gif-panel" id="gif-panel">
+        <div class="gif-search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="gif-search-input" id="gif-search-input" placeholder="Search GIFs…" oninput="searchGifsDebounced(this.value)" />
+          <button style="border:none;background:none;color:#9CA3AF;cursor:pointer;font-size:16px;padding:0;line-height:1" onclick="closeGifPanel()">✕</button>
+        </div>
+        <div class="gif-grid" id="gif-grid">
+          <div style="grid-column:span 3;text-align:center;padding:20px;color:#9CA3AF;font-size:13px">Search for a GIF to share ⛳</div>
+        </div>
+      </div>
       <div class="chat-reply-bar" id="chat-reply-bar" style="display:none">
         <div class="chat-reply-bar-inner">
           <div class="chat-reply-name" id="chat-reply-name"></div>
@@ -940,11 +940,10 @@ function showSection(id) {
 
 function buildBottomNav() {
   const tabs = [
-    { id:'dashboard',   label:'Home',      icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
-    { id:'score',       label:'Score',     icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
-    { id:'leaderboard', label:'Board',     icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
-    { id:'skins',       label:'Skins',     icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
-    { id:'standings',   label:'Standings', icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>' },
+    { id:'dashboard',   label:'Home',  icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+    { id:'score',       label:'Score', icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
+    { id:'leaderboard', label:'Board', icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
+    { id:'skins',       label:'Skins', icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
   ];
   if (isAdmin) {
     tabs.push({ id:'admin', label:'Admin', icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', adminTab: true });
@@ -1515,7 +1514,15 @@ function renderEntryCard(tA, tB) {
   var winColor = winner==='A' ? '#2D6A4F' : winner==='B' ? '#DC2626' : '#C9A84C';
   var winLabel = winner==='A' ? tA.name+' wins hole' : winner==='B' ? tB.name+' wins hole' : winner==='T' ? 'Hole tied' : '';
 
-  function makePlayerRows(playerIds, isSub) {
+  // Determine which team the current user is on (for score-entry restrictions)
+  var myTeamInMatch = DATA.currentUserId
+    ? (idsA2.includes(DATA.currentUserId) ? 'A' : idsB2.includes(DATA.currentUserId) ? 'B' : null)
+    : null;
+  // Admin (no team assignment) can edit both sides; players only edit their own team
+  var canEditA = !myTeamInMatch || myTeamInMatch === 'A';
+  var canEditB = !myTeamInMatch || myTeamInMatch === 'B';
+
+  function makePlayerRows(playerIds, isSub, canEdit) {
     return playerIds.map(function(pid) {
       var p = DATA.players.find(function(pl){return pl.id === pid;});
       if (!p) return '';
@@ -1536,6 +1543,14 @@ function renderEntryCard(tA, tB) {
       var subTag = isSub ? ' <span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px">SUB</span>' : '';
       var dispVal = gross != null ? gross : '—';
       var dispCls = gross != null ? 'score-display' : 'score-display empty';
+      if (!canEdit) {
+        // Read-only view for opponent's team
+        return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#6B7280">'+playerFirstName(p)+subTag+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+hcp+'</span></div>' +
+          '<div style="margin-top:1px">'+strokePill+netHtml+'</div></div>' +
+          '<div style="font-size:22px;font-weight:700;color:'+(gross!=null?'#1A1A1A':'#D1D5DB')+';min-width:32px;text-align:center">'+dispVal+'</div>' +
+        '</div>';
+      }
       var disAttr = saved ? 'disabled' : '';
       return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+playerFirstName(p)+subTag+' <span style="font-weight:400;color:#9CA3AF;font-size:11px">Hcp '+hcp+'</span></div><div style="margin-top:1px">'+strokePill+netHtml+'</div></div><div style="display:flex;align-items:center;gap:6px"><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', -1)">−</button><div class="'+dispCls+'" style="font-size:26px;min-width:32px">'+dispVal+'</div><button class="score-btn" style="width:34px;height:34px;font-size:18px" '+disAttr+' onclick="adjustScore(\''+pid+'\', 1)">+</button></div></div>';
     }).join('');
@@ -1544,8 +1559,10 @@ function renderEntryCard(tA, tB) {
   var subsMap  = activeMatch.subs || {};
   var isSubId  = function(pid){ return Object.values(subsMap).includes(pid); };
   var allPids  = idsA2.concat(idsB2);
-  var allSaved = allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][h];});
-  var hasAny   = allPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][h] != null;});
+  // For save-button logic, only consider MY team's players (the ones I can edit)
+  var myPids   = canEditA && !canEditB ? idsA2 : canEditB && !canEditA ? idsB2 : allPids;
+  var allSaved = myPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][h];});
+  var hasAny   = myPids.some(function(pid){return activeMatch.scores[pid] && activeMatch.scores[pid][h] != null;});
   var allDone  = scoringPars.every(function(_,hi){return allPids.every(function(pid){return activeMatch.saved[pid] && activeMatch.saved[pid][hi];});});
 
   var saveBtnHtml = '';
@@ -1560,10 +1577,10 @@ function renderEntryCard(tA, tB) {
       '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+'</div>' +
       (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
       '</div></div>' +
-    '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+'</div>' +
-    makePlayerRows(idsA2, false) +
-    '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+'</div>' +
-    makePlayerRows(idsB2, false) +
+    '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px;margin-bottom:4px">'+tA.name+(canEditA?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
+    makePlayerRows(idsA2, false, canEditA) +
+    '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px;margin:8px 0 4px">'+tB.name+(canEditB?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
+    makePlayerRows(idsB2, false, canEditB) +
     saveBtnHtml +
     '<div class="hole-nav" style="margin-top:8px">' +
       '<button class="hole-nav-btn" '+(h===0?'disabled':'')+' onclick="prevHole()">← Prev</button>' +
@@ -1760,38 +1777,68 @@ function buildTeamLeaderboard() {
   }
   var rounds = DATA.rounds || [];
 
-  // If there's an active live match, show it
+  // ── Season standings table ──────────────────────────────────────────────
+  var standingsHtml = '';
+  if (DATA.teams.length > 0) {
+    var teamStats = {};
+    DATA.teams.forEach(function(t){ teamStats[t.id] = {id:t.id, name:t.name, playerIds:t.playerIds, W:0, L:0, T:0, pts:0}; });
+    rounds.forEach(function(r){
+      var sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
+      if (!sA||!sB) return;
+      sA.pts+=r.pointsA; sB.pts+=r.pointsB;
+      if (r.pointsA>r.pointsB){sA.W++;sB.L++;}
+      else if(r.pointsB>r.pointsA){sB.W++;sA.L++;}
+      else{sA.T++;sB.T++;}
+    });
+    var sorted = Object.values(teamStats).sort(function(a,b){return b.pts-a.pts||b.W-a.W;});
+    var myTeam = DATA.teams.find(function(t){return t.playerIds.includes(DATA.currentUserId);});
+    function pname(pid){var p=DATA.players.find(function(pl){return pl.id===pid;});return p?playerFirstName(p):'';}
+    var rows = sorted.map(function(s,i){
+      var isMe = myTeam && myTeam.id===s.id;
+      var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1).toString();
+      return '<tr'+(isMe?' style="background:#F0FFF4"':'')+'>' +
+        '<td style="font-size:'+(i<3?'15':'12')+'px;width:28px">'+medal+'</td>' +
+        '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">'+s.name+(isMe?'<span class="you-badge">You</span>':'')+'</div>' +
+             '<div style="font-size:10px;color:#9CA3AF">'+s.playerIds.map(pname).join(' & ')+'</div></td>' +
+        '<td style="color:#16A34A;font-weight:600">'+s.W+'</td>' +
+        '<td style="color:#DC2626;font-weight:600">'+s.L+'</td>' +
+        '<td style="color:#6B7280;font-weight:600">'+s.T+'</td>' +
+        '<td class="td-pts">'+s.pts+'</td></tr>';
+    }).join('');
+    standingsHtml = '<div class="card" style="margin:12px 16px 0">' +
+      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:10px">Season Standings</div>' +
+      '<table class="standings-table"><thead><tr>' +
+        '<th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Pts</th>' +
+      '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  // ── Match results ───────────────────────────────────────────────────────
+  var liveHtml = '';
   if (activeMatch) {
     var tAL = DATA.teams.find(function(t){return t.id === activeMatch.teamAId;});
     var tBL = DATA.teams.find(function(t){return t.id === activeMatch.teamBId;});
     if (tAL && tBL) {
       var mpL = computeMatchPoints(tAL.playerIds, tBL.playerIds, activeMatch.scores);
-      el.innerHTML = '<div class="section-title">Leaderboard</div>' + buildMatchCard(tAL, tBL, mpL.pointsA, mpL.pointsB, mpL.holeResults, true, 'Week ' + activeMatch.week);
-      if (rounds.length > 0) {
-        el.innerHTML += '<div style="padding:0 16px 4px;font-size:13px;font-weight:700;color:#6B7280;margin-top:8px">Past Results</div>';
-        el.innerHTML += rounds.slice().reverse().map(function(r) {
-          var tA2 = DATA.teams.find(function(t){return t.id === r.teamAId;});
-          var tB2 = DATA.teams.find(function(t){return t.id === r.teamBId;});
-          if (!tA2 || !tB2) return '';
-          return buildMatchCard(tA2, tB2, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
-        }).join('');
-      }
-      return;
+      liveHtml = '<div style="padding:12px 16px 4px;font-size:13px;font-weight:700;color:#1A1A1A">Live</div>' +
+        buildMatchCard(tAL, tBL, mpL.pointsA, mpL.pointsB, mpL.holeResults, true, 'Week ' + activeMatch.week);
     }
   }
 
-  if (rounds.length === 0) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Rounds Yet</div><div class="empty-state-sub">Scores will appear here after the first round.</div></div>';
-    return;
+  var resultsHtml = '';
+  if (rounds.length > 0) {
+    resultsHtml = '<div style="padding:12px 16px 4px;font-size:13px;font-weight:700;color:#1A1A1A">' +
+        (activeMatch ? 'Past Results' : 'Results') + '</div>' +
+      rounds.slice().reverse().map(function(r) {
+        var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
+        var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
+        if (!tA || !tB) return '';
+        return buildMatchCard(tA, tB, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
+      }).join('');
+  } else if (!activeMatch && DATA.teams.length === 0) {
+    resultsHtml = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Rounds Yet</div><div class="empty-state-sub">Scores will appear here after the first round.</div></div>';
   }
 
-  var html = rounds.slice().reverse().map(function(r) {
-    var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
-    var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
-    if (!tA || !tB) return '';
-    return buildMatchCard(tA, tB, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
-  }).join('');
-  el.innerHTML = '<div class="section-title">Results</div>' + html;
+  el.innerHTML = standingsHtml + liveHtml + resultsHtml + '<div style="height:12px"></div>';
 }
 
 function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel) {
@@ -3359,13 +3406,12 @@ function _adjustChatForKeyboard() {
   if (!panel || !panel.classList.contains('open')) return;
   if (window.visualViewport) {
     const vv = window.visualViewport;
-    const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    panel.style.bottom = keyboardH + 'px';
-    if (keyboardH > 0) {
-      // scroll messages to bottom when keyboard opens
-      const msgs = document.getElementById('chat-messages');
-      if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
-    }
+    // Pin the panel to exactly the visible viewport — no gaps on either end
+    panel.style.top    = vv.offsetTop + 'px';
+    panel.style.height = vv.height + 'px';
+    panel.style.bottom = 'auto';
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 40);
   }
 }
 if (window.visualViewport) {
@@ -3392,6 +3438,8 @@ function openChat() {
 function closeChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.remove('open');
+  panel.style.top = '';
+  panel.style.height = '';
   panel.style.bottom = '';
   dismissReactionPicker();
   dismissContextMenu();
