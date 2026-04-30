@@ -3909,13 +3909,9 @@ function buildLandingSignIn() {
 // Returns players this user can claim: unclaimed ones + any whose email matches
 // (catches the case where googleUid was lost but email is on record)
 function getClaimablePlayers(user) {
-  const email = user.email.toLowerCase();
-  return DATA.players.filter(p => {
-    if (!p.googleUid) return true;                                           // never claimed
-    if (p.googleUid === user.uid) return true;                               // already theirs
-    if (p.googleEmail && p.googleEmail.toLowerCase() === email) return true; // same email
-    return false; // claimed by a confirmed different user — don't show
-  });
+  // In a small private league every signed-in user should be able to pick
+  // their player. Return everyone — the admin can correct mistakes.
+  return DATA.players.slice();
 }
 
 function buildLandingClaimProfile(user, isAdminFlow) {
@@ -4030,19 +4026,32 @@ function buildLandingNotInLeague(user) {
     </div>`;
 }
 
+function _isStandalone() {
+  return window.navigator.standalone === true ||
+         window.matchMedia('(display-mode: standalone)').matches;
+}
+
 function signInWithGoogle() {
-  auth.signInWithPopup(googleProvider)
-    .then(result => {
-      initialAuthChecked = true; // prevent the popup's onAuthStateChanged echo from firing again
-      handleAuthState(result.user);
-    })
-    .catch(e => {
-      if (e.code === 'auth/popup-blocked') {
-        showToast('Popup blocked — please allow popups and try again.');
-      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-        showToast('Sign-in failed: ' + (e.code || e.message));
-      }
+  if (_isStandalone()) {
+    // signInWithPopup is unreliable in iOS standalone PWA mode — the Google
+    // redirect returns to Safari instead of back to the app. Use redirect flow.
+    auth.signInWithRedirect(googleProvider).catch(e => {
+      showToast('Sign-in failed: ' + (e.code || e.message));
     });
+  } else {
+    auth.signInWithPopup(googleProvider)
+      .then(result => {
+        initialAuthChecked = true;
+        handleAuthState(result.user);
+      })
+      .catch(e => {
+        if (e.code === 'auth/popup-blocked') {
+          showToast('Popup blocked — please allow popups and try again.');
+        } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+          showToast('Sign-in failed: ' + (e.code || e.message));
+        }
+      });
+  }
 }
 
 function claimAdmin() {
@@ -5282,6 +5291,19 @@ if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
 
 let initialAuthChecked = false;
 let signingOut = false;
+
+// Handle the return from signInWithRedirect (used in standalone PWA mode).
+// getRedirectResult() resolves immediately with null if there was no redirect.
+auth.getRedirectResult().then(result => {
+  if (result && result.user) {
+    initialAuthChecked = true;
+    try { handleAuthState(result.user); } catch(e) { console.error(e); }
+  }
+}).catch(e => {
+  if (e.code !== 'auth/no-current-user') {
+    showToast('Sign-in failed: ' + (e.code || e.message));
+  }
+});
 
 // Hard fallback — if Firebase never fires (e.g. blocked), show sign-in after 5s
 setTimeout(() => {
