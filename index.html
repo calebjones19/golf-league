@@ -2057,12 +2057,31 @@ function renderMatchupsList() {
   const wrap = document.getElementById('matchups-panel-content');
   if (!wrap) return;
   const on = adminEditModes['matchups'] || false;
+  const weeks = DATA.league ? (DATA.league.weeks || 18) : 18;
+  const teamCount = DATA.teams.length;
+  const roundsPerCycle = teamCount % 2 === 0 ? teamCount - 1 : teamCount;
+  const matchupsPerRound = Math.floor(teamCount / 2);
+
+  // Summary line
+  const summaryHtml = teamCount >= 2
+    ? '<div style="font-size:12px;color:#6B7280;margin-bottom:14px;padding:10px 12px;background:#F9FAFB;border-radius:8px;line-height:1.5">' +
+        '<strong>' + teamCount + ' teams</strong> · ' + roundsPerCycle + ' rounds per cycle · ' + matchupsPerRound + ' matchup' + (matchupsPerRound !== 1 ? 's' : '') + '/week' +
+      '</div>'
+    : '';
+
+  const generateBtn = on
+    ? (teamCount < 2
+        ? '<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:16px 0">Add at least 2 teams first.</div>'
+        : '<button class="btn-green" style="width:100%;margin-bottom:16px" onclick="generateMatchups()">' +
+            ((DATA.matchups || []).length > 0 ? '🔀 Regenerate Schedule' : '🔀 Generate Schedule') +
+          '</button>')
+    : '';
 
   const grouped = {};
   (DATA.matchups || []).forEach(m => { if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
 
   const listHtml = Object.keys(grouped).length === 0
-    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No matchups scheduled yet.</div>'
+    ? (!on ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No schedule yet. Tap Edit to generate one.</div>' : '')
     : Object.keys(grouped).sort((a,b) => a-b).map(week => {
         return '<div style="margin-bottom:14px">' +
           '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:6px">WEEK ' + week + '</div>' +
@@ -2075,49 +2094,78 @@ function renderMatchupsList() {
                 '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
                 '<div style="font-size:11px;color:#6B7280">' + calcTeeTime(idx) + '</div>' +
               '</div>' +
-              (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">Remove</button>' : '') +
+              (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">✕</button>' : '') +
             '</div>';
           }).join('') +
         '</div>';
       }).join('');
 
-  const addFormHtml = on ? (
-    '<div style="margin-top:14px;border-top:1px solid #F3F4F6;padding-top:14px">' +
-      '<div style="font-size:13px;font-weight:700;color:#1A1A1A;margin-bottom:12px">Add Matchup</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:12px">' +
-        '<div style="width:80px"><label class="form-label">Week</label>' +
-          '<input class="form-input" type="number" id="new-mu-week" min="1" placeholder="1" value="' + getCurrentWeek() + '"></div>' +
-      '</div>' +
-      '<div class="form-group"><label class="form-label">Team A</label>' +
-        '<select class="form-select" id="new-mu-teamA">' +
-          DATA.teams.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('') +
-        '</select></div>' +
-      '<div class="form-group"><label class="form-label">Team B</label>' +
-        '<select class="form-select" id="new-mu-teamB">' +
-          DATA.teams.map((t,i) => '<option value="' + t.id + '"' + (i===1?' selected':'') + '>' + t.name + '</option>').join('') +
-        '</select></div>' +
-      '<button class="btn-green" style="width:100%" onclick="addMatchup()">Add Matchup</button>' +
-    '</div>'
-  ) : '';
+  const clearBtn = on && (DATA.matchups || []).length > 0
+    ? '<div style="margin-top:8px"><button class="btn-sm btn-delete" style="width:100%" onclick="clearMatchups()">Clear All Matchups</button></div>'
+    : '';
 
-  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + listHtml + addFormHtml;
+  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + summaryHtml + generateBtn + listHtml + clearBtn;
 }
 
-function addMatchup() {
-  const week   = parseInt(document.getElementById('new-mu-week').value);
-  const teamAId= document.getElementById('new-mu-teamA').value;
-  const teamBId= document.getElementById('new-mu-teamB').value;
-  if (!week || !teamAId || !teamBId) { showToast('Fill in all fields'); return; }
-  if (teamAId === teamBId) { showToast('Select two different teams'); return; }
-  if (!DATA.matchups) DATA.matchups = [];
-  DATA.matchups.push({ id: 'm' + Date.now(), week, teamAId, teamBId });
+function generateMatchups() {
+  if (DATA.teams.length < 2) { showToast('Need at least 2 teams'); return; }
+
+  const weeks = DATA.league ? (DATA.league.weeks || 18) : 18;
+
+  // Shuffle teams randomly
+  const ids = DATA.teams.map(t => t.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+
+  // Round-robin circle method
+  // If odd number of teams, add a bye
+  const list = ids.length % 2 === 0 ? [...ids] : [...ids, 'bye'];
+  const n = list.length;
+  const fixed = list[0];
+  const rotating = list.slice(1);
+  const rounds = [];
+
+  for (let r = 0; r < n - 1; r++) {
+    const circle = [fixed, ...rotating];
+    const pairs = [];
+    for (let i = 0; i < n / 2; i++) {
+      const a = circle[i];
+      const b = circle[n - 1 - i];
+      if (a !== 'bye' && b !== 'bye') pairs.push([a, b]);
+    }
+    // Shuffle pair order within the round so tee times vary
+    for (let i = pairs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+    }
+    rounds.push(pairs);
+    rotating.push(rotating.shift()); // rotate
+  }
+
+  // Fill all weeks, cycling through rounds
+  DATA.matchups = [];
+  for (let w = 1; w <= weeks; w++) {
+    const round = rounds[(w - 1) % rounds.length];
+    round.forEach(([a, b]) => {
+      DATA.matchups.push({ id: 'm' + Date.now() + Math.random().toString(36).slice(2), week: w, teamAId: a, teamBId: b });
+    });
+  }
+
   saveData();
   renderMatchupsList();
-  showToast('Matchup added ✓');
+  showToast('Schedule generated ✓');
 }
 
 function deleteMatchup(id) {
   DATA.matchups = (DATA.matchups || []).filter(m => m.id !== id);
+  saveData(); renderMatchupsList();
+}
+
+function clearMatchups() {
+  if (!confirm('Clear all matchups?')) return;
+  DATA.matchups = [];
   saveData(); renderMatchupsList();
 }
 
