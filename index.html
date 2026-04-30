@@ -32,11 +32,22 @@ body{background:#1B4332;font-family:'DM Sans',system-ui,sans-serif;display:flex;
 .nav-tab.admin-tab.active{color:#C9A84C}
 /* Sections */
 section{display:none}
-section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-top));bottom:calc(76px + max(0px,env(safe-area-inset-bottom) - 10px));left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:#F5F0E8;-webkit-overflow-scrolling:touch;animation:fadeIn 0.2s ease}
-#sec-score.active{display:flex;flex-direction:column;overflow:hidden;animation:none}
-#sec-leaderboard.active{display:flex;flex-direction:column;overflow:hidden;animation:fadeIn 0.2s ease}
+section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-top));bottom:calc(76px + max(0px,env(safe-area-inset-bottom) - 10px));left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:#F5F0E8;-webkit-overflow-scrolling:touch}
+#sec-score.active{display:flex;flex-direction:column;overflow:hidden}
+#sec-leaderboard.active{display:flex;flex-direction:column;overflow:hidden}
 #leaderboard-content{overflow-y:auto;flex:1;padding-bottom:24px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+@keyframes slideInRight{from{transform:translateX(36px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideInLeft{from{transform:translateX(-36px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideDown{from{transform:translateY(0)}to{transform:translateY(110%)}}
+@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeScaleOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.95)}}
+/* Closing states */
+.modal-overlay.closing{animation:fadeOut 0.22s ease forwards!important}
+.modal-overlay.closing .bottom-sheet{animation:slideDown 0.22s ease forwards!important}
+.center-modal.closing{animation:fadeOut 0.2s ease forwards!important}
+.center-modal.closing .modal-card{animation:fadeScaleOut 0.2s ease forwards!important}
 /* Section inner padding */
 #dashboard-content,#leaderboard-content,#skins-content,#standings-content{padding-bottom:24px}
 /* Cards */
@@ -190,6 +201,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 /* Admin login modal */
 .center-modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
 .center-modal.open{display:flex;animation:fadeIn 0.2s ease}
+.center-modal.open .modal-card{animation:fadeScaleIn 0.22s ease}
 .modal-card{background:rgba(250,247,240,0.9);-webkit-backdrop-filter:blur(40px) saturate(200%);backdrop-filter:blur(40px) saturate(200%);border-radius:16px;border:1px solid rgba(255,255,255,0.7);box-shadow:0 8px 40px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.9);padding:24px;width:100%;max-width:360px}
 .modal-title{font-size:18px;font-weight:700;color:#1A1A1A;margin-bottom:6px;font-family:'Space Grotesk',sans-serif}
 .modal-sub{font-size:13px;color:#6B7280;margin-bottom:20px;line-height:1.5}
@@ -951,7 +963,11 @@ var _firestoreLoaded = false;
 
 function _applyRemoteData(raw) {
   if (!raw) return;
+  // Preserve whichever messages array is longer — never downgrade message count
+  const localMsgs  = Array.isArray(DATA.messages)     ? DATA.messages     : [];
+  const remoteMsgs = Array.isArray(raw.messages)       ? raw.messages      : [];
   DATA = { ...DATA, ...raw };
+  DATA.messages = remoteMsgs.length >= localMsgs.length ? remoteMsgs : localMsgs;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
   }
@@ -1038,12 +1054,27 @@ function _dataForFirestore() {
 }
 
 function saveData() {
-  // Write to localStorage cache immediately (synchronous, instant UI feedback)
+  // Write to localStorage cache immediately
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
-  // Write to Firestore (async, survives across devices / reinstalls)
+  // Guard: never overwrite Firestore before we've loaded from it — doing so
+  // would wipe any data (especially messages) that exist remotely but aren't
+  // in local memory yet.
+  if (!_firestoreLoaded) return;
   LEAGUE_DOC.set(_dataForFirestore()).catch(function(e) {
     console.error('Firestore save failed:', e);
     showToast('Save failed — check connection');
+  });
+}
+
+// Use arrayUnion for sending messages — avoids full-document replace race condition
+function saveMessageToFirestore(msg) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+  if (!_firestoreLoaded) return;
+  LEAGUE_DOC.update({
+    messages: firebase.firestore.FieldValue.arrayUnion(msg)
+  }).catch(function(e) {
+    // Fallback to full save if update fails (e.g. doc doesn't exist yet)
+    LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
   });
 }
 
@@ -1075,17 +1106,31 @@ function markSeen(id) {
 // ============================================================
 const ALL_SECTIONS = ['dashboard','score','leaderboard','skins','standings','admin'];
 
+var _currentSectionId = 'dashboard';
 function showSection(id) {
+  const order = ALL_SECTIONS; // ['dashboard','score','standings','leaderboard','skins','admin']
+  const prevIdx = order.indexOf(_currentSectionId);
+  const nextIdx = order.indexOf(id);
+  const anim = (prevIdx < 0 || prevIdx === nextIdx) ? 'fadeIn' :
+               nextIdx > prevIdx ? 'slideInRight' : 'slideInLeft';
+
   ALL_SECTIONS.forEach(s => {
     const sec = document.getElementById('sec-'+s);
     const nav = document.getElementById('nav-'+s);
-    if (sec) sec.classList.remove('active');
+    if (sec) { sec.classList.remove('active'); sec.style.animation = ''; }
     if (nav) nav.classList.remove('active');
   });
   const sec = document.getElementById('sec-'+id);
   const nav = document.getElementById('nav-'+id);
-  if (sec) { sec.classList.add('active'); sec.scrollTop = 0; }
+  if (sec) {
+    sec.classList.add('active');
+    sec.style.animation = anim + ' 0.22s ease';
+    sec.scrollTop = 0;
+    // Clear animation after it completes so it doesn't replay
+    setTimeout(() => { if (sec) sec.style.animation = ''; }, 230);
+  }
   if (nav) nav.classList.add('active');
+  _currentSectionId = id;
   if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
   if (id === 'score')       buildScoring();
   if (id === 'leaderboard') buildLeaderboard();
@@ -2446,11 +2491,24 @@ function buildStablefordLeaderboard(targetElId) {
 // ============================================================
 // ADMIN PANEL
 // ============================================================
+var _currentAdminTab = 'league';
+var _adminTabOrder   = ['league','players','teams','matchups','scoring','announce'];
 function switchAdminTab(id, btn) {
+  const prevIdx = _adminTabOrder.indexOf(_currentAdminTab);
+  const nextIdx = _adminTabOrder.indexOf(id);
+  const anim = prevIdx === nextIdx ? 'fadeIn' :
+               nextIdx > prevIdx  ? 'slideInRight' : 'slideInLeft';
+
   document.querySelectorAll('.admin-nav-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p=>{ p.classList.remove('active'); p.style.animation=''; });
   btn.classList.add('active');
-  document.getElementById('admin-'+id).classList.add('active');
+  const panel = document.getElementById('admin-'+id);
+  if (panel) {
+    panel.classList.add('active');
+    panel.style.animation = anim + ' 0.2s ease';
+    setTimeout(() => { if (panel) panel.style.animation = ''; }, 210);
+  }
+  _currentAdminTab = id;
 }
 
 function buildAdmin() {
@@ -2692,7 +2750,7 @@ function undoCancellation(weekNum) {
 }
 
 function showAddWeekOff() { document.getElementById('weekoff-modal').classList.add('open'); }
-function closeWeekOff(e) { if (!e || e.target===document.getElementById('weekoff-modal')) document.getElementById('weekoff-modal').classList.remove('open'); }
+function closeWeekOff(e) { if (!e || e.target===document.getElementById('weekoff-modal')) closeCenterModalAnimated('weekoff-modal'); }
 
 function addWeekOff() {
   const date   = document.getElementById('weekoff-date').value;
@@ -2906,10 +2964,7 @@ function openAddPlayerModal() {
   setTimeout(() => { const f = document.getElementById('modal-player-first'); if (f) f.focus(); }, 300);
 }
 
-function closeAddPlayerModal() {
-  const sheet = document.getElementById('add-player-sheet');
-  if (sheet) sheet.remove();
-}
+function closeAddPlayerModal() { closeDynamicSheet('add-player-sheet'); }
 
 function addPlayer() {
   const firstName = (document.getElementById('modal-player-first') || {value:''}).value.trim();
@@ -2964,10 +3019,7 @@ function openAddSubModal() {
   setTimeout(() => { const f = document.getElementById('modal-sub-first'); if (f) f.focus(); }, 300);
 }
 
-function closeAddSubModal() {
-  const sheet = document.getElementById('add-sub-sheet');
-  if (sheet) sheet.remove();
-}
+function closeAddSubModal() { closeDynamicSheet('add-sub-sheet'); }
 
 function addSub() {
   const firstName = (document.getElementById('modal-sub-first')  || {value:''}).value.trim();
@@ -3042,10 +3094,12 @@ function openPlayerPage(id) {
 
   const page = document.createElement('div');
   page.id = 'player-page';
-  page.style.cssText = 'position:fixed;inset:0;z-index:960;background:#F9F6F0;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)';
+  page.style.cssText = 'position:fixed;inset:0;z-index:960;background:#F9F6F0;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom);transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)';
 
   page.innerHTML = _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, isSelf, false);
   document.body.appendChild(page);
+  // Trigger slide-in on next frame
+  requestAnimationFrame(() => requestAnimationFrame(() => { page.style.transform = 'translateX(0)'; }));
 }
 
 function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, isSelf, editing) {
@@ -3179,7 +3233,10 @@ function updatePlayerPageAdminToggle() {
 
 function closePlayerPage() {
   const p = document.getElementById('player-page');
-  if (p) p.remove();
+  if (!p) return;
+  p.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+  p.style.transform  = 'translateX(100%)';
+  setTimeout(() => p.remove(), 290);
 }
 
 function savePlayerPage(id) {
@@ -3262,10 +3319,7 @@ function confirmRemovePlayer(id) {
   document.body.appendChild(sheet);
 }
 
-function closeRemovePlayerSheet() {
-  const s = document.getElementById('remove-player-sheet');
-  if (s) s.remove();
-}
+function closeRemovePlayerSheet() { closeDynamicSheet('remove-player-sheet'); }
 
 function doRemovePlayer(id) {
   const p = DATA.players.find(pl => pl.id === id);
@@ -3707,7 +3761,7 @@ function openAdminLogin() {
 
 function closeAdminLogin(e) {
   if (e && e.target!==document.getElementById('admin-login-modal')) return;
-  document.getElementById('admin-login-modal').classList.remove('open');
+  closeCenterModalAnimated('admin-login-modal');
 }
 
 function submitAdminLogin() {
@@ -3720,15 +3774,14 @@ function submitAdminLogin() {
     grantAdmin(email);
     saveData();
     setAdmin(true);
-    document.getElementById('admin-login-modal').classList.remove('open');
+    closeCenterModalAnimated('admin-login-modal');
     showToast('You are now the league admin ✓');
-    showSection('admin');
+    setTimeout(() => showSection('admin'), 220);
     return;
   }
   if (isAdminEmail(email)) {
     setAdmin(true);
-    document.getElementById('admin-login-modal').classList.remove('open');
-    showSection('admin');
+    closeCenterModalAnimated('admin-login-modal', () => showSection('admin'));
   } else {
     document.getElementById('admin-modal-error').style.display = 'block';
   }
@@ -3889,8 +3942,7 @@ function confirmClaimProfile(playerId, skip) {
   if (phone) player.phone = phone;
   DATA.currentUserId = player.id;
   saveData();
-  const sheet = document.getElementById('claim-phone-sheet');
-  if (sheet) sheet.remove();
+  closeDynamicSheet('claim-phone-sheet');
   updateAvatarBtn();
   closeLanding();
   showSection('dashboard');
@@ -4129,11 +4181,40 @@ function sendTestBadge() {
     });
 }
 
+// ── Animated close helpers ────────────────────────────────────
+// Persistent overlay (bottom sheet)
+function closeOverlayAnimated(overlayId, callback) {
+  const el = document.getElementById(overlayId);
+  if (!el) { if (callback) callback(); return; }
+  el.classList.add('closing');
+  setTimeout(function() {
+    el.classList.remove('open','closing');
+    if (callback) callback();
+  }, 230);
+}
+// Center modal (scale out)
+function closeCenterModalAnimated(modalId, callback) {
+  const el = document.getElementById(modalId);
+  if (!el) { if (callback) callback(); return; }
+  el.classList.add('closing');
+  setTimeout(function() {
+    el.classList.remove('open','closing');
+    if (callback) callback();
+  }, 210);
+}
+// Dynamically-created sheet (slide down then remove)
+function closeDynamicSheet(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('closing');
+  setTimeout(function() { if (el.parentNode) el.remove(); }, 230);
+}
+
 function closeProfileSheet(e) {
   if (e && e.target !== document.getElementById('profile-overlay')) return;
   const sheet = document.getElementById('profile-sheet-inner');
   if (sheet) { sheet.style.transform = ''; sheet.style.transition = ''; }
-  document.getElementById('profile-overlay').classList.remove('open');
+  closeOverlayAnimated('profile-overlay');
 }
 
 // ── Swipe-down to close profile sheet ───────────────────────
@@ -4452,9 +4533,9 @@ function sendMessage() {
   DATA.messages.push(msg);
 
   try {
-    saveData();
+    // Use arrayUnion for messages — prevents full-doc replace race conditions
+    saveMessageToFirestore(msg);
   } catch(e) {
-    // localStorage might be full from large images
     if (msg.attachment && msg.attachment.dataUrl && msg.attachment.dataUrl.length > 50000) {
       showToast('Image too large to store — try a smaller photo');
       DATA.messages.pop();
