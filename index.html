@@ -2828,7 +2828,7 @@ function renderPlayersList() {
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(p) + claimBadge + adminBadge + '</div>' +
             '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(p) + (p.leagueHandicap != null && (DATA.scoringConfig||{}).autoHandicap ? ' <span style="color:#C9A84C">(auto)</span>' : '') + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
           '</div>' +
-          (on ? '<div style="display:flex;align-items:center;gap:8px">' + adminCheckbox + '<button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
+          (on ? '<div style="display:flex;align-items:center;gap:6px">' + adminCheckbox + '<button class="btn-sm btn-outline" onclick="openEditPlayerSheet(\'' + p.id + '\')">Edit</button><button class="btn-sm btn-delete" onclick="removePlayer(\'' + p.id + '\')">Remove</button></div>' : '') +
         '</div>';
       }).join('');
 
@@ -2840,6 +2840,7 @@ function renderPlayersList() {
         '<div style="flex:1"><input class="form-input" id="new-player-last" placeholder="Last name"></div>' +
         '<div style="width:64px"><input class="compact-num" id="new-player-hcp" placeholder="0" type="number" min="0" max="54"></div>' +
       '</div>' +
+      '<input class="form-input" id="new-player-email" type="email" placeholder="Google email (optional — links their account)" style="margin-bottom:8px">' +
       '<button class="btn-green" style="width:100%" onclick="addPlayer()">+ Add League Player</button>' +
     '</div>';
 
@@ -2913,14 +2914,17 @@ function addPlayer() {
   const firstName = document.getElementById('new-player-first').value.trim();
   const lastName  = document.getElementById('new-player-last').value.trim();
   const hcp       = parseInt(document.getElementById('new-player-hcp').value) || 0;
+  const email     = (document.getElementById('new-player-email').value || '').trim().toLowerCase();
   if (!firstName) { showToast('Please enter a first name'); return; }
   if (!lastName)  { showToast('Please enter a last name'); return; }
-  const player = { id: 'p' + Date.now(), firstName, lastName, handicap: hcp, googleEmail: null, googleUid: null, claimed: false };
+  const player = { id: 'p' + Date.now(), firstName, lastName, handicap: hcp,
+    googleEmail: email || null, googleUid: null, claimed: !!email };
   DATA.players.push(player);
   saveData();
-  document.getElementById('new-player-first').value = '';
-  document.getElementById('new-player-last').value  = '';
-  document.getElementById('new-player-hcp').value   = '';
+  document.getElementById('new-player-first').value  = '';
+  document.getElementById('new-player-last').value   = '';
+  document.getElementById('new-player-hcp').value    = '';
+  document.getElementById('new-player-email').value  = '';
   renderPlayersList();
   renderTeamsList();
   showToast(`${firstName} ${lastName} added ✓`);
@@ -2975,6 +2979,62 @@ function removePlayer(id) {
   saveData();
   renderPlayersList();
   renderTeamsList();
+}
+
+function openEditPlayerSheet(id) {
+  const p = DATA.players.find(p => p.id === id);
+  if (!p) return;
+  // Remove existing sheet if any
+  const existing = document.getElementById('edit-player-sheet');
+  if (existing) existing.remove();
+
+  const sheet = document.createElement('div');
+  sheet.id = 'edit-player-sheet';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:950;display:flex;flex-direction:column;justify-content:flex-end';
+  sheet.innerHTML =
+    '<div onclick="closeEditPlayerSheet()" style="flex:1;background:rgba(0,0,0,0.4)"></div>' +
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 40px;box-shadow:0 -4px 24px rgba(0,0,0,0.12)">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="font-size:16px;font-weight:700;color:#1A1A1A;margin-bottom:16px">Edit Player</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+        '<div style="flex:1"><label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px">FIRST</label>' +
+          '<input class="form-input" id="ep-first" value="' + (p.firstName||'') + '" style="margin-top:4px"></div>' +
+        '<div style="flex:1"><label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px">LAST</label>' +
+          '<input class="form-input" id="ep-last" value="' + (p.lastName||'') + '" style="margin-top:4px"></div>' +
+        '<div style="width:64px"><label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px">HCP</label>' +
+          '<input class="compact-num" id="ep-hcp" type="number" min="0" max="54" value="' + (p.handicap||0) + '" style="margin-top:4px"></div>' +
+      '</div>' +
+      '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px">GOOGLE EMAIL</label>' +
+      '<input class="form-input" id="ep-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px;margin-bottom:16px">' +
+      '<button class="btn-green" style="width:100%" onclick="saveEditPlayer(\'' + id + '\')">Save</button>' +
+    '</div>';
+  document.body.appendChild(sheet);
+  setTimeout(() => document.getElementById('ep-email').focus && null, 300);
+}
+
+function closeEditPlayerSheet() {
+  const s = document.getElementById('edit-player-sheet');
+  if (s) s.remove();
+}
+
+function saveEditPlayer(id) {
+  const p = DATA.players.find(p => p.id === id);
+  if (!p) return;
+  const first = document.getElementById('ep-first').value.trim();
+  const last  = document.getElementById('ep-last').value.trim();
+  const hcp   = parseInt(document.getElementById('ep-hcp').value) || 0;
+  const email = document.getElementById('ep-email').value.trim().toLowerCase();
+  if (!first) { showToast('First name required'); return; }
+  if (!last)  { showToast('Last name required'); return; }
+  p.firstName  = first;
+  p.lastName   = last;
+  p.handicap   = hcp;
+  p.googleEmail = email || null;
+  p.claimed    = !!(email || p.googleUid);
+  saveData();
+  closeEditPlayerSheet();
+  renderPlayersList();
+  showToast(`${first} ${last} updated ✓`);
 }
 
 // ============================================================
