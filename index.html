@@ -2691,21 +2691,28 @@ function selectCourse(idx) {
 
 function _applyTeeByIndex(teeIdx) {
   const tee = _activeTees[teeIdx];
-  if (!tee || !tee.holes) return;
+  if (!tee || !tee.holes || !tee.holes.length) return;
+
+  const holes      = tee.holes.length;
+  const isEditMode = adminEditModes['league'];
 
   // Set holes radio
-  const holes = tee.number_of_holes || tee.holes.length;
-  const radio  = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
+  const radio = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
   if (radio) radio.checked = true;
 
-  // Re-render grids then fill values
-  renderHoleGrids();
-  tee.holes.forEach((h, i) => {
-    const parEl = document.getElementById('par-' + i);
-    const hcpEl = document.getElementById('hcp-' + i);
-    if (parEl) { parEl.value = h.par      || ''; parEl.disabled = false; }
-    if (hcpEl) { hcpEl.value = h.handicap || ''; hcpEl.disabled = false; }
-  });
+  // Build grids DIRECTLY from API data — bypasses renderHoleGrids() which
+  // reads from DATA.league (last saved) and would wipe the imported values.
+  const labelsEl = document.getElementById('hcp-grid-labels');
+  const parGrid  = document.getElementById('par-grid');
+  const hcpGrid  = document.getElementById('hcp-grid');
+  if (!parGrid || !hcpGrid) return;
+
+  if (labelsEl) labelsEl.innerHTML = tee.holes.map((_, i) =>
+    `<div class="hole-grid-label">H${i + 1}</div>`).join('');
+  parGrid.innerHTML = tee.holes.map((h, i) =>
+    `<input type="number" min="3" max="6" placeholder="—" value="${h.par || ''}" id="par-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
+  hcpGrid.innerHTML = tee.holes.map((h, i) =>
+    `<input type="number" min="1" max="${holes}" placeholder="—" value="${h.handicap || ''}" id="hcp-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
 
   // Build confirmation text; include tee switcher if multiple options exist
   const sel = document.getElementById('course-selected');
