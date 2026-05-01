@@ -957,10 +957,11 @@ function calcTeeTime(matchupIndexInWeek) {
 // ── Weekly lineup helpers ────────────────────────────────────────────────────
 function getWeekLineup(week) {
   if (!DATA.weeklyLineups) DATA.weeklyLineups = {};
-  if (!DATA.weeklyLineups[week]) DATA.weeklyLineups[week] = { subs: {}, absent: [] };
+  if (!DATA.weeklyLineups[week]) DATA.weeklyLineups[week] = { subs: {}, absent: [], skinsOut: [] };
   var l = DATA.weeklyLineups[week];
-  if (!l.subs)   l.subs   = {};
-  if (!l.absent) l.absent = [];
+  if (!l.subs)     l.subs     = {};
+  if (!l.absent)   l.absent   = [];
+  if (!l.skinsOut) l.skinsOut = [];
   return l;
 }
 // Returns the effective player id for a roster slot this week (may be a sub)
@@ -2384,7 +2385,10 @@ function buildSkins() {
     var idsB = (r.subs && Object.keys(r.subs).length > 0)
       ? (tB ? tB.playerIds.map(function(pid){ return r.subs[pid] || pid; }) : [])
       : (tB ? tB.playerIds : []);
-    var allPids = idsA.concat(idsB);
+    // Filter to only players who were opted into skins for this round's week
+    var roundWeek = r.week || null;
+    var skinsOut = roundWeek ? (getWeekLineup(roundWeek).skinsOut || []) : [];
+    var allPids = idsA.concat(idsB).filter(function(pid){ return !skinsOut.includes(pid); });
     var potPerHole = allPids.length * fee;
 
     for (var h = 0; h < numHoles; h++) {
@@ -3843,10 +3847,29 @@ function removeFromTeam(teamId, playerId) {
 // ============================================================
 var _matchupSelTeam = null;  // first-selected team id
 var _matchupSelWeek = null;  // currently targeted week (null = use current week)
+var _matchupsSubTab = 'matchups'; // 'matchups' | 'skins'
 
 function renderMatchupsList() {
   const wrap = document.getElementById('matchups-panel-content');
   if (!wrap) return;
+
+  // ── Sub-tab bar ───────────────────────────────────────────────
+  function mTabBtn(id, label) {
+    const active = _matchupsSubTab === id;
+    return '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
+      (active ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
+      '" onclick="_matchupsSubTab=\'' + id + '\';renderMatchupsList()">' + label + '</button>';
+  }
+  const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:12px 16px 16px">' +
+    mTabBtn('matchups', 'Matchups') + mTabBtn('skins', 'Skins') +
+  '</div>';
+
+  if (_matchupsSubTab === 'skins') {
+    wrap.innerHTML = subTabBar + '<div id="skins-admin-content"></div>';
+    renderSkinsAdmin();
+    return;
+  }
+
   const on = adminEditModes['matchups'] || false;
   const teamCount = DATA.teams.length;
   const totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
@@ -3941,7 +3964,7 @@ function renderMatchupsList() {
     ? '<div style="margin-top:6px"><button class="btn-sm btn-delete" style="width:100%;opacity:0.6" onclick="clearMatchups()">Clear All Matchups</button></div>'
     : '';
 
-  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + weekSelector + pairingHtml + listHtml + clearBtn + clearAllBtn;
+  wrap.innerHTML = subTabBar + editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + weekSelector + pairingHtml + listHtml + clearBtn + clearAllBtn;
 }
 
 function selectMatchupWeek(w) {
@@ -4132,6 +4155,147 @@ function saveScoringConfig() {
 // ============================================================
 // ANNOUNCEMENTS
 // ============================================================
+// ── Admin Skins Panel (lives inside Matchups sub-tab) ────────────────────────
+function renderSkinsAdmin() {
+  var wrap = document.getElementById('skins-admin-content');
+  if (!wrap) return;
+
+  var totalWeeks = (DATA.schedule || []).length || (DATA.league && DATA.league.weeks) || 18;
+  var currentW   = getCurrentWeek();
+  // Stay in sync with matchups week selector
+  var week = (_matchupSelWeek !== null) ? _matchupSelWeek : currentW;
+  if (week < 1) week = 1;
+  if (week > totalWeeks) week = totalWeeks;
+
+  var lineup = getWeekLineup(week);
+
+  // Build the effective player list for this week:
+  // For each roster slot: use sub if one is assigned, skip if absent/no-sub-missing
+  // Also include any subs assigned for this week not already captured
+  var allTeams = DATA.teams || [];
+  var rows = [];
+  allTeams.forEach(function(team) {
+    (team.playerIds || []).forEach(function(pid) {
+      var subPid   = lineup.subs[pid];
+      var isAbsent = (lineup.absent || []).includes(pid) || !!subPid;
+      if (isAbsent && !subPid) return; // absent with no sub → not playing
+      var effectivePid = subPid || pid;
+      if (rows.find(function(r){ return r.pid === effectivePid; })) return; // dedupe
+      rows.push({ pid: effectivePid, teamName: team.name, isSubbing: !!subPid, origPid: pid });
+    });
+  });
+
+  var fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
+  var inCount = rows.filter(function(r){ return !(lineup.skinsOut || []).includes(r.pid); }).length;
+
+  // Week selector
+  var weekOpts = '';
+  for (var w = 1; w <= totalWeeks; w++) {
+    weekOpts += '<option value="' + w + '"' + (w === week ? ' selected' : '') + '>Week ' + w + (w === currentW ? ' (current)' : '') + '</option>';
+  }
+  var weekSel = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+    '<label style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px">WEEK</label>' +
+    '<select class="form-input" style="flex:1;max-width:140px;padding:6px 10px;font-size:13px" onchange="selectMatchupWeek(+this.value);renderSkinsAdmin()">' + weekOpts + '</select>' +
+  '</div>';
+
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div style="padding:0 16px">' + weekSel +
+      '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + week + '.</div></div>';
+    return;
+  }
+
+  // Summary pill
+  var summaryHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">' +
+    '<div style="background:#E8F5E9;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:#1B4332">' + inCount + ' in for skins</div>' +
+    '<div style="background:#FEF9EE;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:#C9A84C">Pot: $' + (inCount * fee) + '</div>' +
+  '</div>';
+
+  // Player toggles grouped by team matchup
+  var matchupRows = (DATA.matchups || []).filter(function(m){ return m.week === week; });
+  var playerHtml = '';
+
+  if (matchupRows.length > 0) {
+    matchupRows.forEach(function(m, idx) {
+      var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+      var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+      if (!tA || !tB) return;
+      var teeTime = calcTeeTime(idx);
+      var matchRows = rows.filter(function(r){
+        return (tA.playerIds.includes(r.origPid || r.pid) || tB.playerIds.includes(r.origPid || r.pid));
+      });
+      playerHtml += '<div style="margin-bottom:16px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+          '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.4px">' + tA.name + ' vs ' + tB.name + '</div>' +
+          '<span style="font-size:10px;color:#C9A84C;font-weight:700">' + teeTime + '</span>' +
+        '</div>' +
+        matchRows.map(function(r) {
+          var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
+               || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
+          if (!p) return '';
+          var inSkins = !(lineup.skinsOut || []).includes(r.pid);
+          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
+            avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:13px;font-weight:600;color:' + (inSkins ? '#1A1A1A' : '#9CA3AF') + '">' + playerName(p) +
+                (r.isSubbing ? ' <span style="font-size:10px;color:#C9A84C;font-weight:700">sub</span>' : '') +
+              '</div>' +
+              '<div style="font-size:10px;color:#9CA3AF">Hcp ' + effectiveHandicap(p) + ' · ' + r.teamName + '</div>' +
+            '</div>' +
+            '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">' +
+              '<span style="font-size:12px;font-weight:600;color:' + (inSkins ? '#1B4332' : '#9CA3AF') + '">' + (inSkins ? 'In' : 'Out') + '</span>' +
+              '<div onclick="toggleSkinsIn(\'' + r.pid + '\',' + week + ')" style="position:relative;width:40px;height:22px;border-radius:11px;background:' + (inSkins ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s;cursor:pointer;flex-shrink:0">' +
+                '<div style="position:absolute;top:3px;' + (inSkins ? 'right:3px' : 'left:3px') + ';width:16px;height:16px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>' +
+              '</div>' +
+            '</label>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    });
+  } else {
+    // No matchups yet — just list all active players
+    playerHtml = rows.map(function(r) {
+      var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
+           || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
+      if (!p) return '';
+      var inSkins = !(lineup.skinsOut || []).includes(r.pid);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
+        avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:600;color:' + (inSkins ? '#1A1A1A' : '#9CA3AF') + '">' + playerName(p) +
+            (r.isSubbing ? ' <span style="font-size:10px;color:#C9A84C;font-weight:700">sub</span>' : '') +
+          '</div>' +
+          '<div style="font-size:10px;color:#9CA3AF">Hcp ' + effectiveHandicap(p) + ' · ' + r.teamName + '</div>' +
+        '</div>' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">' +
+          '<span style="font-size:12px;font-weight:600;color:' + (inSkins ? '#1B4332' : '#9CA3AF') + '">' + (inSkins ? 'In' : 'Out') + '</span>' +
+          '<div onclick="toggleSkinsIn(\'' + r.pid + '\',' + week + ')" style="position:relative;width:40px;height:22px;border-radius:11px;background:' + (inSkins ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s;cursor:pointer;flex-shrink:0">' +
+            '<div style="position:absolute;top:3px;' + (inSkins ? 'right:3px' : 'left:3px') + ';width:16px;height:16px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>' +
+          '</div>' +
+        '</label>' +
+      '</div>';
+    }).join('');
+  }
+
+  wrap.innerHTML =
+    '<div style="padding:0 16px 16px">' +
+      weekSel +
+      summaryHtml +
+      '<div class="card" style="padding:4px 12px">' + playerHtml + '</div>' +
+    '</div>';
+}
+
+function toggleSkinsIn(pid, week) {
+  var lineup = getWeekLineup(week);
+  var idx = lineup.skinsOut.indexOf(pid);
+  if (idx === -1) {
+    lineup.skinsOut.push(pid); // was in, now out
+  } else {
+    lineup.skinsOut.splice(idx, 1); // was out, now in
+  }
+  saveData();
+  renderSkinsAdmin();
+}
+
 function renderAnnounceList() {
   const wrap = document.getElementById('announce-panel-content');
   if (!wrap) return;
