@@ -4380,9 +4380,9 @@ function _checkProfileSuggestion(newId, regFirst, regLast) {
     if (p.claimed || p.googleEmail) return false;
     if (!onTeam.has(p.id)) return false;
     if (norm(p.lastName || '') !== regL) return false;
-    // First name: exact, starts-with, or within 3 chars (catches Bill/William, Bob/Robert)
+    // First name: exact match OR one name contains the other (catches Bill/William, Bob/Robert, Mike/Michael)
     const pF = norm(p.firstName || '');
-    return pF === regF || pF.startsWith(regF[0]) || regF.startsWith(pF[0]);
+    return pF === regF || pF.includes(regF) || regF.includes(pF);
   });
   if (!matches.length) return;
   _showProfileSuggestion(matches[0], newId, regFirst);
@@ -4433,6 +4433,7 @@ function _confirmProfileMatch(existingId, newId) {
   saveData();
   updateAvatarBtn();
   _dismissProfileSuggestion();
+  showSection('dashboard'); // re-render dashboard with the correct profile/team context
   showToast('Profile linked ✓');
 }
 
