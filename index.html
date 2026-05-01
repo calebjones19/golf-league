@@ -2769,21 +2769,26 @@ function switchLeagueSubTab(tab) {
     }
   });
 
-  // Inject context-appropriate action buttons
+  // Inject descriptor label + context-appropriate action buttons
   var row = document.getElementById('league-action-row');
   if (row) {
+    var descriptors = { basic: 'Name, course &amp; format', schedule: 'Season dates &amp; tee times', scoring: 'Points, handicaps &amp; skins', announce: '' };
+    var descriptor  = '<span style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:0.5px;text-transform:uppercase">' + (descriptors[tab] || '') + '</span>';
     var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
       '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
     var leOn  = adminEditModes['league']  || false;
     var scOn  = adminEditModes['scoring'] || false;
-    var leEditBtn  = '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')"'  + (leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
-    var leSaveBtn  = '<button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()"'           + (!leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
-    var scEditBtn  = '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')"'+ (scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
-    var scSaveBtn  = '<button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()"'         + (!scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
-    if      (tab === 'basic')    row.innerHTML = shareBtn + leEditBtn + leSaveBtn;
-    else if (tab === 'schedule') row.innerHTML = leEditBtn + leSaveBtn;
-    else if (tab === 'scoring')  row.innerHTML = scEditBtn + scSaveBtn;
-    else                         row.innerHTML = '';
+    var leEditBtn = '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')"'   + (leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
+    var leSaveBtn = '<button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()"'            + (!leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
+    var scEditBtn = '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')"' + (scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
+    var scSaveBtn = '<button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()"'          + (!scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
+    var btns = '';
+    if      (tab === 'basic')    btns = shareBtn + leEditBtn + leSaveBtn;
+    else if (tab === 'schedule') btns = leEditBtn + leSaveBtn;
+    else if (tab === 'scoring')  btns = scEditBtn + scSaveBtn;
+    row.innerHTML = descriptor + '<div style="display:flex;gap:6px">' + btns + '</div>';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems     = 'center';
   }
 
   if (tab === 'announce') renderAnnounceList();
