@@ -4364,7 +4364,81 @@ function joinLeague() {
     closeLanding();
     showSection('dashboard');
     showToast('Welcome to the league, ' + first + '! ⛳');
+    // After landing, check for a fuzzy-match unclaimed profile on a team
+    setTimeout(function(){ _checkProfileSuggestion(profile.id, first, last); }, 800);
   }
+}
+
+function _checkProfileSuggestion(newId, regFirst, regLast) {
+  const norm = s => (s || '').toLowerCase().trim();
+  const regL = norm(regLast);
+  const regF = norm(regFirst);
+  // Only suggest unclaimed profiles that are already on a team
+  const onTeam = new Set((DATA.teams || []).flatMap(function(t){ return t.playerIds || []; }));
+  const matches = (DATA.players || []).filter(function(p) {
+    if (p.id === newId) return false;
+    if (p.claimed || p.googleEmail) return false;
+    if (!onTeam.has(p.id)) return false;
+    if (norm(p.lastName || '') !== regL) return false;
+    // First name: exact, starts-with, or within 3 chars (catches Bill/William, Bob/Robert)
+    const pF = norm(p.firstName || '');
+    return pF === regF || pF.startsWith(regF[0]) || regF.startsWith(pF[0]);
+  });
+  if (!matches.length) return;
+  _showProfileSuggestion(matches[0], newId, regFirst);
+}
+
+function _showProfileSuggestion(suggestion, newId, firstName) {
+  if (document.getElementById('profile-suggestion-modal')) return;
+  const name = ((suggestion.firstName || '') + ' ' + (suggestion.lastName || '')).trim();
+  const el   = document.createElement('div');
+  el.id = 'profile-suggestion-modal';
+  el.style.cssText = 'position:fixed;inset:0;z-index:800;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.5)';
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:430px;' +
+        'padding:28px 20px max(24px,env(safe-area-inset-bottom));animation:slideUp 0.3s ease">' +
+      '<div style="text-align:center;margin-bottom:20px">' +
+        '<div style="font-size:34px;margin-bottom:8px">🤔</div>' +
+        '<div style="font-size:18px;font-weight:700;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">Is this you?</div>' +
+        '<div style="font-size:13px;color:#6B7280;margin-top:6px">We found an existing profile that might be yours</div>' +
+      '</div>' +
+      '<div style="background:#F5F0E8;border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">' +
+        '<div style="font-size:20px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">' + name + '</div>' +
+        (suggestion.handicap ? '<div style="font-size:12px;color:#6B7280;margin-top:3px">Handicap ' + suggestion.handicap + '</div>' : '') +
+      '</div>' +
+      '<button onclick="_confirmProfileMatch(\'' + suggestion.id + '\',\'' + newId + '\')" ' +
+        'style="width:100%;padding:14px;background:#1B4332;color:#fff;border:none;border-radius:12px;' +
+               'font-size:15px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-bottom:10px">' +
+        'Yes, that\'s me' +
+      '</button>' +
+      '<button onclick="_dismissProfileSuggestion()" ' +
+        'style="width:100%;padding:12px;background:none;border:none;color:#6B7280;font-size:14px;' +
+               'font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">' +
+        'No, I\'m a new member' +
+      '</button>' +
+    '</div>';
+  document.body.appendChild(el);
+}
+
+function _confirmProfileMatch(existingId, newId) {
+  const existing = (DATA.players || []).find(function(p){ return p.id === existingId; });
+  const newProf  = (DATA.players || []).find(function(p){ return p.id === newId; });
+  if (!existing || !newProf) { _dismissProfileSuggestion(); return; }
+  existing.googleEmail = newProf.googleEmail;
+  existing.googleUid   = newProf.googleUid;
+  existing.phone       = existing.phone || newProf.phone;
+  existing.claimed     = true;
+  DATA.players         = DATA.players.filter(function(p){ return p.id !== newId; });
+  DATA.currentUserId   = existing.id;
+  saveData();
+  updateAvatarBtn();
+  _dismissProfileSuggestion();
+  showToast('Profile linked ✓');
+}
+
+function _dismissProfileSuggestion() {
+  var el = document.getElementById('profile-suggestion-modal');
+  if (el) el.remove();
 }
 
 function verifyAdminTakeover() {
