@@ -2693,12 +2693,11 @@ function _applyTeeByIndex(teeIdx) {
   const tee = _activeTees[teeIdx];
   if (!tee || !tee.holes || !tee.holes.length) return;
 
-  const holes      = tee.holes.length;
+  // Use the hole count already selected in the form (defaults to 9).
+  // Slice API data to match — so a 9-hole league only imports the front 9.
+  const holes      = parseInt(document.querySelector('input[name="cfg-holes"]:checked')?.value || 9);
+  const holeData   = tee.holes.slice(0, holes);
   const isEditMode = adminEditModes['league'];
-
-  // Set holes radio
-  const radio = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
-  if (radio) radio.checked = true;
 
   // Build grids DIRECTLY from API data — bypasses renderHoleGrids() which
   // reads from DATA.league (last saved) and would wipe the imported values.
@@ -2707,11 +2706,11 @@ function _applyTeeByIndex(teeIdx) {
   const hcpGrid  = document.getElementById('hcp-grid');
   if (!parGrid || !hcpGrid) return;
 
-  if (labelsEl) labelsEl.innerHTML = tee.holes.map((_, i) =>
+  if (labelsEl) labelsEl.innerHTML = holeData.map((_, i) =>
     `<div class="hole-grid-label">H${i + 1}</div>`).join('');
-  parGrid.innerHTML = tee.holes.map((h, i) =>
+  parGrid.innerHTML = holeData.map((h, i) =>
     `<input type="number" min="3" max="6" placeholder="—" value="${h.par || ''}" id="par-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
-  hcpGrid.innerHTML = tee.holes.map((h, i) =>
+  hcpGrid.innerHTML = holeData.map((h, i) =>
     `<input type="number" min="1" max="${holes}" placeholder="—" value="${h.handicap || ''}" id="hcp-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
 
   // Build confirmation text; include tee switcher if multiple options exist
