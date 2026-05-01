@@ -534,7 +534,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
 
       <!-- Action row: injected by switchLeagueSubTab() -->
-      <div id="league-action-row" class="panel-header"></div>
+      <div id="league-action-row" class="panel-header" style="padding-top:14px;margin-top:2px"></div>
 
       <!-- ── Basic Info ─────────────────────────────────────── -->
       <div id="league-sec-basic">
@@ -2766,27 +2766,33 @@ function switchLeagueSubTab(tab) {
 
   // Inject descriptor label + context-appropriate action buttons
   var row = document.getElementById('league-action-row');
+  var announceSection = document.getElementById('league-sec-announce');
   if (row) {
-    // Announce tab has its own editModeBar header — hide the action row entirely
-    if (tab === 'announce') { row.style.display = 'none'; return; }
-    row.style.display = '';
-    var descriptors = { basic: 'Name, course & format', schedule: 'Season dates & tee times', scoring: 'Points, handicaps & skins' };
-    var descriptor = '<span class="panel-title">' + (descriptors[tab] || '') + '</span>';
-    var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
-    var leOn = adminEditModes['league']  || false;
-    var scOn = adminEditModes['scoring'] || false;
-    var leToggle = leOn
-      ? '<button id="edit-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()">Save</button>'
-      : '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')">Edit</button>';
-    var scToggle = scOn
-      ? '<button id="edit-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()">Save</button>'
-      : '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')">Edit</button>';
-    var btns = '';
-    if      (tab === 'basic')    btns = shareBtn + leToggle;
-    else if (tab === 'schedule') btns = leToggle;
-    else if (tab === 'scoring')  btns = scToggle;
-    row.innerHTML = descriptor + '<div style="display:flex;gap:6px">' + btns + '</div>';
+    if (tab === 'announce') {
+      // Announce tab manages its own header inside renderAnnounceList — hide action row
+      row.style.display = 'none';
+      if (announceSection) announceSection.style.paddingTop = '14px';
+    } else {
+      row.style.display = '';
+      if (announceSection) announceSection.style.paddingTop = '';
+      var descriptors = { basic: 'Name, course & format', schedule: 'Season dates & tee times', scoring: 'Points, handicaps & skins' };
+      var descriptor = '<span class="panel-title">' + (descriptors[tab] || '') + '</span>';
+      var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
+      var leOn = adminEditModes['league']  || false;
+      var scOn = adminEditModes['scoring'] || false;
+      var leToggle = leOn
+        ? '<button id="edit-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()">Save</button>'
+        : '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')">Edit</button>';
+      var scToggle = scOn
+        ? '<button id="edit-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()">Save</button>'
+        : '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')">Edit</button>';
+      var btns = '';
+      if      (tab === 'basic')    btns = shareBtn + leToggle;
+      else if (tab === 'schedule') btns = leToggle;
+      else if (tab === 'scoring')  btns = scToggle;
+      row.innerHTML = descriptor + '<div style="display:flex;gap:6px">' + btns + '</div>';
+    }
   }
 
   if (tab === 'announce') renderAnnounceList();
