@@ -5151,10 +5151,6 @@ function openProfileSheet() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Admin Sign In
       </button>`;
     }
-    // Show unlink button if a player profile is linked (lets user fix a wrong match)
-    if (player) {
-      adminBtnHtml += `<button onclick="unlinkPlayerProfile()" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1.5px solid #E5E7EB;border-radius:10px;padding:12px;font-size:13px;font-weight:600;color:#9CA3AF;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px">Not ${playerFirstName(player)}? Unlink profile</button>`;
-    }
     adminWrap.innerHTML = adminBtnHtml;
   }
 
@@ -5308,24 +5304,6 @@ function closeProfileSheet(e) {
   closeOverlayAnimated('profile-overlay');
 }
 
-function unlinkPlayerProfile() {
-  const player = DATA.players.find(p => p.id === DATA.currentUserId);
-  if (!player) return;
-  if (!confirm('Unlink your account from ' + playerName(player) + '? You can re-link to the correct profile afterward.')) return;
-
-  // Clear the link from the player record so it's available to reclaim
-  delete player.googleUid;
-  delete player.googleEmail;
-  player.claimed = false;
-
-  // Clear the local session pointer
-  DATA.currentUserId = null;
-  saveData();
-  updateAvatarBtn();
-  closeOverlayAnimated('profile-overlay');
-  buildDashboard();
-  showToast('Profile unlinked. Sign in again to link the right one.');
-}
 
 // ── Swipe-down to close profile sheet ───────────────────────
 (function() {
