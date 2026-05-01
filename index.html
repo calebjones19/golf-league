@@ -1000,7 +1000,10 @@ function _applyRemoteData(raw) {
   // Players: keep whichever array is longer — protects against accidental roster wipes.
   const localPlayers  = Array.isArray(DATA.players)  ? DATA.players  : [];
   const remotePlayers = Array.isArray(raw.players)   ? raw.players   : [];
+  // currentUserId is per-device only — preserve the local value, never overwrite from Firestore.
+  const savedUserId = DATA.currentUserId;
   DATA = { ...DATA, ...raw };
+  DATA.currentUserId = savedUserId;
   DATA.messages = remoteMsgs;
   DATA.players  = remotePlayers.length >= localPlayers.length ? remotePlayers : localPlayers;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
@@ -1123,8 +1126,11 @@ function stopFirestoreSync() {
 }
 
 function _dataForFirestore() {
-  // Strip undefined values — Firestore doesn't accept them
-  return JSON.parse(JSON.stringify(DATA));
+  // Strip undefined values — Firestore doesn't accept them.
+  // currentUserId is a per-device field — NEVER write it to the shared Firestore doc.
+  const out = JSON.parse(JSON.stringify(DATA));
+  delete out.currentUserId;
+  return out;
 }
 
 function saveData() {
@@ -4227,6 +4233,19 @@ function confirmClaimProfile(playerId, skip) {
   const player = DATA.players.find(p => p.id === playerId);
   if (!player) return;
   const phone = skip ? '' : (document.getElementById('claim-phone-input').value.trim());
+
+  // Unlink this Google account from any OTHER player it was previously linked to
+  // so one Google account can never be stamped on two profiles at once.
+  DATA.players.forEach(function(p) {
+    if (p.id === playerId) return; // skip the target
+    if ((p.googleUid && p.googleUid === user.uid) ||
+        (p.googleEmail && p.googleEmail.toLowerCase() === user.email.toLowerCase())) {
+      delete p.googleUid;
+      delete p.googleEmail;
+      p.claimed = false;
+    }
+  });
+
   player.googleUid   = user.uid;
   player.googleEmail = user.email.toLowerCase();
   player.claimed     = true;
@@ -4395,7 +4414,27 @@ function joinLeague() {
   const user = auth.currentUser;
   if (!user) { showToast('Not signed in — please refresh and try again'); return; }
 
+  // Guard: if already linked to a player profile, don't re-register
+  if (DATA.currentUserId) {
+    closeLanding();
+    showSection('dashboard');
+    return;
+  }
+
   const email = user.email.toLowerCase();
+
+  // Helper: strip this Google account off any other player before linking to a new one
+  function _unlinkFromOthers(targetId) {
+    DATA.players.forEach(function(p) {
+      if (p.id === targetId) return;
+      if ((p.googleUid && p.googleUid === user.uid) ||
+          (p.googleEmail && p.googleEmail.toLowerCase() === email)) {
+        delete p.googleUid;
+        delete p.googleEmail;
+        p.claimed = false;
+      }
+    });
+  }
 
   // For members, try to match an existing unclaimed player profile by name.
   // This lets admins pre-build rosters; players just type their name to claim their spot.
@@ -4407,6 +4446,7 @@ function joinLeague() {
       normalize((p.firstName || '') + ' ' + (p.lastName || '')) === fullName
     );
     if (existing) {
+      _unlinkFromOthers(existing.id);
       existing.googleEmail = email;
       existing.googleUid   = user.uid;
       existing.phone       = existing.phone || phone;
@@ -4422,7 +4462,17 @@ function joinLeague() {
   }
 
   // No match found (or registering as sub) — create a brand new profile
-  const id      = (type === 'sub' ? 's' : 'p') + Date.now();
+  // Clear this Google account off any previous player link before creating a new one
+  const newId = (type === 'sub' ? 's' : 'p') + Date.now();
+  DATA.players.forEach(function(p) {
+    if ((p.googleUid && p.googleUid === user.uid) ||
+        (p.googleEmail && p.googleEmail.toLowerCase() === email)) {
+      delete p.googleUid;
+      delete p.googleEmail;
+      p.claimed = false;
+    }
+  });
+  const id      = newId;
   const profile = { id, firstName: first, lastName: last, handicap: 0, phone,
                     googleEmail: email, googleUid: user.uid, claimed: true };
 
