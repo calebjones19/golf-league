@@ -991,6 +991,48 @@ let isAdmin = false;
 var _firestoreUnsubscribe = null;
 var _firestoreLoaded = false;
 
+// Scan all players for duplicate googleUid / googleEmail assignments.
+// If the same UID or email appears on more than one player, keep it only on:
+//   1. The player matching DATA.currentUserId (device knows who it is), or
+//   2. The first player found (oldest record) as a fallback.
+// Returns true if any data was changed (caller should saveData).
+function _deduplicatePlayerLinks() {
+  if (!Array.isArray(DATA.players) || DATA.players.length === 0) return false;
+  let changed = false;
+
+  // Build maps: uid → [player], email → [player]
+  const byUid   = {};
+  const byEmail = {};
+  DATA.players.forEach(function(p) {
+    if (p.googleUid) {
+      if (!byUid[p.googleUid]) byUid[p.googleUid] = [];
+      byUid[p.googleUid].push(p);
+    }
+    if (p.googleEmail) {
+      const e = p.googleEmail.toLowerCase();
+      if (!byEmail[e]) byEmail[e] = [];
+      byEmail[e].push(p);
+    }
+  });
+
+  function _keepBest(list) {
+    if (list.length <= 1) return;
+    // Prefer the player matching currentUserId; otherwise first in list
+    const keeper = list.find(function(p) { return p.id === DATA.currentUserId; }) || list[0];
+    list.forEach(function(p) {
+      if (p.id === keeper.id) return;
+      delete p.googleUid;
+      delete p.googleEmail;
+      p.claimed = false;
+      changed = true;
+    });
+  }
+
+  Object.values(byUid).forEach(_keepBest);
+  Object.values(byEmail).forEach(_keepBest);
+  return changed;
+}
+
 function _applyRemoteData(raw) {
   if (!raw) return;
   // Preserve whichever messages array is longer — never downgrade message count
@@ -1056,6 +1098,8 @@ function startFirestoreSync() {
     const remote = snap.data();
     _applyRemoteData(remote);
     _firestoreLoaded = true;
+    // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
+    if (_deduplicatePlayerLinks()) saveData();
 
     // Re-attempt player matching if we still don't know who the user is.
     // This handles the race where auth resolved before Firestore data arrived.
