@@ -158,9 +158,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .badge-carryover{background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
 .badge-live{display:inline-flex;align-items:center;gap:4px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:0.5px}
 /* Admin nav tabs */
-.admin-nav{display:flex;overflow-x:auto;background:rgba(250,247,240,0.88);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(0,0,0,0.08);box-shadow:inset 0 -1px 0 rgba(255,255,255,0.5);scrollbar-width:none;flex-shrink:0}
-.admin-nav::-webkit-scrollbar{display:none}
-.admin-nav-tab{flex-shrink:0;padding:11px 14px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
+.admin-nav{display:flex;overflow:hidden;background:rgba(250,247,240,0.88);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(0,0,0,0.08);box-shadow:inset 0 -1px 0 rgba(255,255,255,0.5);flex-shrink:0}
+.admin-nav-tab{flex:1;padding:11px 4px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;text-align:center;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
 .admin-nav-tab.active{color:#1B4332;border-bottom-color:#C9A84C}
 .admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
 .admin-panel.active{display:block;min-height:0}
@@ -521,231 +520,238 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <button class="admin-nav-tab" onclick="switchAdminTab('players',this)">Players</button>
       <button class="admin-nav-tab" onclick="switchAdminTab('teams',this)">Teams</button>
       <button class="admin-nav-tab" onclick="switchAdminTab('matchups',this)">Matchups</button>
-      <button class="admin-nav-tab" onclick="switchAdminTab('scoring',this)">Scoring</button>
-      <button class="admin-nav-tab" onclick="switchAdminTab('announce',this)">Announce</button>
     </div>
 
-    <!-- League Setup -->
+    <!-- League Setup (sub-tabbed: Basic Info | Schedule | Scoring) -->
     <div class="admin-panel active" id="admin-league">
-      <div class="panel-header">
-        <span class="panel-title">League Setup</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            Share
-          </button>
-          <button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
-          <button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
-        </div>
+
+      <!-- Sub-tab bar -->
+      <div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:12px 16px 0" id="league-subtab-bar">
+        <button id="league-stab-basic"    style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)" onclick="switchLeagueSubTab('basic')">Basic Info</button>
+        <button id="league-stab-schedule" style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('schedule')">Schedule</button>
+        <button id="league-stab-scoring"  style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('scoring')">Scoring</button>
+        <button id="league-stab-announce" style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('announce')">Announce</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">League Name</label>
-        <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League" disabled>
-      </div>
-      <div class="form-group">
-        <label class="form-label">League Code <span style="font-weight:400;color:#9CA3AF">(players enter this to self-register)</span></label>
-        <input class="form-input" id="cfg-league-code" placeholder="e.g. EAGLES25" disabled autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;letter-spacing:2px;text-transform:uppercase">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:5px">Share this with your group. Leave blank to disable self-join.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Golf Course</label>
-        <div class="course-search-wrap">
-          <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)" disabled>
-          <div class="course-dropdown" id="course-dropdown"></div>
-        </div>
-        <div id="course-selected" style="display:none;margin-top:6px;font-size:12px;color:#16A34A;font-weight:600"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Holes</label>
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="cfg-holes" value="9" checked disabled> 9 Holes</label>
-          <label class="radio-label"><input type="radio" name="cfg-holes" value="18" disabled> 18 Holes</label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Course Setup</label>
-        <div id="hcp-grid-labels" class="hole-grid" style="margin-bottom:6px"></div>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">Par</div>
-          <div id="par-grid" class="hole-grid" style="margin:0;flex:1"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">HCP</div>
-          <div id="hcp-grid" class="hole-grid" style="margin:0;flex:1"></div>
-        </div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
-      </div>
-      <div class="form-group">
-        <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-end">
-          <div>
-            <label class="form-label">Start Date</label>
-            <input class="form-input" type="date" id="cfg-start" style="width:auto" disabled>
-          </div>
-          <div>
-            <label class="form-label">Weeks</label>
-            <input class="compact-num" type="number" id="cfg-weeks" min="1" max="40" value="16" disabled>
+
+      <!-- ── Basic Info ─────────────────────────────────────── -->
+      <div id="league-sec-basic">
+        <div class="panel-header">
+          <span class="panel-title">Basic Info</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Share
+            </button>
+            <button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
+            <button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
           </div>
         </div>
-        <div style="display:flex;gap:12px;align-items:flex-end">
-          <div>
-            <label class="form-label">Start Time</label>
-            <input class="form-input" type="time" id="cfg-start-time" value="17:30" style="width:auto" disabled>
+        <div class="form-group">
+          <label class="form-label">League Name</label>
+          <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League" disabled>
+        </div>
+        <div class="form-group">
+          <label class="form-label">League Code <span style="font-weight:400;color:#9CA3AF">(players enter this to self-register)</span></label>
+          <input class="form-input" id="cfg-league-code" placeholder="e.g. EAGLES25" disabled autocapitalize="characters" autocorrect="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;letter-spacing:2px;text-transform:uppercase">
+          <div style="font-size:11px;color:#9CA3AF;margin-top:5px">Share this with your group. Leave blank to disable self-join.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Golf Course</label>
+          <div class="course-search-wrap">
+            <input class="form-input" id="cfg-course" placeholder="Search for a course..." autocomplete="off" oninput="searchCourse(this.value)" disabled>
+            <div class="course-dropdown" id="course-dropdown"></div>
           </div>
-          <div>
-            <label class="form-label">Interval</label>
-            <input class="compact-num" type="number" id="cfg-tee-interval" min="5" max="30" value="8" disabled>
+          <div id="course-selected" style="display:none;margin-top:6px;font-size:12px;color:#16A34A;font-weight:600"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Holes</label>
+          <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="cfg-holes" value="9" checked disabled> 9 Holes</label>
+            <label class="radio-label"><input type="radio" name="cfg-holes" value="18" disabled> 18 Holes</label>
           </div>
-          <div style="padding-bottom:13px;white-space:nowrap">
-            <span style="font-size:11px;color:#9CA3AF">mins apart</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Course Setup</label>
+          <div id="hcp-grid-labels" class="hole-grid" style="margin-bottom:6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">Par</div>
+            <div id="par-grid" class="hole-grid" style="margin:0;flex:1"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">HCP</div>
+            <div id="hcp-grid" class="hole-grid" style="margin:0;flex:1"></div>
+          </div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">League Format</label>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px">
+            <label id="fmt-mp-wrap" style="display:flex;align-items:flex-start;gap:12px;cursor:not-allowed;opacity:0.55">
+              <input type="checkbox" id="cfg-format-matchplay" disabled style="margin-top:2px;width:17px;height:17px;accent-color:#1B4332;cursor:pointer;flex-shrink:0">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1A1A1A">Match Play</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:1px">Teams compete head-to-head each week</div>
+              </div>
+            </label>
+            <label id="fmt-sf-wrap" style="display:flex;align-items:flex-start;gap:12px;cursor:not-allowed;opacity:0.55">
+              <input type="checkbox" id="cfg-format-stableford" disabled style="margin-top:2px;width:17px;height:17px;accent-color:#1B4332;cursor:pointer;flex-shrink:0">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1A1A1A">Stableford</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:1px">Individual points race runs alongside — separate winner</div>
+              </div>
+            </label>
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <label class="form-label" style="margin:0">Cancellations</label>
-          <button class="btn-sm btn-outline" id="btn-add-cancellation" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
+
+      <!-- ── Schedule ───────────────────────────────────────── -->
+      <div id="league-sec-schedule" style="display:none">
+        <div class="panel-header">
+          <span class="panel-title">Schedule</span>
+          <div style="display:flex;gap:8px">
+            <button id="edit-btn-league-sched" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
+            <button id="save-btn-league-sched" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
+          </div>
         </div>
-        <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
-        <div id="schedule-list"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">League Format</label>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px">
-          <label id="fmt-mp-wrap" style="display:flex;align-items:flex-start;gap:12px;cursor:not-allowed;opacity:0.55">
-            <input type="checkbox" id="cfg-format-matchplay" disabled style="margin-top:2px;width:17px;height:17px;accent-color:#1B4332;cursor:pointer;flex-shrink:0">
+        <div class="form-group">
+          <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-end">
             <div>
-              <div style="font-size:13px;font-weight:600;color:#1A1A1A">Match Play</div>
-              <div style="font-size:11px;color:#9CA3AF;margin-top:1px">Teams compete head-to-head each week</div>
+              <label class="form-label">Start Date</label>
+              <input class="form-input" type="date" id="cfg-start" style="width:auto" disabled>
             </div>
-          </label>
-          <label id="fmt-sf-wrap" style="display:flex;align-items:flex-start;gap:12px;cursor:not-allowed;opacity:0.55">
-            <input type="checkbox" id="cfg-format-stableford" disabled style="margin-top:2px;width:17px;height:17px;accent-color:#1B4332;cursor:pointer;flex-shrink:0">
             <div>
-              <div style="font-size:13px;font-weight:600;color:#1A1A1A">Stableford</div>
-              <div style="font-size:11px;color:#9CA3AF;margin-top:1px">Individual points race runs alongside — separate winner</div>
+              <label class="form-label">Weeks</label>
+              <input class="compact-num" type="number" id="cfg-weeks" min="1" max="40" value="16" disabled>
             </div>
-          </label>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-end">
+            <div>
+              <label class="form-label">Start Time</label>
+              <input class="form-input" type="time" id="cfg-start-time" value="17:30" style="width:auto" disabled>
+            </div>
+            <div>
+              <label class="form-label">Interval</label>
+              <input class="compact-num" type="number" id="cfg-tee-interval" min="5" max="30" value="8" disabled>
+            </div>
+            <div style="padding-bottom:13px;white-space:nowrap">
+              <span style="font-size:11px;color:#9CA3AF">mins apart</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label class="form-label" style="margin:0">Cancellations</label>
+            <button class="btn-sm btn-outline" id="btn-add-cancellation" style="font-size:11px;padding:4px 10px" onclick="showAddWeekOff()">+ Add</button>
+          </div>
+          <div id="schedule-end-date" style="font-size:11px;color:#6B7280;margin-bottom:8px"></div>
+          <div id="schedule-list"></div>
         </div>
       </div>
-    </div>
 
-    <!-- Players -->
-    <div class="admin-panel" id="admin-players">
-      <div id="players-panel-content"></div>
-    </div>
+      <!-- ── Scoring ────────────────────────────────────────── -->
+      <div id="league-sec-scoring" style="display:none">
+        <div class="panel-header">
+          <span class="panel-title">Scoring</span>
+          <div style="display:flex;gap:8px">
+            <button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode('scoring')">Edit</button>
+            <button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
+        <div class="form-group">
+          <label class="form-label">Scoring Type</label>
+          <div class="radio-group" style="flex-direction:column;gap:8px">
+            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="bestball" checked disabled> <div><div style="font-weight:600">Best Ball</div><div style="font-size:11px;color:#9CA3AF">Each team uses the lower net score of their two players</div></div></label>
+            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="total" disabled> <div><div style="font-weight:600">Total Score</div><div style="font-size:11px;color:#9CA3AF">Team's combined net score per hole competes vs opponent</div></div></label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="margin-bottom:10px">Points</label>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">PER HOLE WIN</div>
+              <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0" step="0.5" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+            </div>
+            <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MATCH WIN</div>
+              <input class="form-input" type="number" id="cfg-pts-match" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+            </div>
+            <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MEDAL</div>
+              <input class="form-input" type="number" id="cfg-pts-medal" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
+            </div>
+          </div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:8px;line-height:1.5">
+            <b>Match Win</b> = bonus for winning most holes · <b>Medal</b> = bonus for best total net score
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Points for a tied hole</label>
+          <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:100px" disabled>
+        </div>
+        <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">HANDICAPS</div>
+        <div class="toggle-wrap" style="padding:0 0 10px">
+          <div>
+            <div class="toggle-label">Auto-calculate handicaps</div>
+            <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Calculate from submitted round scores</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="cfg-auto-hcp" onchange="toggleAutoHcp(this)" disabled><span class="toggle-slider"></span></label>
+        </div>
+        <div id="auto-hcp-settings" style="display:none">
+          <div style="display:flex;gap:10px;margin-bottom:10px">
+            <div style="flex:1">
+              <label class="form-label">Rounds used</label>
+              <input class="form-input" type="number" id="cfg-hcp-rounds" value="6" min="1" max="20" disabled>
+            </div>
+            <div style="flex:1">
+              <label class="form-label">% factor</label>
+              <input class="form-input" type="number" id="cfg-hcp-pct" value="90" min="50" max="100" disabled>
+            </div>
+            <div style="flex:1">
+              <label class="form-label">Max HCP</label>
+              <input class="form-input" type="number" id="cfg-hcp-max" value="36" min="0" max="72" disabled>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.5">
+            Uses last <b id="hcp-rounds-preview">6</b> rounds · takes best half · multiplied by <b id="hcp-pct-preview">90</b>% · capped at <b id="hcp-max-preview">36</b>. Recalculates after every submitted round.
+          </div>
+        </div>
+        <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">STABLEFORD</div>
+        <div class="radio-group" style="margin-bottom:14px">
+          <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()" disabled> Standard</label>
+          <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()" disabled> Modified</label>
+        </div>
+        <div id="stableford-table"></div>
+        <div class="divider" style="margin:16px 0;background:#E5E7EB"></div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SKINS</div>
+        <div class="toggle-wrap">
+          <span class="toggle-label">Skins enabled</span>
+          <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)" disabled><span class="toggle-slider"></span></label>
+        </div>
+        <div id="skins-fee-row" style="display:none">
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Entry fee per player per week ($)</label>
+            <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:100px" disabled>
+          </div>
+          <div style="background:#F9FAFB;border-radius:10px;padding:12px;margin-top:4px">
+            <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">RULES</div>
+            <div style="font-size:12px;color:#374151;line-height:1.8">
+              🏌️ Players must pay in to be eligible to win<br>
+              🤝 Tied hole = no winner, pot carries over<br>
+              💰 Multiple winners split the pot<br>
+              🔁 Unclaimed pot rolls to the next week
+            </div>
+          </div>
+        </div>
+      </div>
 
-    <!-- Teams -->
-    <div class="admin-panel" id="admin-teams">
-      <div id="teams-panel-content"></div>
-    </div>
+      <!-- ── Announce ───────────────────────────────────────── -->
+      <div id="league-sec-announce" style="display:none">
+        <div id="announce-panel-content"></div>
+      </div>
 
-    <!-- Matchups -->
-    <div class="admin-panel" id="admin-matchups">
-      <div id="matchups-panel-content"></div>
-    </div>
-
-    <!-- Scoring -->
-    <div class="admin-panel" id="admin-scoring">
-      <div class="panel-header">
-        <span class="panel-title">Scoring</span>
-        <div style="display:flex;gap:8px">
-          <button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode('scoring')">Edit</button>
-          <button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
-        </div>
-      </div>
-      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
-      <div class="form-group">
-        <label class="form-label">Scoring Type</label>
-        <div class="radio-group" style="flex-direction:column;gap:8px">
-          <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="bestball" checked disabled> <div><div style="font-weight:600">Best Ball</div><div style="font-size:11px;color:#9CA3AF">Each team uses the lower net score of their two players</div></div></label>
-          <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="total" disabled> <div><div style="font-weight:600">Total Score</div><div style="font-size:11px;color:#9CA3AF">Team's combined net score per hole competes vs opponent</div></div></label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" style="margin-bottom:10px">Points</label>
-        <div style="display:flex;gap:10px">
-          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">PER HOLE WIN</div>
-            <input class="form-input" type="number" id="cfg-pts-hole" value="1" min="0" step="0.5" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
-          </div>
-          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MATCH WIN</div>
-            <input class="form-input" type="number" id="cfg-pts-match" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
-          </div>
-          <div style="flex:1;background:#F9FAFB;border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:8px">MEDAL</div>
-            <input class="form-input" type="number" id="cfg-pts-medal" value="1" min="0" style="text-align:center;font-weight:700;font-size:16px;padding:8px 4px" disabled>
-          </div>
-        </div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:8px;line-height:1.5">
-          <b>Match Win</b> = bonus for winning most holes · <b>Medal</b> = bonus for best total net score
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Points for a tied hole</label>
-        <input class="form-input" type="number" id="cfg-pts-tie" value="0.5" min="0" step="0.5" style="max-width:100px" disabled>
-      </div>
-      <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
-      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">HANDICAPS</div>
-      <div class="toggle-wrap" style="padding:0 0 10px">
-        <div>
-          <div class="toggle-label">Auto-calculate handicaps</div>
-          <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Calculate from submitted round scores</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="cfg-auto-hcp" onchange="toggleAutoHcp(this)" disabled><span class="toggle-slider"></span></label>
-      </div>
-      <div id="auto-hcp-settings" style="display:none">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <div style="flex:1">
-            <label class="form-label">Rounds used</label>
-            <input class="form-input" type="number" id="cfg-hcp-rounds" value="6" min="1" max="20" disabled>
-          </div>
-          <div style="flex:1">
-            <label class="form-label">% factor</label>
-            <input class="form-input" type="number" id="cfg-hcp-pct" value="90" min="50" max="100" disabled>
-          </div>
-          <div style="flex:1">
-            <label class="form-label">Max HCP</label>
-            <input class="form-input" type="number" id="cfg-hcp-max" value="36" min="0" max="72" disabled>
-          </div>
-        </div>
-        <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.5">
-          Uses last <b id="hcp-rounds-preview">6</b> rounds · takes best half · multiplied by <b id="hcp-pct-preview">90</b>% · capped at <b id="hcp-max-preview">36</b>. Recalculates after every submitted round.
-        </div>
-      </div>
-      <div class="divider" style="margin:4px 0 16px;background:#E5E7EB"></div>
-      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">STABLEFORD</div>
-      <div class="radio-group" style="margin-bottom:14px">
-        <label class="radio-label"><input type="radio" name="cfg-stableford" value="standard" checked onchange="updateStablefordTable()" disabled> Standard</label>
-        <label class="radio-label"><input type="radio" name="cfg-stableford" value="modified" onchange="updateStablefordTable()" disabled> Modified</label>
-      </div>
-      <div id="stableford-table"></div>
-      <div class="divider" style="margin:16px 0;background:#E5E7EB"></div>
-      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SKINS</div>
-      <div class="toggle-wrap">
-        <span class="toggle-label">Skins enabled</span>
-        <label class="toggle"><input type="checkbox" id="cfg-skins-on" onchange="toggleSkinsSection(this)" disabled><span class="toggle-slider"></span></label>
-      </div>
-      <div id="skins-fee-row" style="display:none">
-        <div class="form-group" style="margin-top:10px">
-          <label class="form-label">Entry fee per player per week ($)</label>
-          <input class="form-input" type="number" id="cfg-skins-fee" value="5" min="1" style="max-width:100px" disabled>
-        </div>
-        <div style="background:#F9FAFB;border-radius:10px;padding:12px;margin-top:4px">
-          <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">RULES</div>
-          <div style="font-size:12px;color:#374151;line-height:1.8">
-            🏌️ Players must pay in to be eligible to win<br>
-            🤝 Tied hole = no winner, pot carries over<br>
-            💰 Multiple winners split the pot<br>
-            🔁 Unclaimed pot rolls to the next week
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Announcements -->
-    <div class="admin-panel" id="admin-announce">
-      <div id="announce-panel-content"></div>
     </div>
   </section>
 
@@ -917,10 +923,16 @@ function refreshEditModeUI(panel) {
   const saveBtn = document.getElementById('save-btn-' + panel);
   if (editBtn) { editBtn.disabled = on; editBtn.style.opacity = on ? '0.35' : '1'; editBtn.style.cursor = on ? 'not-allowed' : ''; }
   if (saveBtn) { saveBtn.disabled = !on; saveBtn.style.opacity = !on ? '0.35' : '1'; saveBtn.style.cursor = !on ? 'not-allowed' : ''; }
-  // For static-HTML panels, toggle all inputs
-  if (panel === 'league' || panel === 'scoring') {
-    const panelEl = document.getElementById('admin-' + panel);
-    if (panelEl) panelEl.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
+  // For static-HTML panels, toggle inputs scoped to sub-section only
+  if (panel === 'league') {
+    ['league-sec-basic','league-sec-schedule'].forEach(function(id) {
+      const sec = document.getElementById(id);
+      if (sec) sec.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
+    });
+  }
+  if (panel === 'scoring') {
+    const sec = document.getElementById('league-sec-scoring');
+    if (sec) sec.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
   }
   // Update format checkbox label opacity when league edit mode changes
   if (panel === 'league') {
@@ -957,11 +969,11 @@ function calcTeeTime(matchupIndexInWeek) {
 // ── Weekly lineup helpers ────────────────────────────────────────────────────
 function getWeekLineup(week) {
   if (!DATA.weeklyLineups) DATA.weeklyLineups = {};
-  if (!DATA.weeklyLineups[week]) DATA.weeklyLineups[week] = { subs: {}, absent: [], skinsOut: [] };
+  if (!DATA.weeklyLineups[week]) DATA.weeklyLineups[week] = { subs: {}, absent: [], skinsIn: [] };
   var l = DATA.weeklyLineups[week];
-  if (!l.subs)     l.subs     = {};
-  if (!l.absent)   l.absent   = [];
-  if (!l.skinsOut) l.skinsOut = [];
+  if (!l.subs)    l.subs    = {};
+  if (!l.absent)  l.absent  = [];
+  if (!l.skinsIn) l.skinsIn = [];
   return l;
 }
 // Returns the effective player id for a roster slot this week (may be a sub)
@@ -2387,8 +2399,8 @@ function buildSkins() {
       : (tB ? tB.playerIds : []);
     // Filter to only players who were opted into skins for this round's week
     var roundWeek = r.week || null;
-    var skinsOut = roundWeek ? (getWeekLineup(roundWeek).skinsOut || []) : [];
-    var allPids = idsA.concat(idsB).filter(function(pid){ return !skinsOut.includes(pid); });
+    var skinsIn = roundWeek ? (getWeekLineup(roundWeek).skinsIn || []) : [];
+    var allPids = idsA.concat(idsB).filter(function(pid){ return skinsIn.length === 0 || skinsIn.includes(pid); });
     var potPerHole = allPids.length * fee;
 
     for (var h = 0; h < numHoles; h++) {
@@ -2744,7 +2756,25 @@ function buildStablefordLeaderboard(targetElId) {
 // ADMIN PANEL
 // ============================================================
 var _currentAdminTab = 'league';
-var _adminTabOrder   = ['league','players','teams','matchups','scoring','announce'];
+var _adminTabOrder   = ['league','players','teams','matchups'];
+var _leagueSubTab    = 'basic';
+
+function switchLeagueSubTab(tab) {
+  _leagueSubTab = tab;
+  ['basic','schedule','scoring','announce'].forEach(function(t) {
+    var sec = document.getElementById('league-sec-' + t);
+    var btn = document.getElementById('league-stab-' + t);
+    var active = t === tab;
+    if (sec) sec.style.display = active ? '' : 'none';
+    if (btn) {
+      btn.style.background   = active ? '#fff' : 'transparent';
+      btn.style.color        = active ? '#1B4332' : '#6B7280';
+      btn.style.boxShadow    = active ? '0 1px 3px rgba(0,0,0,0.08)' : '';
+    }
+  });
+  if (tab === 'announce') renderAnnounceList();
+  if (tab === 'scoring')  { loadScoringForm(); refreshEditModeUI('scoring'); }
+}
 function switchAdminTab(id, btn) {
   const prevIdx = _adminTabOrder.indexOf(_currentAdminTab);
   const nextIdx = _adminTabOrder.indexOf(id);
@@ -2769,11 +2799,11 @@ function buildAdmin() {
   loadLeagueForm();
   refreshEditModeUI('league');
   renderScheduleList();
+  loadScoringForm();
+  refreshEditModeUI('scoring');
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
-  loadScoringForm();
-  refreshEditModeUI('scoring');
   renderAnnounceList();
 }
 
@@ -3241,7 +3271,7 @@ function renderPlayersList() {
   }
   const tabBar =
     '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin-bottom:14px">' +
-      tabBtn('members', 'Members') + tabBtn('subs', 'Subs') + tabBtn('tonight', 'Tonight') +
+      tabBtn('members', 'Members') + tabBtn('subs', 'Subs') + tabBtn('lineup', 'Lineup') +
     '</div>';
 
   const addPlayerBtnHtml =
@@ -3256,21 +3286,35 @@ function renderPlayersList() {
       'Add Sub' +
     '</button>';
 
-  // ── Tonight tab ──────────────────────────────────────────────
-  let tonightPanel = '';
-  if (activeSubTab === 'tonight') {
-    const week   = getCurrentWeek();
+  // ── Lineup tab ───────────────────────────────────────────────
+  let lineupPanel = '';
+  if (activeSubTab === 'lineup') {
+    const totalWeeks = (DATA.schedule || []).length || (DATA.league && DATA.league.weeks) || 18;
+    const curWeek    = getCurrentWeek();
+    if (!window._lineupWeek) window._lineupWeek = curWeek;
+    const week   = window._lineupWeek;
     const lineup = getWeekLineup(week);
+
+    // Week selector
+    let weekOpts = '';
+    for (let w = 1; w <= totalWeeks; w++) {
+      weekOpts += '<option value="' + w + '"' + (w === week ? ' selected' : '') + '>Week ' + w + (w === curWeek ? ' (current)' : '') + '</option>';
+    }
+    const weekSel = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+      '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</label>' +
+      '<select class="form-input" style="flex:1;padding:6px 10px;font-size:13px" onchange="window._lineupWeek=+this.value;renderPlayersList()">' + weekOpts + '</select>' +
+    '</div>';
+
     const weekMatchups = (DATA.matchups || []).filter(function(m){ return m.week === week; });
     if (weekMatchups.length === 0) {
-      tonightPanel = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + week + '.</div>';
+      lineupPanel = weekSel + '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + week + '.</div>';
     } else {
       const rows = weekMatchups.map(function(m, idx) {
         const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
         const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
         if (!tA || !tB) return '';
         const teeTime = calcTeeTime(idx);
-        function playerRow(pid, teamName) {
+        function playerRow(pid) {
           const isAbsent = (lineup.absent || []).includes(pid);
           const subPid   = lineup.subs[pid];
           const orig     = DATA.players.find(function(p){ return p.id === pid; });
@@ -3305,11 +3349,11 @@ function renderPlayersList() {
             '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.4px">' + tA.name + ' vs ' + tB.name + '</div>' +
             '<span style="font-size:10px;color:#C9A84C;font-weight:700">' + teeTime + '</span>' +
           '</div>' +
-          (tA.playerIds||[]).map(function(pid){ return playerRow(pid, tA.name); }).join('') +
-          (tB.playerIds||[]).map(function(pid){ return playerRow(pid, tB.name); }).join('') +
+          (tA.playerIds||[]).map(function(pid){ return playerRow(pid); }).join('') +
+          (tB.playerIds||[]).map(function(pid){ return playerRow(pid); }).join('') +
         '</div>';
       }).join('');
-      tonightPanel = '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">WEEK ' + week + ' LINEUP</div>' + rows;
+      lineupPanel = weekSel + rows;
     }
   }
 
@@ -3317,7 +3361,7 @@ function renderPlayersList() {
     tabBar +
     (activeSubTab === 'members' ? addPlayerBtnHtml + leagueListHtml :
      activeSubTab === 'subs'    ? addSubBtnHtml + subsListHtml :
-                                  tonightPanel);
+                                  lineupPanel);
 }
 
 function onTonightSubChange(pid, week, subId) {
@@ -4186,7 +4230,7 @@ function renderSkinsAdmin() {
   });
 
   var fee = (DATA.scoringConfig && DATA.scoringConfig.skinsFee) || 5;
-  var inCount = rows.filter(function(r){ return !(lineup.skinsOut || []).includes(r.pid); }).length;
+  var inCount = rows.filter(function(r){ return (lineup.skinsIn || []).includes(r.pid); }).length;
 
   // Week selector
   var weekOpts = '';
@@ -4232,7 +4276,7 @@ function renderSkinsAdmin() {
           var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
                || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
           if (!p) return '';
-          var inSkins = !(lineup.skinsOut || []).includes(r.pid);
+          var inSkins = (lineup.skinsIn || []).includes(r.pid);
           return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
             avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
             '<div style="flex:1;min-width:0">' +
@@ -4257,7 +4301,7 @@ function renderSkinsAdmin() {
       var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
            || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
       if (!p) return '';
-      var inSkins = !(lineup.skinsOut || []).includes(r.pid);
+      var inSkins = (lineup.skinsIn || []).includes(r.pid);
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
         avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
         '<div style="flex:1;min-width:0">' +
@@ -4286,11 +4330,11 @@ function renderSkinsAdmin() {
 
 function toggleSkinsIn(pid, week) {
   var lineup = getWeekLineup(week);
-  var idx = lineup.skinsOut.indexOf(pid);
+  var idx = lineup.skinsIn.indexOf(pid);
   if (idx === -1) {
-    lineup.skinsOut.push(pid); // was in, now out
+    lineup.skinsIn.push(pid); // was out, now in
   } else {
-    lineup.skinsOut.splice(idx, 1); // was out, now in
+    lineup.skinsIn.splice(idx, 1); // was in, now out
   }
   saveData();
   renderSkinsAdmin();
