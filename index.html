@@ -915,10 +915,7 @@ function exitEditMode(panel) {
 
 function refreshEditModeUI(panel) {
   const on = adminEditModes[panel];
-  const editBtn = document.getElementById('edit-btn-' + panel);
-  const saveBtn = document.getElementById('save-btn-' + panel);
-  if (editBtn) { editBtn.disabled = on; editBtn.style.opacity = on ? '0.35' : '1'; editBtn.style.cursor = on ? 'not-allowed' : ''; }
-  if (saveBtn) { saveBtn.disabled = !on; saveBtn.style.opacity = !on ? '0.35' : '1'; saveBtn.style.cursor = !on ? 'not-allowed' : ''; }
+  // Button is a single toggle — re-rendered by switchLeagueSubTab or editModeBar, nothing to update here
   // For static-HTML panels, toggle inputs scoped to sub-section only
   if (panel === 'league') {
     ['league-sec-basic','league-sec-schedule'].forEach(function(id) {
@@ -941,14 +938,12 @@ function refreshEditModeUI(panel) {
 
 function editModeBar(panel, title, saveFn) {
   const on = adminEditModes[panel] || false;
+  const toggleBtn = on
+    ? '<button id="edit-btn-' + panel + '" class="btn-sm btn-green" onclick="' + saveFn + '">Save</button>'
+    : '<button id="edit-btn-' + panel + '" class="btn-sm btn-outline" onclick="enterEditMode(\'' + panel + '\')">Edit</button>';
   return '<div class="panel-header">' +
     '<span class="panel-title">' + title + '</span>' +
-    '<div style="display:flex;gap:8px">' +
-    '<button id="edit-btn-' + panel + '" class="btn-sm btn-outline" onclick="enterEditMode(\'' + panel + '\')"' +
-      (on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>' +
-    '<button id="save-btn-' + panel + '" class="btn-sm btn-green" onclick="' + saveFn + '"' +
-      (!on ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Done</button>' +
-    '</div>' +
+    toggleBtn +
     '</div>';
 }
 
@@ -2776,16 +2771,18 @@ function switchLeagueSubTab(tab) {
     var descriptor  = '<span style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:0.5px;text-transform:uppercase">' + (descriptors[tab] || '') + '</span>';
     var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
       '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
-    var leOn  = adminEditModes['league']  || false;
-    var scOn  = adminEditModes['scoring'] || false;
-    var leEditBtn = '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')"'   + (leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
-    var leSaveBtn = '<button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()"'            + (!leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
-    var scEditBtn = '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')"' + (scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
-    var scSaveBtn = '<button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()"'          + (!scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
+    var leOn = adminEditModes['league']  || false;
+    var scOn = adminEditModes['scoring'] || false;
+    var leToggle = leOn
+      ? '<button id="edit-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()">Save</button>'
+      : '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')">Edit</button>';
+    var scToggle = scOn
+      ? '<button id="edit-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()">Save</button>'
+      : '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')">Edit</button>';
     var btns = '';
-    if      (tab === 'basic')    btns = shareBtn + leEditBtn + leSaveBtn;
-    else if (tab === 'schedule') btns = leEditBtn + leSaveBtn;
-    else if (tab === 'scoring')  btns = scEditBtn + scSaveBtn;
+    if      (tab === 'basic')    btns = shareBtn + leToggle;
+    else if (tab === 'schedule') btns = leToggle;
+    else if (tab === 'scoring')  btns = scToggle;
     row.innerHTML = descriptor + '<div style="display:flex;gap:6px">' + btns + '</div>';
     row.style.justifyContent = 'space-between';
     row.style.alignItems     = 'center';
