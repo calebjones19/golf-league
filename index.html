@@ -4601,7 +4601,7 @@ function buildLandingClaimProfile(user, isAdminFlow) {
     '</div>' +
     '<div style="text-align:center;padding:4px 0;display:flex;flex-direction:column;gap:4px">' +
       (isAdminFlow ? '<button style="background:none;border:none;color:#C9A84C;font-size:13px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="skipClaimToAdmin()">Skip → Go to Admin Panel</button>' : '') +
-      '<button style="background:none;border:none;color:#6b9e82;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="signOut()">Sign out</button>' +
+      '<button style="background:none;border:none;color:#6b9e82;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="signOut(true)">Sign out</button>' +
     '</div>';
 }
 
@@ -4716,7 +4716,7 @@ function buildLandingNotInLeague(user) {
         <div class="not-in-league-title">Set up your league</div>
         <div class="not-in-league-sub">No league found. Be the first to set up this league as admin.</div>
         <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="claimAdmin()">Set Up League as Admin</button>
-        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign out</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut(true)">Sign out</button>
       </div>`;
 
   } else if (hasCode) {
@@ -4733,7 +4733,7 @@ function buildLandingNotInLeague(user) {
         <div class="not-in-league-sub" style="margin-bottom:20px">Player data was lost. If <strong style="color:#C9A84C">${masked}</strong> is your email, enter it below to restore access.</div>
         <input id="admin-verify-input" class="form-input" type="email" placeholder="Enter admin email to verify" style="margin-bottom:10px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2)">
         <button class="btn-gold" style="width:100%;margin-bottom:10px" onclick="verifyAdminTakeover()">Verify &amp; Restore Access</button>
-        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign in with a different account</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut(true)">Sign in with a different account</button>
       </div>`;
 
   } else {
@@ -4743,7 +4743,7 @@ function buildLandingNotInLeague(user) {
         <div class="not-in-league-email">${user.email}</div>
         <div class="not-in-league-title">Not in this league</div>
         <div class="not-in-league-sub">Ask your league admin to add <strong style="color:#C9A84C">${user.email}</strong> to your player profile.</div>
-        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline;margin-top:8px" onclick="signOut()">Sign in with a different account</button>
+        <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline;margin-top:8px" onclick="signOut(true)">Sign in with a different account</button>
       </div>`;
   }
 }
@@ -4782,7 +4782,7 @@ function buildLandingCodeEntry() {
           onkeydown="if(event.key==='Enter')verifyLeagueCode()">
       </div>
       <button class="btn-gold" style="width:100%;padding:13px;font-size:15px" onclick="verifyLeagueCode()">Continue →</button>
-      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut()">Sign in with a different account</button>
+      <button style="width:100%;background:none;border:none;color:#6b9e82;font-size:13px;font-weight:600;cursor:pointer;padding:8px;font-family:'DM Sans',sans-serif;text-decoration:underline" onclick="signOut(true)">Sign in with a different account</button>
     </div>`;
   setTimeout(() => { const el = document.getElementById('join-code-input'); if (el) el.focus(); }, 350);
 }
@@ -5067,7 +5067,8 @@ function closeLanding() {
   document.getElementById('landing-overlay').classList.add('hidden');
 }
 
-async function signOut() {
+async function signOut(skipConfirm) {
+  if (!skipConfirm && !confirm('Sign out of Woodside LO?')) return;
   signingOut = true;
   stopFirestoreSync();
   DATA.currentUserId = null;
