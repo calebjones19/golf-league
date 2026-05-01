@@ -4119,22 +4119,30 @@ function buildLandingSignIn() {
     </div>`;
 }
 
-// Returns players this user can claim: unclaimed ones + any whose email matches
-// (catches the case where googleUid was lost but email is on record)
+// Returns players this user can claim:
+//   • Truly unclaimed (no googleUid, claimed !== true)
+//   • OR already linked to THIS user's uid/email (re-link after data loss)
+// Profiles claimed by a different Google account are excluded.
 function getClaimablePlayers(user) {
-  // In a small private league every signed-in user should be able to pick
-  // their player. Return everyone — the admin can correct mistakes.
-  return DATA.players.slice();
+  if (!user) return [];
+  const uid   = user.uid;
+  const email = (user.email || '').toLowerCase();
+  return DATA.players.filter(function(p) {
+    // Already linked to this exact user — always show
+    if (p.googleUid && p.googleUid === uid) return true;
+    if (p.googleEmail && p.googleEmail.toLowerCase() === email) return true;
+    // Claimed by a different user — hide
+    if (p.claimed || p.googleUid || p.googleEmail) return false;
+    // Genuinely unclaimed — show
+    return true;
+  });
 }
 
 function buildLandingClaimProfile(user, isAdminFlow) {
   buildLandingTop();
   const claimable = getClaimablePlayers(user);
-  document.getElementById('landing-body').innerHTML =
-    '<div style="margin-bottom:16px">' +
-      '<div class="landing-prompt">Who are you?</div>' +
-      '<div style="font-size:13px;color:#6b9e82;margin-bottom:16px;line-height:1.5">Tap your name to link your Google account to your player profile.</div>' +
-      claimable.map(p =>
+  const playerListHtml = claimable.length > 0
+    ? claimable.map(p =>
         '<button class="player-pill" onclick="claimProfile(\'' + p.id + '\')">' +
           '<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#C9A84C;flex-shrink:0;font-family:\'Space Grotesk\',sans-serif">' + playerInitials(p) + '</div>' +
           '<div>' +
@@ -4142,7 +4150,13 @@ function buildLandingClaimProfile(user, isAdminFlow) {
             '<div class="player-pill-sub">Hcp ' + (p.handicap||0) + '</div>' +
           '</div>' +
         '</button>'
-      ).join('') +
+      ).join('')
+    : '<div style="font-size:13px;color:#6b9e82;text-align:center;padding:12px 0">All profiles are already linked.<br>Ask the admin to add you as a player.</div>';
+  document.getElementById('landing-body').innerHTML =
+    '<div style="margin-bottom:16px">' +
+      '<div class="landing-prompt">Who are you?</div>' +
+      '<div style="font-size:13px;color:#6b9e82;margin-bottom:16px;line-height:1.5">Tap your name to link your Google account to your player profile.</div>' +
+      playerListHtml +
     '</div>' +
     '<div style="text-align:center;padding:4px 0;display:flex;flex-direction:column;gap:4px">' +
       (isAdminFlow ? '<button style="background:none;border:none;color:#C9A84C;font-size:13px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;padding:8px 16px" onclick="skipClaimToAdmin()">Skip → Go to Admin Panel</button>' : '') +
