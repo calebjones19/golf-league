@@ -2661,73 +2661,70 @@ function searchCourse(val) {
   }, 400);
 }
 
+// Stores tees for the currently selected course so the inline switcher can re-apply
+let _activeTees = [];
+let _activeLoc  = '';
+
 function selectCourse(idx) {
   const course = _courseResults[idx];
   if (!course) return;
-  const maleTees   = (course.tees && course.tees.male)   || [];
-  const femaleTees = (course.tees && course.tees.female) || [];
-  const tees = maleTees.length > 0 ? maleTees : femaleTees;
-  const dd   = document.getElementById('course-dropdown');
-  const loc  = [course.location.city, course.location.state].filter(Boolean).join(', ');
-
-  if (tees.length === 0) {
-    // No scorecard data — just set the name
-    document.getElementById('cfg-course').value = course.club_name;
-    const sel = document.getElementById('course-selected');
-    sel.textContent = '✓ ' + loc;
-    sel.style.display = 'block';
-    dd.classList.remove('open');
-  } else if (tees.length === 1) {
-    _applyTee(course.club_name, loc, tees[0]);
-    dd.classList.remove('open');
-  } else {
-    // Show tee picker
-    dd.innerHTML = `
-      <div style="padding:10px 12px 6px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px">
-        Select tees — ${course.club_name}
-      </div>
-      ${tees.map((t, i) => `
-        <div class="course-option" onclick="_applyTeeAndClose(${idx},${i})">
-          <div class="course-option-name">${t.tee_name} Tees</div>
-          <div class="course-option-loc">${t.number_of_holes} holes · Par ${t.par_total} · ${t.total_yards ? t.total_yards + ' yds' : ''}</div>
-        </div>
-      `).join('')}`;
-  }
-}
-
-function _applyTeeAndClose(courseIdx, teeIdx) {
-  const course     = _courseResults[courseIdx];
-  const maleTees   = (course.tees && course.tees.male)   || [];
-  const femaleTees = (course.tees && course.tees.female) || [];
-  const tees = maleTees.length > 0 ? maleTees : femaleTees;
-  const loc  = [course.location.city, course.location.state].filter(Boolean).join(', ');
-  _applyTee(course.club_name, loc, tees[teeIdx]);
   document.getElementById('course-dropdown').classList.remove('open');
+
+  const maleTees   = (course.tees && course.tees.male)   || [];
+  const femaleTees = (course.tees && course.tees.female) || [];
+  _activeTees = maleTees.length > 0 ? maleTees : femaleTees;
+  _activeLoc  = [course.location.city, course.location.state].filter(Boolean).join(', ');
+
+  // Always set the name immediately
+  document.getElementById('cfg-course').value = course.club_name;
+
+  if (_activeTees.length === 0 || !(_activeTees[0].holes && _activeTees[0].holes.length)) {
+    const sel = document.getElementById('course-selected');
+    sel.textContent = '✓ ' + _activeLoc + ' · No scorecard data available';
+    sel.style.display = 'block';
+    return;
+  }
+
+  // Auto-apply the first tee immediately — no extra click needed
+  _applyTeeByIndex(0);
 }
 
-function _applyTee(name, loc, tee) {
-  // Set course name in input
-  document.getElementById('cfg-course').value = name;
+function _applyTeeByIndex(teeIdx) {
+  const tee = _activeTees[teeIdx];
+  if (!tee || !tee.holes) return;
 
-  // Show confirmation label
-  const sel = document.getElementById('course-selected');
-  sel.textContent = `✓ ${loc} · ${tee.tee_name} tees · Par ${tee.par_total}`;
-  sel.style.display = 'block';
+  // Set holes radio
+  const holes = tee.number_of_holes || tee.holes.length;
+  const radio  = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
+  if (radio) radio.checked = true;
 
-  // Set holes radio to match (9 or 18)
-  const holes = tee.number_of_holes || (tee.holes ? tee.holes.length : 9);
-  const radio = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
-  if (radio) { radio.checked = true; }
-
-  // Re-render the grids for the correct hole count, then fill values
+  // Re-render grids then fill values
   renderHoleGrids();
-  (tee.holes || []).forEach((h, i) => {
-    const parEl = document.getElementById(`par-${i}`);
-    const hcpEl = document.getElementById(`hcp-${i}`);
+  tee.holes.forEach((h, i) => {
+    const parEl = document.getElementById('par-' + i);
+    const hcpEl = document.getElementById('hcp-' + i);
     if (parEl) { parEl.value = h.par      || ''; parEl.disabled = false; }
     if (hcpEl) { hcpEl.value = h.handicap || ''; hcpEl.disabled = false; }
   });
-  showToast(`${holes}-hole scorecard imported ✓`);
+
+  // Build confirmation text; include tee switcher if multiple options exist
+  const sel = document.getElementById('course-selected');
+  if (_activeTees.length > 1) {
+    const opts = _activeTees.map((t, i) =>
+      `<option value="${i}"${i === teeIdx ? ' selected' : ''}>${t.tee_name}</option>`
+    ).join('');
+    sel.innerHTML =
+      `<span style="color:#16A34A">✓ ${_activeLoc} · Par ${tee.par_total} · </span>` +
+      `<select onchange="_applyTeeByIndex(+this.value)" ` +
+        `style="font-size:11px;color:#1B4332;border:1px solid #86efac;border-radius:4px;` +
+               `padding:1px 5px;background:#F0FFF4;font-family:'DM Sans',sans-serif">` +
+        opts +
+      `</select><span style="color:#16A34A"> tees</span>`;
+  } else {
+    sel.textContent = `✓ ${_activeLoc} · ${tee.tee_name} tees · Par ${tee.par_total}`;
+  }
+  sel.style.display = 'block';
+  showToast(holes + '-hole scorecard imported ✓');
 }
 
 // Close dropdown when tapping outside
