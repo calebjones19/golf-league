@@ -2625,8 +2625,11 @@ function renderHoleGrids() {
   }
 }
 
-// Course search via Nominatim (OpenStreetMap)
+// Course search via GolfCourseAPI
+const GOLF_API_KEY = 'K6F4E2DHYDPQGEPX24KUGDCQXY';
 let courseSearchTimer;
+let _courseResults = [];
+
 function searchCourse(val) {
   const dd = document.getElementById('course-dropdown');
   clearTimeout(courseSearchTimer);
@@ -2635,26 +2638,23 @@ function searchCourse(val) {
   dd.innerHTML = '<div class="course-searching">Searching...</div>';
   courseSearchTimer = setTimeout(async () => {
     try {
-      const q = encodeURIComponent(val + ' golf course');
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=6&addressdetails=1`, {
-        headers: { 'Accept-Language': 'en' }
+      const res = await fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(val)}`, {
+        headers: { 'Authorization': 'Key ' + GOLF_API_KEY }
       });
-      const results = await res.json();
-      const courses = results.filter(r => r.display_name);
+      const data = await res.json();
+      const courses = (data.courses || []).slice(0, 8);
+      _courseResults = courses;
       if (courses.length === 0) {
         dd.innerHTML = '<div class="course-searching">No courses found</div>';
         return;
       }
-      dd.innerHTML = courses.map((c,i) => {
-        const parts = c.display_name.split(',');
-        const name  = parts[0].trim();
-        const loc   = parts.slice(1,3).join(',').trim();
+      dd.innerHTML = courses.map((c, i) => {
+        const loc = [c.location.city, c.location.state].filter(Boolean).join(', ');
         return `<div class="course-option" onclick="selectCourse(${i})">
-          <div class="course-option-name">${name}</div>
+          <div class="course-option-name">${c.club_name}</div>
           <div class="course-option-loc">${loc}</div>
         </div>`;
       }).join('');
-      dd._results = courses;
     } catch(e) {
       dd.innerHTML = '<div class="course-searching">Search unavailable</div>';
     }
@@ -2662,17 +2662,72 @@ function searchCourse(val) {
 }
 
 function selectCourse(idx) {
-  const dd = document.getElementById('course-dropdown');
-  const course = dd._results?.[idx];
+  const course = _courseResults[idx];
   if (!course) return;
-  const parts = course.display_name.split(',');
-  const name  = parts[0].trim();
-  const loc   = parts.slice(1,3).join(',').trim();
+  const maleTees   = (course.tees && course.tees.male)   || [];
+  const femaleTees = (course.tees && course.tees.female) || [];
+  const tees = maleTees.length > 0 ? maleTees : femaleTees;
+  const dd   = document.getElementById('course-dropdown');
+  const loc  = [course.location.city, course.location.state].filter(Boolean).join(', ');
+
+  if (tees.length === 0) {
+    // No scorecard data — just set the name
+    document.getElementById('cfg-course').value = course.club_name;
+    const sel = document.getElementById('course-selected');
+    sel.textContent = '✓ ' + loc;
+    sel.style.display = 'block';
+    dd.classList.remove('open');
+  } else if (tees.length === 1) {
+    _applyTee(course.club_name, loc, tees[0]);
+    dd.classList.remove('open');
+  } else {
+    // Show tee picker
+    dd.innerHTML = `
+      <div style="padding:10px 12px 6px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px">
+        Select tees — ${course.club_name}
+      </div>
+      ${tees.map((t, i) => `
+        <div class="course-option" onclick="_applyTeeAndClose(${idx},${i})">
+          <div class="course-option-name">${t.tee_name} Tees</div>
+          <div class="course-option-loc">${t.number_of_holes} holes · Par ${t.par_total} · ${t.total_yards ? t.total_yards + ' yds' : ''}</div>
+        </div>
+      `).join('')}`;
+  }
+}
+
+function _applyTeeAndClose(courseIdx, teeIdx) {
+  const course     = _courseResults[courseIdx];
+  const maleTees   = (course.tees && course.tees.male)   || [];
+  const femaleTees = (course.tees && course.tees.female) || [];
+  const tees = maleTees.length > 0 ? maleTees : femaleTees;
+  const loc  = [course.location.city, course.location.state].filter(Boolean).join(', ');
+  _applyTee(course.club_name, loc, tees[teeIdx]);
+  document.getElementById('course-dropdown').classList.remove('open');
+}
+
+function _applyTee(name, loc, tee) {
+  // Set course name in input
   document.getElementById('cfg-course').value = name;
+
+  // Show confirmation label
   const sel = document.getElementById('course-selected');
-  sel.textContent = '✓ ' + loc;
+  sel.textContent = `✓ ${loc} · ${tee.tee_name} tees · Par ${tee.par_total}`;
   sel.style.display = 'block';
-  dd.classList.remove('open');
+
+  // Set holes radio to match (9 or 18)
+  const holes = tee.number_of_holes || (tee.holes ? tee.holes.length : 9);
+  const radio = document.querySelector(`input[name="cfg-holes"][value="${holes}"]`);
+  if (radio) { radio.checked = true; }
+
+  // Re-render the grids for the correct hole count, then fill values
+  renderHoleGrids();
+  (tee.holes || []).forEach((h, i) => {
+    const parEl = document.getElementById(`par-${i}`);
+    const hcpEl = document.getElementById(`hcp-${i}`);
+    if (parEl) { parEl.value = h.par      || ''; parEl.disabled = false; }
+    if (hcpEl) { hcpEl.value = h.handicap || ''; hcpEl.disabled = false; }
+  });
+  showToast(`${holes}-hole scorecard imported ✓`);
 }
 
 // Close dropdown when tapping outside
