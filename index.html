@@ -160,7 +160,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 /* Admin nav tabs */
 .admin-nav{display:flex;overflow:hidden;background:rgba(250,247,240,0.88);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(0,0,0,0.08);box-shadow:inset 0 -1px 0 rgba(255,255,255,0.5);flex-shrink:0}
 .admin-nav-tab{flex:1;padding:11px 4px;font-size:12px;font-weight:600;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;text-align:center;white-space:nowrap;transition:color 0.15s;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
-.admin-nav-tab.active{color:#1B4332;border-bottom-color:#C9A84C}
+.admin-nav-tab.active{color:#fff;background:#1B4332;border-radius:6px;margin:5px 4px;padding:6px 4px}
 .admin-panel{display:none;padding:14px 16px 32px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
 .admin-panel.active{display:block;min-height:0}
 #sec-admin.active{display:flex;flex-direction:column;overflow:hidden}
@@ -533,19 +533,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <button id="league-stab-announce" style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('announce')">Announce</button>
       </div>
 
+      <!-- Action row: injected by switchLeagueSubTab() -->
+      <div id="league-action-row" style="display:flex;justify-content:flex-end;gap:6px;padding:10px 16px 0"></div>
+
       <!-- ── Basic Info ─────────────────────────────────────── -->
       <div id="league-sec-basic">
-        <div class="panel-header">
-          <span class="panel-title">Basic Info</span>
-          <div style="display:flex;gap:8px">
-            <button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              Share
-            </button>
-            <button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
-            <button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
-          </div>
-        </div>
         <div class="form-group">
           <label class="form-label">League Name</label>
           <input class="form-input" id="cfg-name" placeholder="e.g. Pine Ridge Golf League" disabled>
@@ -606,13 +598,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
       <!-- ── Schedule ───────────────────────────────────────── -->
       <div id="league-sec-schedule" style="display:none">
-        <div class="panel-header">
-          <span class="panel-title">Schedule</span>
-          <div style="display:flex;gap:8px">
-            <button id="edit-btn-league-sched" class="btn-sm btn-outline" onclick="enterEditMode('league')">Edit</button>
-            <button id="save-btn-league-sched" class="btn-sm btn-green" onclick="saveLeagueConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
-          </div>
-        </div>
         <div class="form-group">
           <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-end">
             <div>
@@ -650,13 +635,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
       <!-- ── Scoring ────────────────────────────────────────── -->
       <div id="league-sec-scoring" style="display:none">
-        <div class="panel-header">
-          <span class="panel-title">Scoring</span>
-          <div style="display:flex;gap:8px">
-            <button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode('scoring')">Edit</button>
-            <button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()" disabled style="opacity:0.35;cursor:not-allowed">Save</button>
-          </div>
-        </div>
         <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">MATCH PLAY</div>
         <div class="form-group">
           <label class="form-label">Scoring Type</label>
@@ -753,6 +731,22 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
 
     </div>
+
+    <!-- Players -->
+    <div class="admin-panel" id="admin-players">
+      <div id="players-panel-content"></div>
+    </div>
+
+    <!-- Teams -->
+    <div class="admin-panel" id="admin-teams">
+      <div id="teams-panel-content"></div>
+    </div>
+
+    <!-- Matchups -->
+    <div class="admin-panel" id="admin-matchups">
+      <div id="matchups-panel-content"></div>
+    </div>
+
   </section>
 
   <!-- BOTTOM NAV -->
@@ -902,6 +896,7 @@ function enterEditMode(panel) {
   adminEditModes[panel] = true;
   refreshEditModeUI(panel);
   // Re-render dynamic panels so they pick up edit state
+  if (panel === 'league' || panel === 'scoring') switchLeagueSubTab(_leagueSubTab);
   if (panel === 'players')  renderPlayersList();
   if (panel === 'teams')    renderTeamsList();
   if (panel === 'matchups') renderMatchupsList();
@@ -911,6 +906,7 @@ function enterEditMode(panel) {
 function exitEditMode(panel) {
   adminEditModes[panel] = false;
   refreshEditModeUI(panel);
+  if (panel === 'league' || panel === 'scoring') switchLeagueSubTab(_leagueSubTab);
   if (panel === 'players')  renderPlayersList();
   if (panel === 'teams')    renderTeamsList();
   if (panel === 'matchups') { _matchupSelTeam = null; _matchupSelWeek = null; renderMatchupsList(); }
@@ -2767,11 +2763,29 @@ function switchLeagueSubTab(tab) {
     var active = t === tab;
     if (sec) sec.style.display = active ? '' : 'none';
     if (btn) {
-      btn.style.background   = active ? '#fff' : 'transparent';
-      btn.style.color        = active ? '#1B4332' : '#6B7280';
-      btn.style.boxShadow    = active ? '0 1px 3px rgba(0,0,0,0.08)' : '';
+      btn.style.background = active ? '#fff' : 'transparent';
+      btn.style.color      = active ? '#1B4332' : '#6B7280';
+      btn.style.boxShadow  = active ? '0 1px 3px rgba(0,0,0,0.08)' : '';
     }
   });
+
+  // Inject context-appropriate action buttons
+  var row = document.getElementById('league-action-row');
+  if (row) {
+    var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
+    var leOn  = adminEditModes['league']  || false;
+    var scOn  = adminEditModes['scoring'] || false;
+    var leEditBtn  = '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')"'  + (leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
+    var leSaveBtn  = '<button id="save-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()"'           + (!leOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
+    var scEditBtn  = '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')"'+ (scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Edit</button>';
+    var scSaveBtn  = '<button id="save-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()"'         + (!scOn ? ' disabled style="opacity:0.35;cursor:not-allowed"' : '') + '>Save</button>';
+    if      (tab === 'basic')    row.innerHTML = shareBtn + leEditBtn + leSaveBtn;
+    else if (tab === 'schedule') row.innerHTML = leEditBtn + leSaveBtn;
+    else if (tab === 'scoring')  row.innerHTML = scEditBtn + scSaveBtn;
+    else                         row.innerHTML = '';
+  }
+
   if (tab === 'announce') renderAnnounceList();
   if (tab === 'scoring')  { loadScoringForm(); refreshEditModeUI('scoring'); }
 }
@@ -2797,14 +2811,11 @@ function buildAdmin() {
   if (!isAdmin) { showSection('dashboard'); return; }
   renderHoleGrids();
   loadLeagueForm();
-  refreshEditModeUI('league');
   renderScheduleList();
-  loadScoringForm();
-  refreshEditModeUI('scoring');
+  switchLeagueSubTab(_leagueSubTab || 'basic');
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
-  renderAnnounceList();
 }
 
 function renderHoleGrids() {
