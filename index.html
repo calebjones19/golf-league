@@ -996,9 +996,13 @@ var _firestoreLoaded = false;
 //   1. The player matching DATA.currentUserId (device knows who it is), or
 //   2. The first player found (oldest record) as a fallback.
 // Returns true if any data was changed (caller should saveData).
-function _deduplicatePlayerLinks() {
+// preferredPlayerId: the player ID we know is correct for the current device/user.
+// When provided (e.g. after auth resolves), that player is always kept and duplicates
+// are stripped. Without it we fall back to DATA.currentUserId, then list[0].
+function _deduplicatePlayerLinks(preferredPlayerId) {
   if (!Array.isArray(DATA.players) || DATA.players.length === 0) return false;
   let changed = false;
+  const bestId = preferredPlayerId || DATA.currentUserId || null;
 
   // Build maps: uid → [player], email → [player]
   const byUid   = {};
@@ -1017,8 +1021,8 @@ function _deduplicatePlayerLinks() {
 
   function _keepBest(list) {
     if (list.length <= 1) return;
-    // Prefer the player matching currentUserId; otherwise first in list
-    const keeper = list.find(function(p) { return p.id === DATA.currentUserId; }) || list[0];
+    // Prefer the explicitly known correct player, then currentUserId, then first
+    const keeper = (bestId && list.find(function(p) { return p.id === bestId; })) || list[0];
     list.forEach(function(p) {
       if (p.id === keeper.id) return;
       delete p.googleUid;
@@ -1124,6 +1128,7 @@ function startFirestoreSync() {
       if (player) {
         if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; }
         DATA.currentUserId = player.id;
+        _deduplicatePlayerLinks(player.id);
         saveData();
         updateAvatarBtn();
         if (landingOpen) { closeLanding(); showSection('dashboard'); checkAnnouncements(); }
@@ -3683,32 +3688,30 @@ function renderMatchupsList() {
   const totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
   const selWeek = _matchupSelWeek !== null ? _matchupSelWeek : getCurrentWeek();
 
-  // ── Edit-mode: week picker + team selection ──────────────────
-  let addMatchupHtml = '';
+  // ── Week selector — always visible ───────────────────────────
+  const weekOpts = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+    .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
+    .join('');
+  const weekSelector =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+      '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">' + (on ? 'ADD TO' : 'WEEK') + '</span>' +
+      '<select class="form-input" style="flex:1;max-width:140px;padding:6px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
+        weekOpts +
+      '</select>' +
+    '</div>';
+
+  // ── Edit-mode: team pairing cards ────────────────────────────
+  let pairingHtml = '';
   if (on) {
     if (teamCount < 2) {
-      addMatchupHtml = '<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:16px 0">Add at least 2 teams first.</div>';
+      pairingHtml = '<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:8px 0 14px">Add at least 2 teams first.</div>';
     } else {
-      // Week picker
-      const weekOpts = Array.from({ length: totalWeeks }, (_, i) => i + 1)
-        .map(w => '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>')
-        .join('');
-      const weekPicker =
-        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
-          '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">ADD TO</span>' +
-          '<select class="form-input" style="flex:1;max-width:140px;padding:6px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
-            weekOpts +
-          '</select>' +
-        '</div>';
-
-      // Hint
       const hint = _matchupSelTeam
         ? '<div style="font-size:12px;color:#C9A84C;font-weight:600;margin-bottom:10px">Now tap a second team ↓</div>'
         : '<div style="font-size:12px;color:#6B7280;margin-bottom:10px">Tap two teams to pair them into a matchup</div>';
 
-      // Team cards — hide teams already matched this week (except the selected one)
       const availableTeams = DATA.teams.filter(function(t) {
-        if (t.id === _matchupSelTeam) return true; // always show selected
+        if (t.id === _matchupSelTeam) return true;
         return !(DATA.matchups || []).some(function(m) {
           return m.week === selWeek && (m.teamAId === t.id || m.teamBId === t.id);
         });
@@ -3720,62 +3723,61 @@ function renderMatchupsList() {
       const teamCards = availableTeams.length === 0
         ? '<div style="text-align:center;color:#059669;font-size:13px;font-weight:600;padding:12px 0">All teams paired for Week ' + selWeek + ' ✓</div>'
         : pairedNote + availableTeams.map(function(t) {
-          const isSelected = _matchupSelTeam === t.id;
-          const members = (t.playerIds || []).map(function(id) {
-            const p = DATA.players.find(function(pl) { return pl.id === id; });
-            return p ? playerName(p) : '';
-          }).filter(Boolean).join(' & ');
-          const borderColor = isSelected ? '#C9A84C' : '#E5E7EB';
-          const bgColor     = isSelected ? '#FEF9EE' : '#fff';
-          return '<div onclick="tapTeamForMatchup(\'' + t.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid ' + borderColor + ';background:' + bgColor + ';cursor:pointer;margin-bottom:8px">' +
-            '<div style="width:34px;height:34px;border-radius:50%;background:' + (isSelected ? '#C9A84C' : '#1B4332') + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">' +
-              (t.name || 'T').charAt(0).toUpperCase() +
-            '</div>' +
-            '<div style="flex:1;min-width:0">' +
-              '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + (t.name || 'Team') + '</div>' +
-              '<div style="font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (members || 'No players') + '</div>' +
-            '</div>' +
-            (isSelected ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
-          '</div>';
-        }).join('');
+            const isSelected = _matchupSelTeam === t.id;
+            const members = (t.playerIds || []).map(function(id) {
+              const p = DATA.players.find(function(pl) { return pl.id === id; });
+              return p ? playerName(p) : '';
+            }).filter(Boolean).join(' & ');
+            const borderColor = isSelected ? '#C9A84C' : '#E5E7EB';
+            const bgColor     = isSelected ? '#FEF9EE' : '#fff';
+            return '<div onclick="tapTeamForMatchup(\'' + t.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid ' + borderColor + ';background:' + bgColor + ';cursor:pointer;margin-bottom:8px">' +
+              '<div style="width:34px;height:34px;border-radius:50%;background:' + (isSelected ? '#C9A84C' : '#1B4332') + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">' +
+                (t.name || 'T').charAt(0).toUpperCase() +
+              '</div>' +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + (t.name || 'Team') + '</div>' +
+                '<div style="font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (members || 'No players') + '</div>' +
+              '</div>' +
+              (isSelected ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+            '</div>';
+          }).join('');
 
-      addMatchupHtml =
+      pairingHtml =
         '<div style="background:#F9FAFB;border-radius:12px;padding:12px 12px 4px;margin-bottom:14px">' +
-          weekPicker + hint + teamCards +
+          hint + teamCards +
         '</div>' +
         '<div style="height:1px;background:#F3F4F6;margin-bottom:14px"></div>';
     }
   }
 
-  // ── Matchup list grouped by week ─────────────────────────────
-  const grouped = {};
-  (DATA.matchups || []).forEach(function(m) { if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
+  // ── Matchup list for selected week ───────────────────────────
+  const weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
 
-  const listHtml = Object.keys(grouped).length === 0
-    ? (!on ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups yet. Tap Edit to start.</div>' : '')
-    : Object.keys(grouped).sort(function(a, b) { return a - b; }).map(function(week) {
-        return '<div style="margin-bottom:14px">' +
-          '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:6px">WEEK ' + week + '</div>' +
-          grouped[week].map(function(m, idx) {
-            const tA = DATA.teams.find(function(t) { return t.id === m.teamAId; });
-            const tB = DATA.teams.find(function(t) { return t.id === m.teamBId; });
-            if (!tA || !tB) return '';
-            return '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;gap:8px">' +
-              '<div style="flex:1">' +
-                '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
-                '<div style="font-size:11px;color:#6B7280">' + calcTeeTime(idx) + '</div>' +
-              '</div>' +
-              (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">✕</button>' : '') +
-            '</div>';
-          }).join('') +
+  const listHtml = weekMatchups.length === 0
+    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">' +
+        (on ? 'No matchups for Week ' + selWeek + ' yet — tap teams above to add.' : 'No matchups for Week ' + selWeek + '. Tap Edit to add some.') +
+      '</div>'
+    : weekMatchups.map(function(m, idx) {
+        const tA = DATA.teams.find(function(t) { return t.id === m.teamAId; });
+        const tB = DATA.teams.find(function(t) { return t.id === m.teamBId; });
+        if (!tA || !tB) return '';
+        return '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6;gap:8px">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">' + calcTeeTime(idx) + '</div>' +
+          '</div>' +
+          (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">✕</button>' : '') +
         '</div>';
       }).join('');
 
-  const clearBtn = on && (DATA.matchups || []).length > 0
-    ? '<div style="margin-top:8px"><button class="btn-sm btn-delete" style="width:100%" onclick="clearMatchups()">Clear All Matchups</button></div>'
+  const clearBtn = on && weekMatchups.length > 0
+    ? '<div style="margin-top:8px"><button class="btn-sm btn-delete" style="width:100%" onclick="clearWeekMatchups(' + selWeek + ')">Clear Week ' + selWeek + ' Matchups</button></div>'
+    : '';
+  const clearAllBtn = on && (DATA.matchups || []).length > 0
+    ? '<div style="margin-top:6px"><button class="btn-sm btn-delete" style="width:100%;opacity:0.6" onclick="clearMatchups()">Clear All Matchups</button></div>'
     : '';
 
-  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + addMatchupHtml + listHtml + clearBtn;
+  wrap.innerHTML = editModeBar('matchups', 'Matchups', 'exitEditMode(\'matchups\')') + weekSelector + pairingHtml + listHtml + clearBtn + clearAllBtn;
 }
 
 function selectMatchupWeek(w) {
@@ -3833,6 +3835,12 @@ function tapTeamForMatchup(teamId) {
 
 function deleteMatchup(id) {
   DATA.matchups = (DATA.matchups || []).filter(m => m.id !== id);
+  saveData(); renderMatchupsList();
+}
+
+function clearWeekMatchups(week) {
+  if (!confirm('Clear all matchups for Week ' + week + '?')) return;
+  DATA.matchups = (DATA.matchups || []).filter(function(m) { return m.week !== week; });
   saveData(); renderMatchupsList();
 }
 
@@ -5063,8 +5071,10 @@ function handleAuthState(user) {
 
   if (player) {
     // Ensure uid is stored for future lookups
-    if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; saveData(); }
+    if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; }
     DATA.currentUserId = player.id;
+    // Now that we know exactly which player is correct, strip any duplicate links
+    if (_deduplicatePlayerLinks(player.id)) { /* dedup changed data — saveData below handles it */ }
     saveData();
     updateAvatarBtn();
     closeLanding();
