@@ -4317,8 +4317,34 @@ function joinLeague() {
   const user = auth.currentUser;
   if (!user) { showToast('Not signed in — please refresh and try again'); return; }
 
-  const email  = user.email.toLowerCase();
-  const id     = (type === 'sub' ? 's' : 'p') + Date.now();
+  const email = user.email.toLowerCase();
+
+  // For members, try to match an existing unclaimed player profile by name.
+  // This lets admins pre-build rosters; players just type their name to claim their spot.
+  if (type === 'member') {
+    const normalize = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const fullName  = normalize(first + ' ' + last);
+    const existing  = (DATA.players || []).find(p =>
+      !p.claimed && !p.googleEmail &&
+      normalize((p.firstName || '') + ' ' + (p.lastName || '')) === fullName
+    );
+    if (existing) {
+      existing.googleEmail = email;
+      existing.googleUid   = user.uid;
+      existing.phone       = existing.phone || phone;
+      existing.claimed     = true;
+      DATA.currentUserId   = existing.id;
+      saveData();
+      updateAvatarBtn();
+      closeLanding();
+      showSection('dashboard');
+      showToast('Welcome to the league, ' + first + '! ⛳');
+      return;
+    }
+  }
+
+  // No match found (or registering as sub) — create a brand new profile
+  const id      = (type === 'sub' ? 's' : 'p') + Date.now();
   const profile = { id, firstName: first, lastName: last, handicap: 0, phone,
                     googleEmail: email, googleUid: user.uid, claimed: true };
 
