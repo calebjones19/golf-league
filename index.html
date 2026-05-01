@@ -954,6 +954,51 @@ function calcTeeTime(matchupIndexInWeek) {
   return (rh % 12 || 12) + ':' + String(rm).padStart(2, '0') + ' ' + (rh < 12 ? 'AM' : 'PM');
 }
 
+// ── Weekly lineup helpers ────────────────────────────────────────────────────
+function getWeekLineup(week) {
+  if (!DATA.weeklyLineups) DATA.weeklyLineups = {};
+  if (!DATA.weeklyLineups[week]) DATA.weeklyLineups[week] = { subs: {}, absent: [] };
+  var l = DATA.weeklyLineups[week];
+  if (!l.subs)   l.subs   = {};
+  if (!l.absent) l.absent = [];
+  return l;
+}
+// Returns the effective player id for a roster slot this week (may be a sub)
+function effectivePidForWeek(pid, week) {
+  var lineup = getWeekLineup(week);
+  return lineup.subs[pid] || pid;
+}
+// True if a roster player is absent (subbed out or explicitly absent)
+function isPlayerAbsentWeek(pid, week) {
+  var lineup = getWeekLineup(week);
+  return !!(lineup.absent || []).includes(pid) || !!lineup.subs[pid];
+}
+// Get effective player object for a roster pid this week
+function effectivePlayerWeek(pid, week) {
+  var effId = effectivePidForWeek(pid, week);
+  return DATA.players.find(function(p){ return p.id === effId; }) ||
+         (DATA.subs || []).find(function(p){ return p.id === effId; }) || null;
+}
+// Save a sub assignment for a week
+function setWeekSub(week, originalPid, subPid) {
+  var lineup = getWeekLineup(week);
+  if (subPid) {
+    lineup.subs[originalPid] = subPid;
+    lineup.absent = (lineup.absent || []).filter(function(id){ return id !== originalPid; });
+  } else {
+    delete lineup.subs[originalPid];
+  }
+  saveData();
+}
+// Toggle absent for a week (no sub assigned)
+function setWeekAbsent(week, pid, absent) {
+  var lineup = getWeekLineup(week);
+  lineup.absent = (lineup.absent || []).filter(function(id){ return id !== pid; });
+  delete lineup.subs[pid];
+  if (absent) lineup.absent.push(pid);
+  saveData();
+}
+
 function checkVersion() {
   // No-op for now — version number shown in the update footer on the home screen.
   // A service worker would be needed to intercept stale cached PWA installs.
@@ -979,6 +1024,7 @@ let DATA = {
   announcements: [],
   scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
   matchups: [],
+  weeklyLineups: {},
   messages: []
 };
 
@@ -1783,7 +1829,13 @@ function refreshSubsUIAuto(teamAId, teamBId) {
   if (!wrap) return;
   var tA = DATA.teams.find(function(t){return t.id===teamAId;});
   var tB = DATA.teams.find(function(t){return t.id===teamBId;});
-  if (!tA || !tB || (DATA.subs||[]).length === 0) { wrap.innerHTML=''; return; }
+  if (!tA || !tB) { wrap.innerHTML=''; return; }
+  // Seed pendingSubs from the weekly lineup (admin sets them in Players → Tonight)
+  var lineupSubs = getWeekLineup(getCurrentWeek()).subs || {};
+  Object.keys(lineupSubs).forEach(function(orig) {
+    if (!pendingSubs[orig]) pendingSubs[orig] = lineupSubs[orig];
+  });
+  if ((DATA.subs||[]).length === 0 && Object.keys(pendingSubs).length === 0) { wrap.innerHTML=''; return; }
 
   var usedSubIds = Object.values(pendingSubs);
   function subOpts(excludeIds) {
@@ -1827,8 +1879,12 @@ function startScheduledMatch(teamAId, teamBId) {
   var tA = DATA.teams.find(function(t){return t.id===teamAId;});
   var tB = DATA.teams.find(function(t){return t.id===teamBId;});
   if (!tA || !tB) { showToast('Teams not found'); return; }
+  // Merge weekly lineup subs with any manual pendingSubs (manual takes priority)
+  var week = getCurrentWeek();
+  var lineupSubs = getWeekLineup(week).subs || {};
+  var allSubs = Object.assign({}, lineupSubs, pendingSubs);
   var resolveIds = function(pids) {
-    return pids.map(function(pid){ return pendingSubs[pid] || pid; });
+    return pids.map(function(pid){ return allSubs[pid] || pid; });
   };
   var effectiveA = resolveIds(tA.playerIds);
   var effectiveB = resolveIds(tB.playerIds);
@@ -2441,11 +2497,12 @@ function buildMatchups() {
     return new Date(s.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   }
 
-  function matchupCard(m, weekStatus) {
+  function matchupCard(m, weekStatus, idx) {
     var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
     var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
     if (!tA||!tB) return '';
     var isMyMatch = myTeam && (myTeam.id===m.teamAId || myTeam.id===m.teamBId);
+    var teeTime = calcTeeTime(idx || 0);
 
     // Check if live
     var isLive = activeMatch && activeMatch.teamAId===m.teamAId && activeMatch.teamBId===m.teamBId;
@@ -2489,8 +2546,11 @@ function buildMatchups() {
     return '<div style="'+bg+border+'border-bottom:1px solid #F5F0E8;padding-top:12px;padding-right:16px;padding-bottom:12px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between">' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' +
-            tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' +
+              tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name +
+            '</div>' +
+            '<span style="font-size:10px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:1px 6px;white-space:nowrap">' + teeTime + '</span>' +
           '</div>' +
           '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + pnames(tA) + '  ·  ' + pnames(tB) + '</div>' +
         '</div>' +
@@ -2517,7 +2577,7 @@ function buildMatchups() {
         '</div>' +
         (activeMatch ? '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>' : '') +
       '</div>' +
-      grouped[thisWeek].map(function(m){ return matchupCard(m, 'this'); }).join('') +
+      grouped[thisWeek].map(function(m, idx){ return matchupCard(m, 'this', idx); }).join('') +
     '</div>';
   }
 
@@ -2532,14 +2592,15 @@ function buildMatchups() {
       var d = schedDate(w);
       html += '<div style="padding:10px 16px 4px;border-bottom:1px solid #F5F0E8">' +
         '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:2px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
-        grouped[w].map(function(m){
+        grouped[w].map(function(m, idx){
           var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
           var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
           if(!tA||!tB) return '';
           var isMyMatch = myTeam && (myTeam.id===m.teamAId||myTeam.id===m.teamBId);
-          return '<div style="display:flex;align-items:center;padding:5px 0;'+(isMyMatch?'font-weight:700':'')+'">' +
-            (isMyMatch ? '<span style="width:6px;height:6px;border-radius:50%;background:#1B4332;margin-right:8px;flex-shrink:0;display:inline-block"></span>' : '<span style="width:6px;margin-right:8px;display:inline-block"></span>') +
-            '<span style="font-size:12px;color:'+(isMyMatch?'#1A1A1A':'#6B7280')+'">' + tA.name + ' vs ' + tB.name + '</span>' +
+          return '<div style="display:flex;align-items:center;padding:5px 0;gap:6px">' +
+            (isMyMatch ? '<span style="width:6px;height:6px;border-radius:50%;background:#1B4332;flex-shrink:0;display:inline-block"></span>' : '<span style="width:6px;display:inline-block;flex-shrink:0"></span>') +
+            '<span style="font-size:12px;color:'+(isMyMatch?'#1A1A1A':'#6B7280')+';font-weight:'+(isMyMatch?'700':'400')+';flex:1">' + tA.name + ' vs ' + tB.name + '</span>' +
+            '<span style="font-size:10px;color:#C9A84C;font-weight:600;white-space:nowrap">' + calcTeeTime(idx) + '</span>' +
           '</div>';
         }).join('') +
       '</div>';
@@ -2561,7 +2622,7 @@ function buildMatchups() {
         var d = schedDate(w);
         return '<div style="padding:10px 16px;border-bottom:1px solid #F5F0E8">' +
           '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
-          grouped[w].map(function(m){ return matchupCard(m, 'past'); }).join('') +
+          grouped[w].map(function(m, idx){ return matchupCard(m, 'past', idx); }).join('') +
         '</div>';
       }).join('') +
     '</div>';
@@ -3168,14 +3229,15 @@ function renderPlayersList() {
   const addSubFormHtml = ''; // form lives in the Add Sub modal now
 
   const activeSubTab = window._playersSubTab || 'members';
+  function tabBtn(id, label) {
+    const active = activeSubTab === id;
+    return '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
+      (active ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
+      '" onclick="switchPlayersSubTab(\'' + id + '\')">' + label + '</button>';
+  }
   const tabBar =
     '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin-bottom:14px">' +
-      '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
-        (activeSubTab==='members' ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
-        '" onclick="switchPlayersSubTab(\'members\')">Members</button>' +
-      '<button style="flex:1;padding:7px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;transition:all 0.15s;' +
-        (activeSubTab==='subs' ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
-        '" onclick="switchPlayersSubTab(\'subs\')">Subs</button>' +
+      tabBtn('members', 'Members') + tabBtn('subs', 'Subs') + tabBtn('tonight', 'Tonight') +
     '</div>';
 
   const addPlayerBtnHtml =
@@ -3184,22 +3246,83 @@ function renderPlayersList() {
       'Add Player' +
     '</button>';
 
-  const membersPanel = activeSubTab === 'members'
-    ? addPlayerBtnHtml + leagueListHtml
-    : '';
   const addSubBtnHtml =
     '<button onclick="openAddSubModal()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:12px">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
       'Add Sub' +
     '</button>';
 
-  const subsPanel = activeSubTab === 'subs'
-    ? addSubBtnHtml + subsListHtml
-    : '';
+  // ── Tonight tab ──────────────────────────────────────────────
+  let tonightPanel = '';
+  if (activeSubTab === 'tonight') {
+    const week   = getCurrentWeek();
+    const lineup = getWeekLineup(week);
+    const weekMatchups = (DATA.matchups || []).filter(function(m){ return m.week === week; });
+    if (weekMatchups.length === 0) {
+      tonightPanel = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + week + '.</div>';
+    } else {
+      const rows = weekMatchups.map(function(m, idx) {
+        const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+        const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+        if (!tA || !tB) return '';
+        const teeTime = calcTeeTime(idx);
+        function playerRow(pid, teamName) {
+          const isAbsent = (lineup.absent || []).includes(pid);
+          const subPid   = lineup.subs[pid];
+          const orig     = DATA.players.find(function(p){ return p.id === pid; });
+          const subP     = subPid ? (DATA.subs||[]).find(function(p){ return p.id === subPid; }) || DATA.players.find(function(p){ return p.id === subPid; }) : null;
+          if (!orig) return '';
+          const subOpts = '<option value="">— No sub —</option>' +
+            (DATA.subs||[]).map(function(s){ return '<option value="' + s.id + '"' + (subPid === s.id ? ' selected' : '') + '>' + playerName(s) + ' (Hcp ' + (s.handicap||0) + ')</option>'; }).join('');
+          return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #F3F4F6">' +
+            avatarHtml(playerInitials(subP || orig), subP ? '#FEF9EE' : (isAbsent ? '#FEE2E2' : '#E5E7EB'), subP ? '#C9A84C' : (isAbsent ? '#DC2626' : '#6B7280'), 30) +
+            '<div style="flex:1;min-width:0">' +
+              (subP
+                ? '<div style="font-size:12px;font-weight:700;color:#1B4332">' + playerName(subP) + ' <span style="font-size:10px;color:#C9A84C;font-weight:600">subbing</span></div>' +
+                  '<div style="font-size:10px;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + '</div>'
+                : isAbsent
+                  ? '<div style="font-size:12px;font-weight:600;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + '</div>' +
+                    '<div style="font-size:10px;color:#DC2626;font-weight:600">Out</div>'
+                  : '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + playerName(orig) + '</div>' +
+                    '<div style="font-size:10px;color:#6B7280">Hcp ' + effectiveHandicap(orig) + '</div>'
+              ) +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+              '<select style="font-size:11px;border:1.5px solid #E5E7EB;border-radius:8px;padding:4px 6px;max-width:120px;font-family:\'DM Sans\',sans-serif" onchange="onTonightSubChange(\'' + pid + '\',' + week + ',this.value)">' + subOpts + '</select>' +
+              '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#9CA3AF;cursor:pointer">' +
+                '<input type="checkbox"' + (isAbsent && !subPid ? ' checked' : '') + ' onchange="onTonightAbsentChange(\'' + pid + '\',' + week + ',this.checked)" style="accent-color:#DC2626">' +
+                'Out' +
+              '</label>' +
+            '</div>' +
+          '</div>';
+        }
+        return '<div style="margin-bottom:12px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+            '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.4px">' + tA.name + ' vs ' + tB.name + '</div>' +
+            '<span style="font-size:10px;color:#C9A84C;font-weight:700">' + teeTime + '</span>' +
+          '</div>' +
+          (tA.playerIds||[]).map(function(pid){ return playerRow(pid, tA.name); }).join('') +
+          (tB.playerIds||[]).map(function(pid){ return playerRow(pid, tB.name); }).join('') +
+        '</div>';
+      }).join('');
+      tonightPanel = '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">WEEK ' + week + ' LINEUP</div>' + rows;
+    }
+  }
 
   wrap.innerHTML =
     tabBar +
-    (activeSubTab === 'members' ? membersPanel : subsPanel);
+    (activeSubTab === 'members' ? addPlayerBtnHtml + leagueListHtml :
+     activeSubTab === 'subs'    ? addSubBtnHtml + subsListHtml :
+                                  tonightPanel);
+}
+
+function onTonightSubChange(pid, week, subId) {
+  setWeekSub(week, pid, subId || null);
+  renderPlayersList();
+}
+function onTonightAbsentChange(pid, week, absent) {
+  setWeekAbsent(week, pid, absent);
+  renderPlayersList();
 }
 
 function switchPlayersSubTab(tab) {
