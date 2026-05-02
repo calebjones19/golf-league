@@ -971,7 +971,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </div>
         <button onclick="closeAdminScorecard()" style="background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:18px;line-height:1">×</button>
       </div>
-      <div id="asc-body" style="overflow-y:auto;flex:1;padding:14px 14px 8px;-webkit-overflow-scrolling:touch"></div>
+      <div id="asc-body" style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch"></div>
       <div id="asc-footer" style="background:#fff;border-top:1px solid #E5E7EB;padding:14px 20px max(14px,env(safe-area-inset-bottom));flex-shrink:0"></div>
     </div>
   </div>
@@ -4833,15 +4833,15 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
   document.getElementById('asc-sub').textContent = (scoringNine === 'front' ? 'Front 9 · Holes 1–9' : 'Back 9 · Holes 10–18') +
     (sched && sched.date ? '  ·  ' + new Date(sched.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
 
-  // Column headers
+  // Column headers — compact so all 9 holes + TOT/HCP/NET fit on one screen
   var holeHeaders = scoringPars.map(function(par, h) {
-    return '<th style="width:34px;padding:4px 1px;text-align:center;font-size:9px;color:#9CA3AF;font-weight:700">' +
-      'H' + (h + 1 + holeOffset) + '<br><span style="font-weight:400;color:#D1D5DB;font-size:8px">p' + par + '</span></th>';
+    return '<th style="width:24px;padding:3px 1px;text-align:center;font-size:8px;color:#9CA3AF;font-weight:700">' +
+      (h + 1 + holeOffset) + '<br><span style="font-weight:400;color:#D1D5DB;font-size:7px">p' + par + '</span></th>';
   }).join('');
 
   function buildTeamRows(team) {
     if (!team) return '';
-    var separator = '<tr style="background:#1B4332"><td colspan="' + (holes + 2) + '" style="padding:4px 8px;font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;text-transform:uppercase">' + team.name + '</td></tr>';
+    var separator = '<tr style="background:#1B4332"><td colspan="' + (holes + 4) + '" style="padding:3px 8px;font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;text-transform:uppercase">' + team.name + '</td></tr>';
     var rows = (team.playerIds || []).map(function(pid) {
       var p = DATA.players.find(function(pl) { return pl.id === pid; });
       if (!p) return '';
@@ -4849,41 +4849,46 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
       var prev = existingScores[pid] || [];
       var cells = scoringPars.map(function(_, h) {
         var val = prev[h] != null ? prev[h] : '';
-        return '<td style="padding:2px 1px;text-align:center">' +
+        return '<td style="padding:1px 1px;text-align:center">' +
           '<input id="asc-' + pid + '-' + h + '" type="number" min="1" max="15" value="' + val + '"' +
           ' oninput="recalcAdminPoints()" inputmode="numeric"' +
-          ' style="width:30px;height:28px;text-align:center;font-size:12px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:5px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
+          ' style="width:22px;height:26px;text-align:center;font-size:11px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:4px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
           '</td>';
       }).join('');
       return '<tr style="border-bottom:1px solid #F5F0E8;background:#fff">' +
-        '<td style="padding:5px 8px;white-space:nowrap">' +
-          '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + playerLastName(p) + '</div>' +
-          '<div style="font-size:9px;color:#9CA3AF">Hcp ' + hcp + '</div>' +
+        '<td style="padding:4px 6px;white-space:nowrap;min-width:46px;max-width:56px">' +
+          '<div style="font-size:11px;font-weight:600;color:#1A1A1A;overflow:hidden;text-overflow:ellipsis">' + playerLastName(p) + '</div>' +
+          '<div style="font-size:8px;color:#9CA3AF">' + hcp + '</div>' +
         '</td>' +
         cells +
-        '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:12px;font-weight:700;color:#9CA3AF;padding:2px 4px;white-space:nowrap">—</td>' +
-        '<td id="asc-hcp-' + pid + '" style="text-align:center;font-size:12px;font-weight:600;color:#9CA3AF;padding:2px 4px;white-space:nowrap">—</td>' +
-        '<td id="asc-net-' + pid + '" style="text-align:center;font-size:13px;font-weight:800;color:#1B4332;padding:2px 4px;white-space:nowrap">—</td>' +
+        '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:11px;font-weight:700;color:#6B7280;padding:1px 3px;white-space:nowrap;min-width:22px">—</td>' +
+        '<td id="asc-hcp-' + pid + '" style="text-align:center;font-size:11px;font-weight:600;color:#9CA3AF;padding:1px 3px;white-space:nowrap;min-width:22px">—</td>' +
+        '<td id="asc-net-' + pid + '" style="text-align:center;font-size:12px;font-weight:800;color:#1B4332;padding:1px 3px;white-space:nowrap;min-width:26px">—</td>' +
       '</tr>';
     }).join('');
     return separator + rows;
   }
 
   var tableHtml =
-    '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">' +
-      '<table style="width:100%;border-collapse:collapse;min-width:' + (88 + holes * 32 + 108) + 'px">' +
+    '<div style="border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">' +
+      '<table style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+        '<colgroup>' +
+          '<col style="width:52px">' +
+          scoringPars.map(function() { return '<col style="width:24px">'; }).join('') +
+          '<col style="width:26px"><col style="width:26px"><col style="width:30px">' +
+        '</colgroup>' +
         '<thead><tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">' +
-          '<th style="text-align:left;padding:6px 8px;width:88px;font-size:9px;font-weight:700;color:#9CA3AF">PLAYER</th>' +
+          '<th style="text-align:left;padding:5px 6px;font-size:8px;font-weight:700;color:#9CA3AF">PLAYER</th>' +
           holeHeaders +
-          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">TOT</th>' +
-          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">HCP</th>' +
-          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#1B4332">NET</th>' +
+          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#9CA3AF">TOT</th>' +
+          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#9CA3AF">HCP</th>' +
+          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#1B4332">NET</th>' +
         '</tr></thead>' +
         '<tbody>' + buildTeamRows(tA) + buildTeamRows(tB) + '</tbody>' +
       '</table>' +
     '</div>';
 
-  document.getElementById('asc-body').innerHTML = tableHtml;
+  document.getElementById('asc-body').innerHTML = '<div style="padding:12px 14px 8px">' + tableHtml + '</div>';
 
   document.getElementById('asc-footer').innerHTML =
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
