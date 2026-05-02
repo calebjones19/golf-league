@@ -443,7 +443,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <button onclick="openAttachMenu()" style="width:36px;height:36px;border-radius:50%;background:#F3F4F6;border:none;color:#374151;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <textarea class="chat-input" id="chat-input" placeholder="Message…" rows="1" autocorrect="off" autocomplete="off" autocapitalize="sentences" spellcheck="false" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)"></textarea>
+        <textarea class="chat-input" id="chat-input" placeholder="Message…" rows="1" autocorrect="on" autocomplete="on" autocapitalize="sentences" spellcheck="true" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)"></textarea>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
