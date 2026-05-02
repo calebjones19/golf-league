@@ -2551,13 +2551,6 @@ function buildMatchups() {
             ? '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + winnerName + ' wins</span>'
             : '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>') +
         '</div>';
-    } else if (weekStatus === 'this') {
-      statusHtml =
-        '<div style="margin-top:5px">' +
-          (isMyMatch
-            ? '<button onclick="showSection(\'score\')" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">Start Scoring →</button>'
-            : '<span style="font-size:11px;color:#9CA3AF">Not yet started</span>') +
-        '</div>';
     }
 
     var myTeamSide = DATA.currentUserId && tA.playerIds.includes(DATA.currentUserId) ? tA : tB;
@@ -2569,13 +2562,13 @@ function buildMatchups() {
       }).filter(Boolean).join('');
     }
     return '<div style="'+bg+border+'border-bottom:1px solid #F5F0E8;padding-top:12px;padding-right:16px;padding-bottom:12px">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">' +
-        '<div style="flex:1;min-width:0">' + nameLines(myTeamSide) + '</div>' +
-        '<div style="font-size:12px;font-weight:700;color:#9CA3AF;flex-shrink:0">vs</div>' +
-        '<div style="flex:1;min-width:0;text-align:right">' + nameLines(oppTeamSide) + '</div>' +
-      '</div>' +
-      '<div style="margin-top:4px">' +
-        '<span style="font-size:10px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:1px 6px">' + teeTime + '</span>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<div style="flex:1;min-width:0;text-align:center">' + nameLines(myTeamSide) + '</div>' +
+        '<div style="flex-shrink:0;text-align:center">' +
+          '<div style="font-size:12px;font-weight:700;color:#9CA3AF">vs</div>' +
+          '<div style="margin-top:4px"><span style="font-size:10px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:1px 6px;white-space:nowrap">' + teeTime + '</span></div>' +
+        '</div>' +
+        '<div style="flex:1;min-width:0;text-align:center">' + nameLines(oppTeamSide) + '</div>' +
       '</div>' +
       statusHtml +
     '</div>';
