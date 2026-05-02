@@ -685,8 +685,10 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
             <div id="yds-grid" class="hole-grid" style="margin:0;flex:1"></div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <div style="font-size:10px;font-weight:700;color:#6B7280;white-space:nowrap">Tee Color</div>
-            <input id="cfg-tee-name" class="form-input" style="max-width:110px;padding:4px 8px;font-size:12px" placeholder="e.g. White" disabled>
+            <div style="font-size:10px;font-weight:700;color:#6B7280;white-space:nowrap">Tee</div>
+            <select id="cfg-tee-select" class="form-input" style="max-width:150px;padding:4px 8px;font-size:12px" disabled onchange="_applyTeeByIndex(+this.value)">
+              <option value="">— select course first —</option>
+            </select>
           </div>
           <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
         </div>
@@ -1148,12 +1150,13 @@ function refreshEditModeUI(panel) {
 
 function editModeBar(panel, title, saveFn) {
   const on = adminEditModes[panel] || false;
-  const toggleBtn = on
-    ? '<button id="edit-btn-' + panel + '" class="btn-sm btn-green" onclick="' + saveFn + '">Save</button>'
+  const btns = on
+    ? '<button id="edit-btn-' + panel + '" class="btn-sm btn-green" onclick="' + saveFn + '">Save</button>' +
+      '<button class="btn-sm btn-outline" onclick="exitEditMode(\'' + panel + '\')" style="color:#6B7280;border-color:#D1D5DB">Cancel</button>'
     : '<button id="edit-btn-' + panel + '" class="btn-sm btn-outline" onclick="enterEditMode(\'' + panel + '\')">Edit</button>';
   return '<div class="panel-header">' +
     '<span class="panel-title">' + title + '</span>' +
-    toggleBtn +
+    '<div style="display:flex;gap:6px">' + btns + '</div>' +
     '</div>';
 }
 
@@ -3351,10 +3354,12 @@ function switchLeagueSubTab(tab) {
       var leOn = adminEditModes['league']  || false;
       var scOn = adminEditModes['scoring'] || false;
       var leToggle = leOn
-        ? '<button id="edit-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()">Save</button>'
+        ? '<button id="edit-btn-league" class="btn-sm btn-green" onclick="saveLeagueConfig()">Save</button>' +
+          '<button class="btn-sm btn-outline" onclick="exitEditMode(\'league\')" style="color:#6B7280;border-color:#D1D5DB">Cancel</button>'
         : '<button id="edit-btn-league" class="btn-sm btn-outline" onclick="enterEditMode(\'league\')">Edit</button>';
       var scToggle = scOn
-        ? '<button id="edit-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()">Save</button>'
+        ? '<button id="edit-btn-scoring" class="btn-sm btn-green" onclick="saveScoringConfig()">Save</button>' +
+          '<button class="btn-sm btn-outline" onclick="exitEditMode(\'scoring\')" style="color:#6B7280;border-color:#D1D5DB">Cancel</button>'
         : '<button id="edit-btn-scoring" class="btn-sm btn-outline" onclick="enterEditMode(\'scoring\')">Edit</button>';
       var btns = '';
       if      (tab === 'basic')    btns = shareBtn + leToggle;
@@ -3419,6 +3424,9 @@ function renderHoleGrids() {
     if (parFrontGrid) parFrontGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
     parGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
     hcpGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
+    if (ydsGrid) ydsGrid.querySelectorAll('input').forEach(el => { el.disabled = true; });
+    const teeSelect = document.getElementById('cfg-tee-select');
+    if (teeSelect) teeSelect.disabled = true;
   }
 }
 
@@ -3512,27 +3520,21 @@ function _applyTeeByIndex(teeIdx) {
   const ydsGrid = document.getElementById('yds-grid');
   if (ydsGrid) ydsGrid.innerHTML = holeData.map((h, i) =>
     `<input type="number" min="50" max="700" placeholder="—" value="${h.yardage || h.yards || ''}" id="yds-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
-  const teeNameEl = document.getElementById('cfg-tee-name');
-  if (teeNameEl) teeNameEl.value = tee.tee_name || '';
 
-  // Build confirmation text; include tee switcher if multiple options exist
-  const sel = document.getElementById('course-selected');
-  if (_activeTees.length > 1) {
-    const opts = _activeTees.map((t, i) =>
-      `<option value="${i}"${i === teeIdx ? ' selected' : ''}>${t.tee_name}</option>`
+  // Populate / sync the tee dropdown
+  const teeSelect = document.getElementById('cfg-tee-select');
+  if (teeSelect && _activeTees.length > 0) {
+    teeSelect.innerHTML = _activeTees.map((t, i) =>
+      `<option value="${i}"${i === teeIdx ? ' selected' : ''}>${t.tee_name} (par ${t.par_total})</option>`
     ).join('');
-    sel.innerHTML =
-      `<span style="color:#16A34A">✓ ${_activeLoc} · Par ${tee.par_total} · </span>` +
-      `<select onchange="_applyTeeByIndex(+this.value)" ` +
-        `style="font-size:11px;color:#1B4332;border:1px solid #86efac;border-radius:4px;` +
-               `padding:1px 5px;background:#F0FFF4;font-family:'DM Sans',sans-serif">` +
-        opts +
-      `</select><span style="color:#16A34A"> tees</span>`;
-  } else {
-    sel.textContent = `✓ ${_activeLoc} · ${tee.tee_name} tees · Par ${tee.par_total}`;
   }
+
+  // Update confirmation line — tee name shown in dropdown below, not repeated here
+  const courseNameVal = (document.getElementById('cfg-course') || {}).value || _activeLoc;
+  const sel = document.getElementById('course-selected');
+  sel.textContent = `✓ ${courseNameVal}`;
   sel.style.display = 'block';
-  showToast(holes + '-hole scorecard imported ✓');
+  showToast(tee.tee_name + ' tees loaded ✓');
 }
 
 // Close dropdown when tapping outside
@@ -3555,9 +3557,17 @@ function loadLeagueForm() {
   const codeEl  = document.getElementById('cfg-league-code');
   if (nameEl) nameEl.value = L.name || '';
   if (courseEl) courseEl.value = L.course || '';
-  if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
-  const teeNameEl = document.getElementById('cfg-tee-name');
-  if (teeNameEl) teeNameEl.value = L.teeName || '';
+  if (selEl && L.course) { selEl.textContent = '✓ ' + L.course; selEl.style.display = 'block'; }
+  // Restore tees from saved data so the dropdown works without re-searching
+  if (L.tees && L.tees.length > 0) {
+    _activeTees = L.tees;
+    const teeSelect = document.getElementById('cfg-tee-select');
+    if (teeSelect) {
+      teeSelect.innerHTML = L.tees.map((t, i) =>
+        `<option value="${i}"${(t.tee_name === L.teeName) ? ' selected' : ''}>${t.tee_name} (par ${t.par_total})</option>`
+      ).join('');
+    }
+  }
   if (startEl) startEl.value = L.startDate || '';
   if (weeksEl) weeksEl.value = L.weeks || 16;
   if (startTimeEl) startTimeEl.value = L.startTime || '17:30';
@@ -3603,9 +3613,12 @@ function saveLeagueConfig() {
   const parFront = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-front-'+i)?.value)||null);
   const holeHcp  = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
   const holeYards= Array.from({length:holes},(_,i)=>parseInt(document.getElementById('yds-'+i)?.value)||null);
-  const teeName  = (document.getElementById('cfg-tee-name')?.value || '').trim();
+  const teeSelectEl = document.getElementById('cfg-tee-select');
+  const teeIdx   = teeSelectEl ? parseInt(teeSelectEl.value) || 0 : 0;
+  const teeName  = (_activeTees[teeIdx] && _activeTees[teeIdx].tee_name) || (DATA.league && DATA.league.teeName) || '';
+  const tees     = _activeTees.length > 0 ? _activeTees : (DATA.league && DATA.league.tees) || [];
   const leagueCode = ((document.getElementById('cfg-league-code') || {value:''}).value || '').trim().toUpperCase() || null;
-  DATA.league = { name, course, holes, par, parFront, holeHcp, holeYards, teeName, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear(), leagueCode };
+  DATA.league = { name, course, holes, par, parFront, holeHcp, holeYards, teeName, tees, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear(), leagueCode };
   DATA.scoringConfig.enableMatchPlay  = enableMatchPlay;
   DATA.scoringConfig.enableStableford = enableStableford;
   generateSchedule();
