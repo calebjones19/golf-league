@@ -4511,7 +4511,7 @@ function renderMatchupsList() {
       (active ? 'background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7280') +
       '" onclick="_matchupsSubTab=\'' + id + '\';renderMatchupsList()">' + label + '</button>';
   }
-  const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:12px 16px 16px">' +
+  const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:8px 16px 10px">' +
     mTabBtn('matchups', 'Matchups') + mTabBtn('skins', 'Skins') +
   '</div>';
 
@@ -4531,9 +4531,9 @@ function renderMatchupsList() {
     .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
     .join('');
   const weekSelector =
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
       '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">' + (on ? 'ADD TO' : 'WEEK') + '</span>' +
-      '<select class="form-input" style="flex:1;max-width:140px;padding:6px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
+      '<select class="form-input" style="flex:1;max-width:140px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
         weekOpts +
       '</select>' +
     '</div>';
@@ -4598,26 +4598,24 @@ function renderMatchupsList() {
     const teeTime = calcTeeTime(idx);
     const existingRound = (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamAId && r.teamBId === m.teamBId && r.week === selWeek; })
       || (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamBId && r.teamBId === m.teamAId && r.week === selWeek; });
-    function firstNames(team) {
+    function playerLines(team) {
       return (team.playerIds || []).map(function(pid) {
         const p = DATA.players.find(function(pl){ return pl.id === pid; });
-        return p ? playerFirstName(p) : '';
-      }).filter(Boolean).join(' & ');
+        return p ? '<div style="font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + playerName(p) + '</div>' : '';
+      }).filter(Boolean).join('');
     }
     const resultEl = existingRound
       ? '<span style="font-size:11px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;white-space:nowrap">' + existingRound.pointsA + '–' + existingRound.pointsB + '</span>'
       : '<button onclick="openEnterResults(\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="font-size:9px;font-weight:700;color:#C9A84C;background:#FEF9EE;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">+ Score</button>';
-    return '<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid #F5F0E8">' +
-      '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:#1A1A1A;text-align:right">' + firstNames(tA) + '</div>' +
-      '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:52px">' +
+    return '<div style="display:flex;align-items:center;gap:4px;padding:7px 10px;border-bottom:1px solid #F5F0E8">' +
+      '<div style="flex:1;min-width:0;text-align:right;overflow:hidden">' + playerLines(tA) + '</div>' +
+      '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 4px">' +
         '<span style="font-size:9px;font-weight:700;color:#9CA3AF">vs</span>' +
         '<span style="font-size:8px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:4px;padding:1px 5px;white-space:nowrap">' + teeTime + '</span>' +
+        '<div style="margin-top:2px">' + resultEl + '</div>' +
       '</div>' +
-      '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:#1A1A1A">' + firstNames(tB) + '</div>' +
-      '<div style="flex-shrink:0;display:flex;align-items:center;gap:4px">' +
-        resultEl +
-        (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;padding:0;line-height:1;font-size:11px">✕</button>' : '') +
-      '</div>' +
+      '<div style="flex:1;min-width:0;overflow:hidden">' + playerLines(tB) + '</div>' +
+      (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;padding:0;line-height:1;font-size:11px;margin-left:2px">✕</button>' : '') +
     '</div>';
   }
 
