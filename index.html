@@ -711,14 +711,15 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
             </label>
           </div>
         </div>
-      </div>
 
-      <!-- ── Week 1 seed button (hidden once used) ────────────── -->
-      <div id="week1-seed-wrap" style="display:none;padding:0 16px 16px">
-        <button onclick="seedWeek1Scores()" style="width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
-          ⛳ Import Week 1 Scores from GHIN
-        </button>
-        <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:5px">One-time import — button disappears after use</div>
+        <!-- ── Week 1 seed button (hidden once used) ────────── -->
+        <div id="week1-seed-wrap" class="form-group">
+          <button onclick="seedWeek1Scores()" style="width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
+            ⛳ Import Week 1 Scores
+          </button>
+          <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:5px">One-time import — disappears after use</div>
+        </div>
+
       </div>
 
       <!-- ── Schedule ───────────────────────────────────────── -->
@@ -3407,12 +3408,8 @@ function buildAdmin() {
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
-  // Show one-time seed button for week 1 scores if not yet entered
-  var seedWrap = document.getElementById('week1-seed-wrap');
-  if (seedWrap) {
-    var hasWeek1 = (DATA.rounds||[]).some(function(r){ return r.week === 1; });
-    seedWrap.style.display = hasWeek1 ? 'none' : 'block';
-  }
+  // Hide seed button once week 1 rounds exist
+  _updateSeedButton();
 }
 
 function renderHoleGrids() {
@@ -3594,6 +3591,7 @@ function loadLeagueForm() {
   if (mpCheck) mpCheck.checked = L.enableMatchPlay !== false;
   if (sfCheck) sfCheck.checked = L.enableStableford !== false;
   renderHoleGrids();
+  _updateSeedButton();
 }
 
 function shareLeagueLink() {
@@ -8029,6 +8027,14 @@ auth.onAuthStateChanged(user => {
     }
   }, 600);
 });
+
+// ── Week 1 Seed Button visibility ───────────────────────────────
+function _updateSeedButton() {
+  var el = document.getElementById('week1-seed-wrap');
+  if (!el) return;
+  var hasWeek1 = (DATA.rounds||[]).some(function(r){ return r.week === 1; });
+  el.style.display = (isAdmin && !hasWeek1) ? '' : 'none';
+}
 
 // ── Week 1 Score Seeder ──────────────────────────────────────────
 function seedWeek1Scores() {
