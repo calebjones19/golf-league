@@ -31,21 +31,7 @@
   --stat-card-bg:#ffffff;--lb-card-bg:#ffffff;
   --toggle-off:#D1D5DB;
 }
-html.dark{
-  --bg:#111916;--surface:#1E2D27;--surface2:#253329;--surface3:#2A3A2E;
-  --border:#2E4035;--border-light:#253329;
-  --text1:#EAE7E0;--text2:#B8C5BC;--text3:#7A9A87;--text4:#4E7060;
-  --green:#1B4332;--green2:#2D6A4F;--gold:#C9A84C;
-  --card-bg:rgba(30,45,39,0.92);--card-border:rgba(255,255,255,0.06);
-  --sheet-bg:rgba(20,32,26,0.97);--modal-bg:rgba(20,32,26,0.97);
-  --input-bar-bg:rgba(16,26,20,0.97);--input-bar-border:rgba(255,255,255,0.07);
-  --nav-bg:rgba(8,14,10,0.95);
-  --msg-other-bg:#1E2D27;--msg-other-text:#EAE7E0;
-  --reaction-bg:#253329;--reaction-border:#2E4035;--reaction-text:#B8C5BC;
-  --score-bg:#1E2D27;--scorecard-bg:#1E2D27;--scorecard-par:#253329;
-  --stat-card-bg:#1E2D27;--lb-card-bg:#1E2D27;
-  --toggle-off:#3A5045;
-}
+
 html{overflow:hidden;overscroll-behavior:none}
 body{background:#1B4332;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;min-height:100vh;overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
 #app{width:100%;max-width:430px;background:var(--bg);min-height:100vh;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.18)}
@@ -947,21 +933,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
               <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)">
               <span class="toggle-slider"></span>
             </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Appearance settings -->
-      <div style="background:var(--surface);border-radius:16px;border:1.5px solid var(--border-light);margin-bottom:16px;overflow:hidden">
-        <div style="padding:14px 16px">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.5px;margin-bottom:12px">APPEARANCE</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:14px;font-weight:600;color:var(--text1)">Theme</div>
-            <div style="display:flex;background:var(--surface3);border-radius:8px;padding:3px;gap:2px" id="theme-seg">
-              <button id="theme-btn-system" onclick="setTheme('system')" style="padding:5px 11px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;background:var(--surface);color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.1)">System</button>
-              <button id="theme-btn-light" onclick="setTheme('light')" style="padding:5px 11px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;background:transparent;color:var(--text3)">Light</button>
-              <button id="theme-btn-dark" onclick="setTheme('dark')" style="padding:5px 11px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;background:transparent;color:var(--text3)">Dark</button>
-            </div>
           </div>
         </div>
       </div>
@@ -5294,7 +5265,6 @@ function openProfileSheet() {
   }
 
   document.getElementById('profile-overlay').classList.add('open');
-  syncThemeButtons();
 }
 
 function _profileCell(label, value) {
@@ -6798,51 +6768,6 @@ function haptic(type) {
   else if (type === 'medium') navigator.vibrate(30);
   else if (type === 'heavy')  navigator.vibrate(60);
   else navigator.vibrate(type); // pass raw ms
-}
-
-// ============================================================
-// THEME (Dark / Light / System)
-// ============================================================
-
-var _themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-function _applyTheme(pref) {
-  var isDark = pref === 'dark' || (pref === 'system' && _themeMediaQuery.matches);
-  document.documentElement.classList.toggle('dark', isDark);
-}
-
-function setTheme(pref) {
-  localStorage.setItem('golf_theme', pref);
-  _applyTheme(pref);
-  _updateThemeButtons(pref);
-}
-
-function _updateThemeButtons(pref) {
-  var btns = { system: 'theme-btn-system', light: 'theme-btn-light', dark: 'theme-btn-dark' };
-  Object.keys(btns).forEach(function(k) {
-    var el = document.getElementById(btns[k]);
-    if (!el) return;
-    var active = k === pref;
-    el.style.background = active ? 'var(--surface)' : 'transparent';
-    el.style.color = active ? '#1B4332' : 'var(--text3)';
-    el.style.boxShadow = active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none';
-  });
-}
-
-// Init theme on load
-(function() {
-  var saved = localStorage.getItem('golf_theme') || 'system';
-  _applyTheme(saved);
-  // Listen for OS-level changes when in system mode
-  _themeMediaQuery.addEventListener('change', function() {
-    if ((localStorage.getItem('golf_theme') || 'system') === 'system') _applyTheme('system');
-  });
-})();
-
-// Called when profile sheet opens — sync buttons to current pref
-function syncThemeButtons() {
-  var saved = localStorage.getItem('golf_theme') || 'system';
-  _updateThemeButtons(saved);
 }
 
 // ============================================================
