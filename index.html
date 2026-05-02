@@ -2560,17 +2560,22 @@ function buildMatchups() {
         '</div>';
     }
 
+    var myTeamSide = DATA.currentUserId && tA.playerIds.includes(DATA.currentUserId) ? tA : tB;
+    var oppTeamSide = myTeamSide === tA ? tB : tA;
+    function nameLines(team) {
+      return (team ? team.playerIds : []).map(function(pid){
+        var p = DATA.players.find(function(pl){return pl.id===pid;});
+        return p ? '<div style="font-size:14px;font-weight:600;color:#1A1A1A;padding:1px 0">' + playerName(p) + '</div>' : '';
+      }).filter(Boolean).join('');
+    }
     return '<div style="'+bg+border+'border-bottom:1px solid #F5F0E8;padding-top:12px;padding-right:16px;padding-bottom:12px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="display:flex;align-items:center;gap:8px">' +
-            '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' +
-              tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name +
-            '</div>' +
-            '<span style="font-size:10px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:1px 6px;white-space:nowrap">' + teeTime + '</span>' +
-          '</div>' +
-          '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + pnames(tA) + '  ·  ' + pnames(tB) + '</div>' +
-        '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">' +
+        '<div style="flex:1;min-width:0">' + nameLines(myTeamSide) + '</div>' +
+        '<div style="font-size:12px;font-weight:700;color:#9CA3AF;flex-shrink:0">vs</div>' +
+        '<div style="flex:1;min-width:0;text-align:right">' + nameLines(oppTeamSide) + '</div>' +
+      '</div>' +
+      '<div style="margin-top:4px">' +
+        '<span style="font-size:10px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:1px 6px">' + teeTime + '</span>' +
       '</div>' +
       statusHtml +
     '</div>';
