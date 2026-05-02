@@ -5523,7 +5523,8 @@ function maybeShowInstallPrompt() {
 
   if (isIOS) {
     stepsEl.innerHTML = _installSteps([
-      { icon: _iosShareIcon(), text: 'Tap the <strong>Share</strong> button at the bottom of Safari' },
+      { icon: '•••', text: 'Tap the <strong>three dots (•••)</strong> at the bottom of Safari' },
+      { icon: _iosShareIcon(), text: 'Tap the <strong>Share</strong> button from the menu' },
       { icon: '➕', text: 'Scroll down and tap <strong>"Add to Home Screen"</strong>' },
       { icon: '✅', text: 'Tap <strong>"Add"</strong> in the top right corner' }
     ], 'Works in Safari only. If you\'re in Chrome, open this page in Safari first.');
