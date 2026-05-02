@@ -380,8 +380,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .emoji-btn{border:none;background:none;font-size:26px;padding:3px 0;border-radius:8px;cursor:pointer;width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;line-height:1;transition:background 0.1s}
 .emoji-btn:active{background:var(--surface3)}
 .emoji-sheet-tabs{display:flex;align-items:center;border-top:1px solid var(--border-light);padding:4px 8px;padding-bottom:max(6px,env(safe-area-inset-bottom));gap:0;flex-shrink:0}
-.emoji-tab{flex:1;height:36px;border:none;background:none;border-radius:8px;font-size:20px;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;padding:0}
-.emoji-tab.active{background:var(--surface3)}
+.emoji-tab{flex:1;height:36px;border:none;background:none;border-radius:8px;font-size:20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;padding:0;opacity:0.45;transform:scale(0.88)}
+.emoji-tab.active{background:var(--surface3);opacity:1;transform:scale(1.08);box-shadow:0 1px 4px rgba(0,0,0,0.1)}
 @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
 /* Msg context menu */
 .msg-context-menu{position:fixed;background:var(--surface);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.15);padding:6px;z-index:700;min-width:160px;animation:popIn 0.15s ease;border:1px solid var(--border)}
@@ -6282,24 +6282,40 @@ function _renderEmojiSheetGrid(activeCatId) {
   grid.innerHTML = html;
 
   // Tab bar
+  var initCat = activeCatId || EMOJI_SHEET_CATS[0].id;
   var tabHtml = '';
   EMOJI_SHEET_CATS.forEach(function(cat) {
-    var active = cat.id === (activeCatId || EMOJI_SHEET_CATS[0].id) ? ' active' : '';
+    var active = cat.id === initCat ? ' active' : '';
     tabHtml += '<button class="emoji-tab' + active + '" onclick="scrollToEmojiCat(\'' + cat.id + '\')">' + cat.icon + '</button>';
   });
   tabs.innerHTML = tabHtml;
+
+  // Scroll-spy: update active tab as the grid scrolls
+  grid.addEventListener('scroll', _emojiScrollSpy, { passive: true });
 }
 function _escEmoji(em) {
   // Safely escape emoji for inline onclick attribute
   return em.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 }
-function scrollToEmojiCat(catId) {
-  // Update active tab
-  document.querySelectorAll('.emoji-tab').forEach(function(t){ t.classList.remove('active'); });
-  var idx = EMOJI_SHEET_CATS.findIndex(function(c){ return c.id === catId; });
+function _setActiveEmojiTab(catId) {
   var tabEls = document.querySelectorAll('.emoji-tab');
-  if (tabEls[idx]) tabEls[idx].classList.add('active');
-  // Scroll grid to section
+  var idx = EMOJI_SHEET_CATS.findIndex(function(c){ return c.id === catId; });
+  tabEls.forEach(function(t, i){ t.classList.toggle('active', i === idx); });
+}
+function _emojiScrollSpy() {
+  var grid = document.getElementById('emoji-sheet-grid');
+  if (!grid) return;
+  var scrollTop = grid.scrollTop;
+  // Walk sections from last to first — first one whose top <= scrollTop wins
+  var active = EMOJI_SHEET_CATS[0].id;
+  for (var i = 0; i < EMOJI_SHEET_CATS.length; i++) {
+    var sect = document.getElementById('emoji-sect-' + EMOJI_SHEET_CATS[i].id);
+    if (sect && sect.offsetTop <= scrollTop + 32) active = EMOJI_SHEET_CATS[i].id;
+  }
+  _setActiveEmojiTab(active);
+}
+function scrollToEmojiCat(catId) {
+  _setActiveEmojiTab(catId);
   var sect = document.getElementById('emoji-sect-' + catId);
   var grid = document.getElementById('emoji-sheet-grid');
   if (sect && grid) grid.scrollTop = sect.offsetTop;
