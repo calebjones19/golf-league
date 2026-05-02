@@ -4862,6 +4862,8 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
         '</td>' +
         cells +
         '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:12px;font-weight:700;color:#9CA3AF;padding:2px 4px;white-space:nowrap">—</td>' +
+        '<td id="asc-hcp-' + pid + '" style="text-align:center;font-size:12px;font-weight:600;color:#9CA3AF;padding:2px 4px;white-space:nowrap">—</td>' +
+        '<td id="asc-net-' + pid + '" style="text-align:center;font-size:13px;font-weight:800;color:#1B4332;padding:2px 4px;white-space:nowrap">—</td>' +
       '</tr>';
     }).join('');
     return separator + rows;
@@ -4869,11 +4871,13 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
 
   var tableHtml =
     '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">' +
-      '<table style="width:100%;border-collapse:collapse;min-width:' + (88 + holes * 32 + 38) + 'px">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:' + (88 + holes * 32 + 108) + 'px">' +
         '<thead><tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">' +
           '<th style="text-align:left;padding:6px 8px;width:88px;font-size:9px;font-weight:700;color:#9CA3AF">PLAYER</th>' +
           holeHeaders +
-          '<th style="width:38px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">TOT</th>' +
+          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">TOT</th>' +
+          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">HCP</th>' +
+          '<th style="width:36px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#1B4332">NET</th>' +
         '</tr></thead>' +
         '<tbody>' + buildTeamRows(tA) + buildTeamRows(tB) + '</tbody>' +
       '</table>' +
@@ -4931,8 +4935,21 @@ function recalcAdminPoints() {
       scores[pid][h] = isNaN(v) ? null : v;
       if (!isNaN(v)) { gross += v; hasAny = true; }
     }
+    // Compute total handicap strokes received across all scored holes
+    var player = DATA.players.find(function(pl) { return pl.id === pid; });
+    var hcpStrokes = 0;
+    if (player) {
+      var hcp = effectiveHandicap(player);
+      for (var h = 0; h < holes; h++) {
+        hcpStrokes += playerStrokesOnHole(hcp, scoringHoleHcp[h], holes);
+      }
+    }
     var totEl = document.getElementById('asc-tot-' + pid);
     if (totEl) totEl.textContent = hasAny ? gross : '—';
+    var hcpEl = document.getElementById('asc-hcp-' + pid);
+    if (hcpEl) hcpEl.textContent = player ? hcpStrokes : '—';
+    var netEl = document.getElementById('asc-net-' + pid);
+    if (netEl) netEl.textContent = hasAny ? (gross - hcpStrokes) : '—';
   });
 
   var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
