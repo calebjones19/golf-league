@@ -4554,7 +4554,7 @@ function removeFromTeam(teamId, playerId) {
 // ============================================================
 var _matchupSelTeam = null;  // first-selected team id
 var _matchupSelWeek = null;  // currently targeted week (null = use current week)
-var _matchupsSubTab = 'matchups'; // 'matchups' | 'skins'
+var _matchupsSubTab = 'matchups'; // 'matchups' | 'skins' | 'scores'
 
 function renderMatchupsList() {
   const wrap = document.getElementById('matchups-panel-content');
@@ -4568,12 +4568,18 @@ function renderMatchupsList() {
       '" onclick="_matchupsSubTab=\'' + id + '\';renderMatchupsList()">' + label + '</button>';
   }
   const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:8px 16px 10px">' +
-    mTabBtn('matchups', 'Matchups') + mTabBtn('skins', 'Skins') +
+    mTabBtn('matchups', 'Matchups') + mTabBtn('scores', 'Scores') + mTabBtn('skins', 'Skins') +
   '</div>';
 
   if (_matchupsSubTab === 'skins') {
     wrap.innerHTML = subTabBar + '<div id="skins-admin-content"></div>';
     renderSkinsAdmin();
+    return;
+  }
+
+  if (_matchupsSubTab === 'scores') {
+    wrap.innerHTML = subTabBar + '<div id="weekly-scores-content"></div>';
+    renderWeeklyScores();
     return;
   }
 
@@ -4705,6 +4711,123 @@ function selectMatchupWeek(w) {
   _matchupSelTeam = null;
   _matchupSelWeek = w;
   renderMatchupsList();
+}
+
+// ── Weekly Scores tab ─────────────────────────────────────────
+function renderWeeklyScores() {
+  const el = document.getElementById('weekly-scores-content');
+  if (!el) return;
+
+  const totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
+  const selWeek = _matchupSelWeek !== null ? _matchupSelWeek : getCurrentWeek();
+
+  const weekOpts = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+    .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
+    .join('');
+  const weekSel =
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
+      '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</span>' +
+      '<select class="form-input" style="flex:1;max-width:130px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
+        weekOpts +
+      '</select>' +
+    '</div>';
+
+  const weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
+
+  if (weekMatchups.length === 0) {
+    el.innerHTML = weekSel + '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + selWeek + '.</div>';
+    return;
+  }
+
+  function pLastName(pid) {
+    var p = DATA.players.find(function(pl) { return pl.id === pid; });
+    return p ? playerLastName(p) : '';
+  }
+  function teamNames(team) {
+    return (team.playerIds || []).map(pLastName).filter(Boolean)
+      .map(function(n) { return '<div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + n + '</div>'; })
+      .join('');
+  }
+
+  var rowsHtml = weekMatchups.map(function(m) {
+    var tA = DATA.teams.find(function(t) { return t.id === m.teamAId; });
+    var tB = DATA.teams.find(function(t) { return t.id === m.teamBId; });
+    if (!tA || !tB) return '';
+    var mid = m.id;
+
+    // Find existing round, check both orderings
+    var r = (DATA.rounds || []).find(function(r) { return r.week === selWeek && r.teamAId === m.teamAId && r.teamBId === m.teamBId; })
+          || (DATA.rounds || []).find(function(r) { return r.week === selWeek && r.teamAId === m.teamBId && r.teamBId === m.teamAId; });
+
+    // Normalize to matchup team order
+    var ptsA = r ? (r.teamAId === m.teamAId ? r.pointsA : r.pointsB) : '';
+    var ptsB = r ? (r.teamAId === m.teamAId ? r.pointsB : r.pointsA) : '';
+
+    var sourceBadge = '';
+    if (r) {
+      var isPlayerScored = !r.manual && r.scores && Object.keys(r.scores).length > 0;
+      sourceBadge = isPlayerScored
+        ? '<span style="font-size:10px;font-weight:600;color:#059669;background:#F0FFF4;border:1px solid #86EFAC;border-radius:8px;padding:1px 8px">● Player scored</span>'
+        : '<span style="font-size:10px;font-weight:600;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:1px 8px">● Admin entered</span>';
+    }
+
+    var inputStyle = 'width:48px;text-align:center;font-size:15px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:8px;padding:5px 4px;font-family:\'Space Grotesk\',sans-serif;color:#1B4332;background:#fff;-moz-appearance:textfield';
+
+    return '<div style="padding:10px 0;border-bottom:1px solid #F5F0E8">' +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+        '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + teamNames(tA) + '</div>' +
+        '<div style="flex-shrink:0;display:flex;align-items:center;gap:4px">' +
+          '<input id="ws-a-' + mid + '" type="number" step="0.5" min="0" max="18" value="' + ptsA + '" style="' + inputStyle + '" placeholder="—">' +
+          '<span style="font-size:13px;font-weight:700;color:#9CA3AF">–</span>' +
+          '<input id="ws-b-' + mid + '" type="number" step="0.5" min="0" max="18" value="' + ptsB + '" style="' + inputStyle + '" placeholder="—">' +
+        '</div>' +
+        '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + teamNames(tB) + '</div>' +
+        '<button onclick="saveWeeklyScore(\'' + mid + '\',\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="flex-shrink:0;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-left:2px">Save</button>' +
+      '</div>' +
+      (sourceBadge ? '<div style="display:flex;justify-content:center;margin-top:5px">' + sourceBadge + '</div>' : '') +
+    '</div>';
+  }).join('');
+
+  el.innerHTML = weekSel +
+    '<div class="card" style="padding:0 12px;overflow:hidden">' + rowsHtml + '</div>' +
+    '<div style="height:16px"></div>';
+}
+
+function saveWeeklyScore(matchupId, teamAId, teamBId, week) {
+  var ptsA = parseFloat(document.getElementById('ws-a-' + matchupId).value);
+  var ptsB = parseFloat(document.getElementById('ws-b-' + matchupId).value);
+  if (isNaN(ptsA) || isNaN(ptsB)) { showToast('Enter points for both teams'); return; }
+
+  // Remove any existing round for this matchup/week (both orderings)
+  DATA.rounds = (DATA.rounds || []).filter(function(r) {
+    return !(r.week === week && (
+      (r.teamAId === teamAId && r.teamBId === teamBId) ||
+      (r.teamAId === teamBId  && r.teamBId === teamAId)
+    ));
+  });
+
+  var sched = (DATA.schedule || []).find(function(s) { return s.week === week; });
+  var nine = (sched && sched.nine) || getWeekNine(week);
+
+  DATA.rounds.push({
+    id: 'r' + Date.now(),
+    week: week,
+    nine: nine,
+    teamAId: teamAId,
+    teamBId: teamBId,
+    scores: {},
+    pointsA: ptsA,
+    pointsB: ptsB,
+    holeResults: [],
+    completedAt: sched && sched.date ? sched.date + 'T23:59:00.000Z' : new Date().toISOString(),
+    subs: {},
+    manual: true
+  });
+
+  if (sched) sched.status = 'completed';
+  saveData();
+  showToast('Week ' + week + ' score saved ✓');
+  renderMatchupsList(); // re-renders the scores tab
 }
 
 function tapTeamForMatchup(teamId) {
