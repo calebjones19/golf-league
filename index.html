@@ -4583,16 +4583,19 @@ function renderMatchupsList() {
     .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
     .join('');
   const selNine = getWeekNine(selWeek);
+  const nineToggle = on
+    ? '<div style="display:flex;border-radius:8px;overflow:hidden;border:1.5px solid #E5E7EB;flex-shrink:0">' +
+        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'front\')" style="padding:4px 12px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='front'?'#1B4332':'#fff') + ';color:' + (selNine==='front'?'#fff':'#6B7280') + '">Front 9</button>' +
+        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'back\')" style="padding:4px 12px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='back'?'#1B4332':'#fff') + ';color:' + (selNine==='back'?'#fff':'#6B7280') + '">Back 9</button>' +
+      '</div>'
+    : '';
   const weekSelector =
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
       '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">' + (on ? 'ADD TO' : 'WEEK') + '</span>' +
       '<select class="form-input" style="flex:1;max-width:130px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
         weekOpts +
       '</select>' +
-      '<div style="display:flex;border-radius:8px;overflow:hidden;border:1.5px solid #E5E7EB;flex-shrink:0">' +
-        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'front\')" style="padding:4px 10px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='front'?'#1B4332':'#fff') + ';color:' + (selNine==='front'?'#fff':'#6B7280') + '">F9</button>' +
-        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'back\')" style="padding:4px 10px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='back'?'#1B4332':'#fff') + ';color:' + (selNine==='back'?'#fff':'#6B7280') + '">B9</button>' +
-      '</div>' +
+      nineToggle +
     '</div>';
 
   // ── Edit-mode: team pairing cards ────────────────────────────
