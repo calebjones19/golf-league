@@ -5589,10 +5589,11 @@ function updateChatBadge() {
 // Shrink chat/thread panel height when iOS keyboard opens so input stays visible
 // ── Keyboard-open state ─────────────────────────────────────────────────────
 // _inputFocused is the primary "keyboard is open" signal — reliable on all
-// iOS versions including PWA standalone where window.innerHeight can equal
-// visualViewport.height (making getKeyboardHeight() return 0).
+// iOS versions including PWA standalone.
+// Fix: use vv.offsetTop + vv.height directly instead of _vpMaxHeight arithmetic,
+// which was causing the input bar to be pushed off-screen on iOS (window.innerHeight
+// can exceed vv.height even without a keyboard due to status bar).
 var _inputFocused = false;
-var _vpMaxHeight  = window.innerHeight; // grows as we observe the keyboard-closed height
 
 document.addEventListener('focusin', function(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
@@ -5608,26 +5609,24 @@ document.addEventListener('focusout', function(e) {
 }, true);
 
 function _adjustChatForKeyboard() {
-  const vv  = window.visualViewport;
-  if (vv && vv.height > _vpMaxHeight) _vpMaxHeight = vv.height; // keep max updated
-  const kbH = vv ? Math.max(0, _vpMaxHeight - vv.offsetTop - vv.height) : 0;
+  const vv = window.visualViewport;
 
   // Apply adjustment to whichever panel(s) are open
   ['chat-panel', 'thread-panel'].forEach(function(id) {
     const panel = document.getElementById(id);
     if (!panel || !panel.classList.contains('open')) return;
-    if (_inputFocused && kbH > 50) {
-      panel.style.top           = (vv ? vv.offsetTop : 0) + 'px';
-      panel.style.height        = _vpMaxHeight + 'px';
-      panel.style.boxSizing     = 'border-box';
-      panel.style.paddingBottom = kbH + 'px';
+    if (_inputFocused && vv) {
+      // Shrink panel to exactly the visual viewport so input bar sits
+      // right above the keyboard — avoids iOS window.innerHeight discrepancy.
+      panel.style.top       = vv.offsetTop + 'px';
+      panel.style.height    = vv.height + 'px';
+      panel.style.boxSizing = 'border-box';
       const msgs = panel.querySelector('.chat-messages');
       if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
     } else if (!_inputFocused) {
-      panel.style.top           = '';
-      panel.style.height        = '';
-      panel.style.boxSizing     = '';
-      panel.style.paddingBottom = '';
+      panel.style.top       = '';
+      panel.style.height    = '';
+      panel.style.boxSizing = '';
     }
   });
 
@@ -5663,11 +5662,7 @@ function handleKeyboardCloseBtn() {
   }
 }
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', function() {
-    // Keep _vpMaxHeight up-to-date (keyboard-closed height is always the largest)
-    if (window.visualViewport.height > _vpMaxHeight) _vpMaxHeight = window.visualViewport.height;
-    _adjustChatForKeyboard();
-  });
+  window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
   window.visualViewport.addEventListener('scroll', _adjustChatForKeyboard);
 }
 
