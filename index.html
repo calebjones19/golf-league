@@ -4392,10 +4392,11 @@ function renderSkinsAdmin() {
   }).join('');
 
   wrap.innerHTML =
-    '<div style="padding:0 16px 16px">' +
-      weekSel +
-      summaryHtml +
-      '<div class="card" style="padding:4px 12px">' + playerHtml + '</div>' +
+    '<div style="padding:0 0 16px">' +
+      '<div style="padding:0 16px">' + weekSel + summaryHtml + '</div>' +
+      '<div class="card" style="padding:4px 0;margin:0;border-radius:0;border-left:none;border-right:none">' +
+        '<div style="padding:0 16px">' + playerHtml + '</div>' +
+      '</div>' +
     '</div>';
 }
 
@@ -5650,31 +5651,33 @@ function getKeyboardHeight() {
 }
 
 // Prevent iOS rubber-band from revealing the page behind the chat/thread panel.
-// Also: pull-down while at the top of the message list dismisses the keyboard.
+// Also: any downward drag on the message list dismisses the keyboard when it's open.
 (function() {
   function _attachPanelTouchHandlers(panelId, getMsgsEl) {
-    var _startY = 0;
+    var _startY      = 0;
+    var _kbDismissed = false; // only blur once per gesture
     var panel = document.getElementById(panelId);
     if (!panel) return;
     panel.addEventListener('touchstart', function(e) {
-      _startY = e.touches[0].clientY;
+      _startY      = e.touches[0].clientY;
+      _kbDismissed = false;
     }, { passive: true });
     panel.addEventListener('touchmove', function(e) {
-      var msgs = getMsgsEl();
+      var msgs      = getMsgsEl();
+      var curY      = e.touches[0].clientY;
+      var swipeDown = curY > _startY;
+      var swipeUp   = curY < _startY;
+
+      // Dismiss keyboard on any downward drag — regardless of scroll position
+      if (swipeDown && !_kbDismissed && getKeyboardHeight() > 100) {
+        _kbDismissed = true;
+        if (document.activeElement) document.activeElement.blur();
+      }
+
       if (msgs && msgs.contains(e.target)) {
-        var atTop     = msgs.scrollTop <= 0;
-        var atBottom  = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 1;
-        var swipeDown = e.touches[0].clientY > _startY;
-        var swipeUp   = e.touches[0].clientY < _startY;
-        if (atTop && swipeDown) {
-          e.preventDefault();
-          // If keyboard is open, dismiss it on pull-down
-          if (getKeyboardHeight() > 100 && document.activeElement) {
-            document.activeElement.blur();
-          }
-        } else if (atBottom && swipeUp) {
-          e.preventDefault();
-        }
+        var atTop    = msgs.scrollTop <= 0;
+        var atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 1;
+        if ((atTop && swipeDown) || (atBottom && swipeUp)) e.preventDefault();
       } else {
         e.preventDefault();
       }
