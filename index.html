@@ -53,7 +53,7 @@ section{display:none}
 section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-top));bottom:calc(76px + max(0px,env(safe-area-inset-bottom) - 10px));left:50%;transform:translateX(-50%);width:100%;max-width:430px;overflow-y:auto;overflow-x:hidden;background:var(--bg);-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
 #sec-score.active{display:flex;flex-direction:column;overflow:hidden}
 #sec-leaderboard.active{display:flex;flex-direction:column;overflow:hidden}
-#sec-standings.active{display:flex;flex-direction:column;justify-content:center;overflow-y:auto}
+#sec-standings.active{display:flex;flex-direction:column;overflow:hidden}
 #leaderboard-content{overflow-y:auto;flex:1;padding-bottom:24px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes fadeOut{from{opacity:1}to{opacity:0}}
@@ -580,8 +580,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
   <section id="sec-leaderboard">
     <div style="padding:16px 16px 8px;flex-shrink:0;background:var(--bg)">
       <div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;gap:2px">
-        <button id="board-tab-team" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('team')">Team Leaders</button>
+        <button id="board-tab-team" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('team')">Leaders</button>
         <button id="board-tab-sf" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('sf')">Stableford</button>
+        <button id="board-tab-history" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('history')">History</button>
       </div>
     </div>
     <div id="leaderboard-content" style="overflow-y:auto;flex:1"></div>
@@ -594,7 +595,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- ===== STANDINGS ===== -->
   <section id="sec-standings">
-    <div id="standings-content"></div>
+    <div style="padding:16px 16px 8px;flex-shrink:0;background:var(--bg)">
+      <div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;gap:2px">
+        <button id="standings-tab-schedule" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('schedule')">Schedule</button>
+        <button id="standings-tab-stats" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('stats')">Stats</button>
+      </div>
+    </div>
+    <div id="standings-content" style="overflow-y:auto;flex:1"></div>
   </section>
 
   <!-- ===== ADMIN ===== -->
@@ -2297,9 +2304,249 @@ function submitRound() {
   if (week) week.status = 'completed';
   saveData();
   recalcHandicaps();
+  // Snapshot handicaps after recalc so we can track them over time
+  round.handicapsAfter = {};
+  DATA.players.forEach(function(p){ round.handicapsAfter[p.id] = p.leagueHandicap || 0; });
+  saveData();
+  sendRoundSummaryPush(round);
   activeMatch = null; currentHole = 0;
   showToast('Round submitted! 🏌️');
   showSection('leaderboard');
+}
+
+function sendRoundSummaryPush(round) {
+  if (!_swReg || !_swReg.active) return;
+  var tA = DATA.teams.find(function(t){return t.id === round.teamAId;});
+  var tB = DATA.teams.find(function(t){return t.id === round.teamBId;});
+  if (!tA || !tB) return;
+  var title = 'Week ' + round.week + ' Results 🏌️';
+  var winner = round.pointsA > round.pointsB ? tA.name : round.pointsB > round.pointsA ? tB.name : null;
+  var body = tA.name + '  ' + round.pointsA + ' – ' + round.pointsB + '  ' + tB.name;
+  if (winner) body += '\n' + winner + ' wins!';
+  else body += '\nAll square — tied!';
+  _swReg.active.postMessage({ type: 'SHOW_NOTIFICATION', title: title, body: body, tag: 'round-result-' + round.week });
+}
+
+// ── Round History ─────────────────────────────────────────────────────────
+var _expandedRound = null; // id of expanded round card
+
+function buildRoundHistory() {
+  var el = document.getElementById('leaderboard-content');
+  var rounds = (DATA.rounds || []).slice().sort(function(a,b){ return b.week - a.week; });
+  if (!rounds.length) {
+    el.innerHTML = '<div class="empty-state" style="margin-top:60px"><div class="empty-state-icon">📋</div>' +
+      '<div class="empty-state-title">No Rounds Yet</div>' +
+      '<div class="empty-state-sub">Completed rounds will appear here.</div></div>';
+    return;
+  }
+  var pars = scoringPars.length ? scoringPars : ((DATA.league && DATA.league.par) || []);
+  var html = '<div style="padding:12px 16px 24px">';
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id===r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id===r.teamBId;});
+    if (!tA||!tB) return;
+    var winner = r.pointsA > r.pointsB ? tA.name : r.pointsB > r.pointsA ? tB.name : null;
+    var sched = (DATA.schedule||[]).find(function(s){return s.week===r.week;});
+    var dateStr = sched ? new Date(sched.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    var expanded = _expandedRound === r.id;
+    html += '<div style="background:#fff;border-radius:14px;border:1px solid #E5E7EB;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)">';
+    // Header row — tappable
+    html += '<div onclick="_toggleRoundExpand(\'' + r.id + '\')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">';
+    html += '<div style="background:#F5F0E8;border-radius:8px;padding:6px 10px;text-align:center;flex-shrink:0">';
+    html += '<div style="font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:0.5px">WK</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">' + r.week + '</div>';
+    html += '</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + tA.name + ' <span style="color:#9CA3AF;font-weight:400">vs</span> ' + tB.name + '</div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-top:3px">';
+    html += '<span style="font-size:18px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + r.pointsA + ' – ' + r.pointsB + '</span>';
+    if (winner) html += '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + winner + ' wins</span>';
+    else        html += '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>';
+    html += '</div>';
+    if (dateStr) html += '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">' + dateStr + '</div>';
+    html += '</div>';
+    html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5" style="flex-shrink:0;transform:rotate(' + (expanded?'180':'0') + 'deg);transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>';
+    html += '</div>'; // header row
+    // Expanded scorecard
+    if (expanded && pars.length) {
+      var allIds = [];
+      [tA,tB].forEach(function(t){
+        (t.playerIds||[]).forEach(function(pid){
+          var eff = r.subs && r.subs[pid] ? r.subs[pid] : pid;
+          if (!allIds.includes(eff)) allIds.push(eff);
+        });
+      });
+      var parTotal = pars.reduce(function(a,v){return a+v;},0);
+      html += '<div style="border-top:1px solid #F3F4F6;overflow-x:auto">';
+      html += '<table style="border-collapse:collapse;width:100%;min-width:320px;font-size:11px">';
+      html += '<thead><tr style="background:#1B4332">';
+      html += '<th style="text-align:left;padding:5px 6px;color:#fff;font-weight:700;font-size:10px">Player</th>';
+      pars.forEach(function(_,i){ html += '<th style="padding:5px 3px;color:#fff;font-weight:700;font-size:10px;text-align:center">' + (i+1) + '</th>'; });
+      html += '<th style="padding:5px 3px;color:#fff;font-weight:700;font-size:10px;text-align:center">Tot</th></tr></thead><tbody>';
+      // Par row
+      html += '<tr style="background:#F9FAFB">';
+      html += '<td style="padding:4px 6px;font-size:10px;font-weight:700;color:#6B7280">Par</td>';
+      pars.forEach(function(p){ html += '<td style="padding:4px 3px;text-align:center;font-size:10px;color:#6B7280">' + p + '</td>'; });
+      html += '<td style="padding:4px 3px;text-align:center;font-size:10px;font-weight:700;color:#6B7280">' + parTotal + '</td></tr>';
+      allIds.forEach(function(pid) {
+        var p = DATA.players.find(function(pl){return pl.id===pid;}) || (DATA.subs||[]).find(function(pl){return pl.id===pid;});
+        var sc = r.scores && r.scores[pid] ? r.scores[pid] : [];
+        var tot = sc.reduce(function(a,s){return a+(s||0);},0);
+        var played = sc.filter(function(s){return s!=null;}).length;
+        if (!played) return;
+        var isSub = r.subs && Object.values(r.subs).includes(pid);
+        html += '<tr style="border-top:1px solid #F3F4F6">';
+        html += '<td style="padding:5px 6px;font-weight:700;font-size:10px;white-space:nowrap">' + (p ? playerFirstName(p) : '?') + (isSub ? '<span style="color:#C9A84C;font-size:8px"> SUB</span>' : '') + '</td>';
+        pars.forEach(function(par,i){
+          html += '<td style="padding:4px 3px;text-align:center">' + scoreCell(sc[i]||null, par) + '</td>';
+        });
+        var totColor = tot < parTotal ? '#16A34A' : tot > parTotal ? '#DC2626' : '#374151';
+        html += '<td style="padding:4px 3px;text-align:center;font-weight:700;font-size:12px;color:' + totColor + '">' + (played ? tot : '—') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>'; // card
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function _toggleRoundExpand(id) {
+  _expandedRound = _expandedRound === id ? null : id;
+  buildRoundHistory();
+}
+
+// ── Season Stats ──────────────────────────────────────────────────────────
+function buildSeasonStats() {
+  var el = document.getElementById('standings-content');
+  var rounds = DATA.rounds || [];
+  var players = DATA.players || [];
+  var pars = scoringPars.length ? scoringPars : ((DATA.league && DATA.league.par) || []);
+  var parTotal = pars.reduce(function(a,v){return a+v;},0);
+
+  if (!players.length || !rounds.length) {
+    el.innerHTML = '<div class="empty-state" style="margin-top:60px"><div class="empty-state-icon">📊</div>' +
+      '<div class="empty-state-title">No Stats Yet</div>' +
+      '<div class="empty-state-sub">Stats will appear once rounds are completed.</div></div>';
+    return;
+  }
+
+  // Build per-player stats
+  var stats = {};
+  players.forEach(function(p){
+    stats[p.id] = { pid:p.id, rounds:0, grossTotal:0, best:null, birdies:0, eagles:0, pars:0, matchPts:0, hcp: p.leagueHandicap||0 };
+  });
+  // Count sub appearances too
+  (DATA.subs||[]).forEach(function(p){
+    if (!stats[p.id]) stats[p.id] = { pid:p.id, rounds:0, grossTotal:0, best:null, birdies:0, eagles:0, pars:0, matchPts:0, hcp: p.leagueHandicap||0 };
+  });
+
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t){return t.id===r.teamAId;});
+    var tB = DATA.teams.find(function(t){return t.id===r.teamBId;});
+    // Who actually played (accounting for subs)
+    function effectivePids(team) {
+      return (team ? team.playerIds : []).map(function(pid){ return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
+    }
+    var pidsA = effectivePids(tA);
+    var pidsB = effectivePids(tB);
+
+    function processPlayer(pid, pts) {
+      var sc = r.scores && r.scores[pid];
+      if (!sc) return;
+      var played = sc.filter(function(s){return s!=null;});
+      if (!played.length) return;
+      if (!stats[pid]) stats[pid] = { pid:pid, rounds:0, grossTotal:0, best:null, birdies:0, eagles:0, pars:0, matchPts:0, hcp:0 };
+      var tot = played.reduce(function(a,s){return a+s;},0);
+      stats[pid].rounds++;
+      stats[pid].grossTotal += tot;
+      if (stats[pid].best === null || tot < stats[pid].best) stats[pid].best = tot;
+      stats[pid].matchPts += pts;
+      sc.forEach(function(s,i){
+        if (s == null) return;
+        var diff = s - (pars[i]||4);
+        if (diff <= -2) stats[pid].eagles++;
+        else if (diff === -1) stats[pid].birdies++;
+        else if (diff === 0) stats[pid].pars++;
+      });
+    }
+    pidsA.forEach(function(pid){ processPlayer(pid, r.pointsA||0); });
+    pidsB.forEach(function(pid){ processPlayer(pid, r.pointsB||0); });
+  });
+
+  // Handicap trend per player
+  function hcpTrend(pid) {
+    var snapshots = rounds
+      .filter(function(r){ return r.handicapsAfter && r.handicapsAfter[pid] !== undefined; })
+      .sort(function(a,b){return a.week-b.week;})
+      .map(function(r){ return r.handicapsAfter[pid]; });
+    if (snapshots.length < 2) return '';
+    var last = snapshots[snapshots.length-1];
+    var prev = snapshots[snapshots.length-2];
+    if (last < prev) return '<span style="color:#16A34A;font-size:10px;font-weight:700">▼' + (prev-last) + '</span>';
+    if (last > prev) return '<span style="color:#DC2626;font-size:10px;font-weight:700">▲' + (last-prev) + '</span>';
+    return '<span style="color:#9CA3AF;font-size:10px">—</span>';
+  }
+
+  var rows = Object.values(stats)
+    .filter(function(s){ return s.rounds > 0; })
+    .sort(function(a,b){ return (b.matchPts - a.matchPts) || (a.grossTotal/a.rounds - b.grossTotal/b.rounds); });
+
+  var html = '<div style="padding:0 0 24px">';
+
+  // Summary cards row
+  var totalBirdies = rows.reduce(function(a,s){return a+s.birdies;},0);
+  var totalEagles  = rows.reduce(function(a,s){return a+s.eagles;},0);
+  var bestRound    = rows.reduce(function(a,s){return s.best!==null&&(a===null||s.best<a)?s.best:a;},null);
+  html += '<div style="display:flex;gap:8px;padding:12px 16px 4px;overflow-x:auto">';
+  html += _statChip('🐦', totalBirdies, 'Birdies');
+  html += _statChip('🦅', totalEagles, 'Eagles');
+  if (bestRound !== null && parTotal) {
+    var diff = bestRound - parTotal;
+    html += _statChip('🏆', (diff >= 0 ? '+' : '') + diff, 'Best Round');
+  }
+  html += '</div>';
+
+  // Per-player cards
+  rows.forEach(function(s) {
+    var p = players.find(function(pl){return pl.id===s.pid;}) || (DATA.subs||[]).find(function(pl){return pl.id===s.pid;});
+    if (!p) return;
+    var avg = s.rounds ? (s.grossTotal / s.rounds).toFixed(1) : '—';
+    var bestStr = s.best !== null ? (parTotal ? (s.best > parTotal ? '+' + (s.best-parTotal) : s.best < parTotal ? '' + (s.best-parTotal) : 'E') + ' (' + s.best + ')' : s.best) : '—';
+    html += '<div style="margin:8px 16px 0;background:#fff;border-radius:14px;border:1px solid #E5E7EB;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += '<div style="width:36px;height:36px;border-radius:50%;background:#2D6A4F;color:#C9A84C;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif">' + playerInitials(p) + '</div>';
+    html += '<div><div style="font-size:14px;font-weight:700;color:#1A1A1A">' + playerName(p) + '</div>';
+    html += '<div style="font-size:11px;color:#6B7280">' + s.rounds + ' round' + (s.rounds!==1?'s':'') + ' played</div></div></div>';
+    html += '<div style="text-align:right"><div style="font-size:11px;color:#6B7280">Hcp</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">' + s.hcp + ' ' + hcpTrend(s.pid) + '</div></div>';
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">';
+    html += _miniStat('Avg Score', avg);
+    html += _miniStat('Best Round', bestStr);
+    html += _miniStat('Birdies 🐦', s.birdies);
+    html += _miniStat('Match Pts', s.matchPts.toFixed(1));
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function _statChip(icon, val, label) {
+  return '<div style="flex-shrink:0;background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:10px 14px;text-align:center;min-width:80px">' +
+    '<div style="font-size:18px">' + icon + '</div>' +
+    '<div style="font-size:16px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">' + val + '</div>' +
+    '<div style="font-size:10px;font-weight:600;color:#9CA3AF">' + label + '</div>' +
+    '</div>';
+}
+function _miniStat(label, val) {
+  return '<div style="background:#F9FAFB;border-radius:8px;padding:8px;text-align:center">' +
+    '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + val + '</div>' +
+    '<div style="font-size:10px;color:#9CA3AF;font-weight:600;margin-top:1px">' + label + '</div>' +
+    '</div>';
 }
 
 function scoreCell(score, par) {
@@ -2350,12 +2597,25 @@ function switchBoardTab(tab) {
   boardTab = tab;
   document.getElementById('board-tab-team').classList.toggle('active', tab === 'team');
   document.getElementById('board-tab-sf').classList.toggle('active', tab === 'sf');
+  document.getElementById('board-tab-history').classList.toggle('active', tab === 'history');
   if (tab === 'team') buildTeamLeaderboard();
-  else buildStablefordLeaderboard('leaderboard-content');
+  else if (tab === 'sf') buildStablefordLeaderboard('leaderboard-content');
+  else buildRoundHistory();
 }
 
 function buildLeaderboard() {
-  boardTab === 'sf' ? buildStablefordLeaderboard('leaderboard-content') : buildTeamLeaderboard();
+  if (boardTab === 'sf') buildStablefordLeaderboard('leaderboard-content');
+  else if (boardTab === 'history') buildRoundHistory();
+  else buildTeamLeaderboard();
+}
+
+var _standingsTab = 'schedule';
+function switchStandingsTab(tab) {
+  _standingsTab = tab;
+  document.getElementById('standings-tab-schedule').classList.toggle('active', tab === 'schedule');
+  document.getElementById('standings-tab-stats').classList.toggle('active', tab === 'stats');
+  if (tab === 'schedule') renderStandings();
+  else buildSeasonStats();
 }
 
 function buildTeamLeaderboard() {
@@ -2589,7 +2849,13 @@ function buildSkins() {
 // ============================================================
 // STANDINGS
 // ============================================================
-function buildStandings() { buildMatchups(); }
+function buildStandings() {
+  _standingsTab = _standingsTab || 'schedule';
+  document.getElementById('standings-tab-schedule').classList.toggle('active', _standingsTab === 'schedule');
+  document.getElementById('standings-tab-stats').classList.toggle('active', _standingsTab === 'stats');
+  if (_standingsTab === 'stats') buildSeasonStats();
+  else buildMatchups();
+}
 
 function buildMatchups() {
   var el = document.getElementById('standings-content');
