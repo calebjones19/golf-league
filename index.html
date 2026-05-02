@@ -4608,18 +4608,12 @@ function renderMatchupsList() {
       '" onclick="_matchupsSubTab=\'' + id + '\';renderMatchupsList()">' + label + '</button>';
   }
   const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:8px 16px 10px">' +
-    mTabBtn('matchups', 'Matchups') + mTabBtn('scores', 'Scores') + mTabBtn('skins', 'Skins') +
+    mTabBtn('matchups', 'Matchups') + mTabBtn('skins', 'Skins') +
   '</div>';
 
   if (_matchupsSubTab === 'skins') {
     wrap.innerHTML = subTabBar + '<div id="skins-admin-content"></div>';
     renderSkinsAdmin();
-    return;
-  }
-
-  if (_matchupsSubTab === 'scores') {
-    wrap.innerHTML = subTabBar + '<div id="weekly-scores-content"></div>';
-    renderWeeklyScores();
     return;
   }
 
@@ -4714,9 +4708,12 @@ function renderMatchupsList() {
         return p ? '<div style="font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + playerName(p) + '</div>' : '';
       }).filter(Boolean).join('');
     }
-    const resultEl = existingRound
-      ? '<span style="font-size:11px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;white-space:nowrap">' + existingRound.pointsA + '–' + existingRound.pointsB + '</span>'
-      : '<span style="font-size:11px;color:#D1D5DB">–</span>';
+    const scoreMatchup = existingRound
+      ? (existingRound.teamAId === m.teamAId ? existingRound : { ...existingRound, teamAId: m.teamAId, teamBId: m.teamBId, pointsA: existingRound.pointsB, pointsB: existingRound.pointsA })
+      : null;
+    const resultEl = scoreMatchup
+      ? '<button onclick="openAdminScorecard(\'' + m.id + '\',\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="font-size:11px;font-weight:700;color:#1B4332;background:none;border:none;padding:0;cursor:pointer;font-family:\'Space Grotesk\',sans-serif;white-space:nowrap">' + scoreMatchup.pointsA + '–' + scoreMatchup.pointsB + ' ✎</button>'
+      : '<button onclick="openAdminScorecard(\'' + m.id + '\',\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="font-size:9px;font-weight:700;color:#C9A84C;background:#FEF9EE;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">+ Score</button>';
     return '<div style="display:flex;align-items:center;gap:4px;padding:7px 10px;border-bottom:1px solid #F5F0E8">' +
       '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tA) + '</div>' +
       '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 4px">' +
