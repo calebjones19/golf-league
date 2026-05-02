@@ -428,7 +428,10 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- TOP BAR -->
   <div class="top-bar">
-    <div>
+    <button id="top-bar-back-btn" class="chat-back-btn" onclick="goBackToDashboard()" title="Back" style="display:none;flex-shrink:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div style="flex:1;min-width:0">
       <div class="top-bar-title" id="top-bar-title">Fairway</div>
       <div class="top-bar-sub" id="top-bar-sub">Loading...</div>
     </div>
@@ -852,12 +855,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     </div>
 
   </section>
-
-  <!-- BACK TO DASHBOARD BUTTON (shown when navigating from dashboard cards) -->
-  <button id="back-to-dashboard-btn" onclick="goBackToDashboard()" style="display:none;position:fixed;top:calc(50px + env(safe-area-inset-top) + 10px);left:max(16px, calc(50vw - 199px));z-index:300;align-items:center;gap:5px;background:rgba(27,67,50,0.90);color:#fff;border:none;border-radius:20px;padding:6px 13px 6px 9px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.28);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back
-  </button>
 
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav" id="bottom-nav"></nav>
@@ -1548,8 +1545,8 @@ function showSection(id, source) {
   if (nav) nav.classList.add('active');
   _currentSectionId = id;
 
-  // Show/hide back button
-  const backBtn = document.getElementById('back-to-dashboard-btn');
+  // Show/hide back button in top bar
+  const backBtn = document.getElementById('top-bar-back-btn');
   if (backBtn) backBtn.style.display = (source === 'dashboard' && id !== 'dashboard') ? 'flex' : 'none';
 }
 
