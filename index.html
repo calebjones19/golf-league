@@ -4094,22 +4094,37 @@ function renderMatchupsList() {
   // ── Matchup list for selected week ───────────────────────────
   const weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
 
+  function adminMatchupRow(m, idx) {
+    const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+    const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+    if (!tA || !tB) return '';
+    const teeTime = calcTeeTime(idx);
+    function playerLines(team) {
+      return (team.playerIds || []).map(function(pid) {
+        const p = DATA.players.find(function(pl){ return pl.id === pid; });
+        return p ? '<div style="font-size:13px;font-weight:600;color:#1A1A1A;line-height:1.4">' + playerName(p) + '</div>' : '';
+      }).filter(Boolean).join('');
+    }
+    return '<div style="border-bottom:1px solid #F5F0E8;padding:11px 12px">' +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+        '<div style="flex:1;min-width:0;text-align:center">' + playerLines(tA) + '</div>' +
+        '<div style="flex-shrink:0;text-align:center;padding:0 4px">' +
+          '<div style="font-size:11px;font-weight:700;color:#9CA3AF">vs</div>' +
+          '<div style="margin-top:4px"><span style="font-size:9px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:5px;padding:2px 6px;white-space:nowrap">' + teeTime + '</span></div>' +
+        '</div>' +
+        '<div style="flex:1;min-width:0;text-align:center">' + playerLines(tB) + '</div>' +
+        (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;padding:0;line-height:1;margin-left:4px">✕</button>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
   const listHtml = weekMatchups.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">' +
         (on ? 'No matchups for Week ' + selWeek + ' yet — tap teams above to add.' : 'No matchups for Week ' + selWeek + '. Tap Edit to add some.') +
       '</div>'
-    : weekMatchups.map(function(m, idx) {
-        const tA = DATA.teams.find(function(t) { return t.id === m.teamAId; });
-        const tB = DATA.teams.find(function(t) { return t.id === m.teamBId; });
-        if (!tA || !tB) return '';
-        return '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6;gap:8px">' +
-          '<div style="flex:1">' +
-            '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + tA.name + ' vs ' + tB.name + '</div>' +
-            '<div style="font-size:11px;color:#6B7280">' + calcTeeTime(idx) + '</div>' +
-          '</div>' +
-          (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')">✕</button>' : '') +
-        '</div>';
-      }).join('');
+    : '<div class="card" style="padding:0;overflow:hidden;margin:0 0 6px">' +
+        weekMatchups.map(function(m, idx){ return adminMatchupRow(m, idx); }).join('') +
+      '</div>';
 
   const clearBtn = on && weekMatchups.length > 0
     ? '<div style="margin-top:8px"><button class="btn-sm btn-delete" style="width:100%" onclick="clearWeekMatchups(' + selWeek + ')">Clear Week ' + selWeek + ' Matchups</button></div>'
