@@ -1127,7 +1127,9 @@ function enterEditMode(panel) {
 function exitEditMode(panel) {
   adminEditModes[panel] = false;
   refreshEditModeUI(panel);
-  if (panel === 'league' || panel === 'scoring') switchLeagueSubTab(_leagueSubTab);
+  // Reload form from saved DATA so cancel discards any unsaved edits
+  if (panel === 'league')  { loadLeagueForm(); switchLeagueSubTab(_leagueSubTab); }
+  if (panel === 'scoring') { loadScoringForm(); switchLeagueSubTab(_leagueSubTab); }
   if (panel === 'players')  renderPlayersList();
   if (panel === 'teams')    renderTeamsList();
   if (panel === 'matchups') { _matchupSelTeam = null; _matchupSelWeek = null; renderMatchupsList(); }
@@ -3510,27 +3512,41 @@ function _applyTeeByIndex(teeIdx) {
   const tee = _activeTees[teeIdx];
   if (!tee || !tee.holes || !tee.holes.length) return;
 
-  // Use the hole count already selected in the form (defaults to 9).
-  // Slice API data to match — so a 9-hole league only imports the front 9.
   const holes      = parseInt(document.querySelector('input[name="cfg-holes"]:checked')?.value || 9);
-  const holeData   = tee.holes.slice(0, holes);
   const isEditMode = adminEditModes['league'];
+  const totalHoles = tee.holes.length;
 
-  // Build grids DIRECTLY from API data — bypasses renderHoleGrids() which
-  // reads from DATA.league (last saved) and would wipe the imported values.
-  const labelsEl = document.getElementById('hcp-grid-labels');
-  const parGrid  = document.getElementById('par-grid');
-  const hcpGrid  = document.getElementById('hcp-grid');
+  // For 18-hole course data with a 9-hole league:
+  //   F9 grid (par-front-grid) ← holes 1–9   (index 0–8)
+  //   B9 grid (par-grid)       ← holes 10–18  (index 9–17)
+  //   HCP / YDS                ← back 9 (index 9–17) since league plays back 9
+  // For a true 9-hole course (9 holes total), all grids use holes 1–9.
+  const is18 = totalHoles >= 18;
+  const frontData = tee.holes.slice(0, holes);
+  const backData  = is18 ? tee.holes.slice(9, 9 + holes) : frontData;
+
+  const labelsEl    = document.getElementById('hcp-grid-labels');
+  const parGrid     = document.getElementById('par-grid');
+  const parFrontGrid= document.getElementById('par-front-grid');
+  const hcpGrid     = document.getElementById('hcp-grid');
+  const ydsGrid     = document.getElementById('yds-grid');
   if (!parGrid || !hcpGrid) return;
 
-  if (labelsEl) labelsEl.innerHTML = holeData.map((_, i) =>
+  if (labelsEl) labelsEl.innerHTML = backData.map((_, i) =>
     `<div class="hole-grid-label">H${i + 1}</div>`).join('');
-  parGrid.innerHTML = holeData.map((h, i) =>
+
+  // F9 pars (front 9 of 18-hole course, or same 9 for 9-hole course)
+  if (parFrontGrid) parFrontGrid.innerHTML = frontData.map((h, i) =>
+    `<input type="number" min="3" max="6" placeholder="—" value="${h.par || ''}" id="par-front-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
+
+  // B9 pars (back 9 of 18-hole course, or same 9 for 9-hole course)
+  parGrid.innerHTML = backData.map((h, i) =>
     `<input type="number" min="3" max="6" placeholder="—" value="${h.par || ''}" id="par-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
-  hcpGrid.innerHTML = holeData.map((h, i) =>
+
+  // HCP and YDS always from back 9 (the 9 holes actually played)
+  hcpGrid.innerHTML = backData.map((h, i) =>
     `<input type="number" min="1" max="${holes*2}" placeholder="—" value="${h.handicap || ''}" id="hcp-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
-  const ydsGrid = document.getElementById('yds-grid');
-  if (ydsGrid) ydsGrid.innerHTML = holeData.map((h, i) =>
+  if (ydsGrid) ydsGrid.innerHTML = backData.map((h, i) =>
     `<input type="number" min="50" max="700" placeholder="—" value="${h.yardage || h.yards || ''}" id="yds-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
 
   // Populate / sync the tee dropdown
@@ -8091,7 +8107,11 @@ function seedWeek1Scores() {
   setScoringSectionForWeek(1);
 
   var week1Matchups = (DATA.matchups||[]).filter(function(m){ return m.week === 1; });
-  if (week1Matchups.length === 0) { showToast('No Week 1 matchups found'); return; }
+  if (week1Matchups.length === 0) {
+    showToast('No Week 1 matchups set up yet — go to Matchups tab first');
+    console.warn('[seedWeek1] DATA.matchups:', DATA.matchups);
+    return;
+  }
 
   var created = 0;
   week1Matchups.forEach(function(m) {
