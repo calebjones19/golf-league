@@ -6159,8 +6159,9 @@ function openFreeformEmojiReaction(msgId) {
   input.setAttribute('autocomplete', 'off');
   input.setAttribute('autocapitalize', 'none');
   input.setAttribute('spellcheck', 'false');
-  // Position off-screen but not display:none so it can be focused
-  input.style.cssText = 'position:fixed;left:-999px;top:50%;width:40px;height:40px;opacity:0;font-size:16px;border:none;outline:none;z-index:-1';
+  // Keep on-screen and above z-0 so iOS allows focus within the gesture handler.
+  // Tiny 1×1 transparent square in the corner — invisible but focusable.
+  input.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;font-size:16px;border:none;outline:none;z-index:1000';
   document.body.appendChild(input);
 
   input.addEventListener('input', function() {
@@ -6183,8 +6184,9 @@ function openFreeformEmojiReaction(msgId) {
     setTimeout(function(){ if (input.parentNode) input.remove(); }, 400);
   });
 
-  // Small delay so the reaction picker animation finishes before keyboard appears
-  setTimeout(function(){ input.focus(); }, 80);
+  // Must focus synchronously within the user-gesture call stack so iOS
+  // permits keyboard activation. No setTimeout.
+  input.focus();
 }
 
 function showMsgContextMenu(msgId, anchorEl, isMine) {
