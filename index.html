@@ -4691,7 +4691,7 @@ function renderMatchupsList() {
     }
     const resultEl = existingRound
       ? '<span style="font-size:11px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;white-space:nowrap">' + existingRound.pointsA + '–' + existingRound.pointsB + '</span>'
-      : '<button onclick="openEnterResults(\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="font-size:9px;font-weight:700;color:#C9A84C;background:#FEF9EE;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">+ Score</button>';
+      : '<span style="font-size:11px;color:#D1D5DB">–</span>';
     return '<div style="display:flex;align-items:center;gap:4px;padding:7px 10px;border-bottom:1px solid #F5F0E8">' +
       '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tA) + '</div>' +
       '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 4px">' +
