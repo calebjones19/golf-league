@@ -1399,6 +1399,7 @@ function startFirestoreSync() {
     }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
+    _autoSeedWeek1();
 
 
     // Re-attempt player matching if we still don't know who the user is.
@@ -8045,7 +8046,125 @@ auth.onAuthStateChanged(user => {
   }, 600);
 });
 
-// ── Week 1 Score Seeder ──────────────────────────────────────────
+// ── Week 1 Auto-Seeder (runs after every Firestore sync until done) ─
+var _week1Seeded = false;
+function _autoSeedWeek1() {
+  if (_week1Seeded) return;
+  if ((DATA.rounds||[]).some(function(r){ return r.week === 1; })) { _week1Seeded = true; return; }
+  if (!DATA.players || DATA.players.length === 0) return;
+  if (!DATA.teams   || DATA.teams.length   === 0) return;
+
+  // Known Week 1 pairings from score sheets (back 9, holes 10-18)
+  var PAIRINGS = [
+    { a: [['dahlke','jon'], ['morgan','mike']],        ascores: { 'dahlke-jon':[6,6,4,8,4,5,6,4,3],   'morgan-mike':[6,5,5,7,6,7,7,4,4]   },
+      b: [['jipping','daniel'],['waldorf','jake']],    bscores: { 'jipping-daniel':[9,3,5,5,5,6,6,6,6],'waldorf-jake':[5,5,7,5,5,6,6,6,5]  } },
+    { a: [['dahlke','jim'],  ['house','brad']],        ascores: { 'dahlke-jim':[7,4,5,7,5,5,5,5,6],   'house-brad':[5,5,7,6,4,5,5,4,5]    },
+      b: [['bocquet','scott'],['para','bill']],        bscores: { 'bocquet-scott':[8,3,4,3,5,6,8,6,7],'para-bill':[10,8,5,6,6,6,8,7,5]   } },
+    { a: [['larock','eric'],  ['gillespie','ryan']],   ascores: { 'larock-eric':[8,8,6,7,6,7,7,6,7],  'gillespie-ryan':[10,4,5,6,6,6,8,7,7]},
+      b: [['fitzpatrick','rob'],['wright','denzel']],  bscores: { 'fitzpatrick-rob':[8,4,4,6,7,8,6,7,4],'wright-denzel':[7,6,5,6,5,7,7,7,3]} },
+    { a: [['noruk','jason'],  ['potter','truman']],    ascores: { 'noruk-jason':[5,4,3,6,5,6,4,4,5],  'potter-truman':[8,6,6,6,6,5,8,7,6] },
+      b: [['marshall','calvin'],['dion','matt']],      bscores: { 'marshall-calvin':[5,6,6,14,7,6,8,6,4],'dion-matt':[7,4,7,3,8,3,7,5,6]  } },
+    { a: [['oneil','nicholas'],['codrean','anthony']], ascores: { 'oneil-nicholas':[8,5,5,6,5,5,5,5,6],'codrean-anthony':[8,4,5,6,5,6,6,5,4]},
+      b: [['cela','ray'],     ['zellers','matt']],     bscores: { 'cela-ray':[6,4,5,8,7,8,7,8,7],     'zellers-matt':[9,5,5,6,7,5,5,6,5]  } },
+    { a: [['briel','kevin'],  ['jones','caleb']],      ascores: { 'briel-kevin':[5,3,5,6,4,6,7,5,3],  'jones-caleb':[6,2,5,5,6,7,6,6,5]   },
+      b: [], bscores: {} }  // #4 opponent unknown — half-entry
+  ];
+
+  function norm(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); }
+  function findPid(last, first) {
+    var p = DATA.players.find(function(pl){
+      return norm(pl.name).indexOf(norm(last)) !== -1 && norm(pl.name).indexOf(norm(first)) !== -1;
+    });
+    if (!p) p = DATA.players.find(function(pl){ return norm(pl.name).indexOf(norm(last)) !== -1; });
+    return p ? p.id : null;
+  }
+  function findTeamForPids(pids) {
+    return DATA.teams.find(function(t){
+      return pids.every(function(pid){ return t.playerIds && t.playerIds.indexOf(pid) !== -1; }) ||
+             pids.some(function(pid){ return t.playerIds && t.playerIds.indexOf(pid) !== -1; });
+    });
+  }
+
+  setScoringSectionForWeek(1);
+  if (!scoringPars || scoringPars.length === 0) return; // league not configured yet
+
+  var anyCreated = false;
+  PAIRINGS.forEach(function(pair, pi) {
+    // Resolve A team player IDs
+    var aPids = pair.a.map(function(p){ return findPid(p[0], p[1]); }).filter(Boolean);
+    var bPids = pair.b.map(function(p){ return findPid(p[0], p[1]); }).filter(Boolean);
+    if (aPids.length === 0) return;
+
+    // Find teams
+    var tA = findTeamForPids(aPids);
+    var tB = bPids.length > 0 ? findTeamForPids(bPids) : null;
+    if (!tA) return;
+
+    // Build scores map: key→pid lookup using the pairing's score keys
+    var scores = {};
+    pair.a.forEach(function(pn){
+      var pid = findPid(pn[0], pn[1]);
+      if (pid) { var key = pn[0]+'-'+pn[1]; if (pair.ascores[key]) scores[pid] = pair.ascores[key]; }
+    });
+    if (tB) {
+      pair.b.forEach(function(pn){
+        var pid = findPid(pn[0], pn[1]);
+        if (pid) { var key = pn[0]+'-'+pn[1]; if (pair.bscores[key]) scores[pid] = pair.bscores[key]; }
+      });
+    }
+
+    // Find the existing week 1 matchup — never create or modify matchups
+    var existingMatchup = (DATA.matchups||[]).find(function(m){
+      return m.week === 1 && (
+        (m.teamAId === tA.id && tB && m.teamBId === tB.id) ||
+        (m.teamBId === tA.id && tB && m.teamAId === tB.id) ||
+        (m.teamAId === tA.id || m.teamBId === tA.id)        // fallback: any w1 matchup containing team A
+      );
+    });
+    if (!existingMatchup) return;
+
+    // Flip A/B if stored opposite
+    var realAId = existingMatchup.teamAId, realBId = existingMatchup.teamBId;
+    var realTa  = DATA.teams.find(function(t){ return t.id === realAId; });
+    var realTb  = DATA.teams.find(function(t){ return t.id === realBId; });
+    if (!realTa || !realTb) return;
+
+    var mp = computeMatchPoints(realTa.playerIds, realTb.playerIds, scores);
+    var round = {
+      id: 'w1r_'+pi+'_'+Date.now(),
+      week: 1, nine: scoringNine,
+      teamAId: realAId, teamBId: realBId,
+      scores: scores,
+      pointsA: mp.pointsA, pointsB: mp.pointsB, holeResults: mp.holeResults,
+      completedAt: '2025-04-28T00:00:00.000Z', subs: {}
+    };
+    if (!DATA.rounds) DATA.rounds = [];
+    DATA.rounds.push(round);
+    anyCreated = true;
+  });
+
+  if (!anyCreated) return;
+
+  // Mark week 1 as completed
+  var sched = (DATA.schedule||[]).find(function(s){ return s.week === 1; });
+  if (sched) sched.status = 'completed';
+
+  recalcHandicaps();
+  DATA.rounds.forEach(function(r){
+    if (r.week === 1) {
+      r.handicapsAfter = {};
+      DATA.players.forEach(function(p){ r.handicapsAfter[p.id] = p.leagueHandicap || 0; });
+    }
+  });
+
+  saveData();
+  _week1Seeded = true;
+  showToast('Week 1 scores loaded ✓');
+  buildDashboard();
+  console.log('[autoSeed] Week 1 rounds created successfully');
+}
+
+// ── Week 1 Score Seeder (manual button) ─────────────────────────
 function seedWeek1Scores() {
   var btn = document.getElementById('week1-seed-btn');
   // Remove any stale week 1 rounds so we always re-import fresh
