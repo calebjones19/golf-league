@@ -1777,17 +1777,21 @@ function renderMatchPicker(el) {
         header +
         '<div class="card">' +
           '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:12px">WEEK ' + week + ' MATCHUP</div>' +
-          '<div style="display:flex;align-items:stretch;gap:10px;margin-bottom:16px">' +
-            '<div style="flex:1;background:#F0F7F3;border-radius:10px;padding:12px 10px;text-align:center">' +
-              '<div style="font-size:17px;font-weight:700;color:#1B4332;margin-bottom:6px">' + (tA ? tA.name : '—') + '</div>' +
-              '<div style="font-size:12px;color:#4B7A62">' + (tA ? tA.playerIds.map(function(pid){ var p = DATA.players.find(function(pl){return pl.id===pid;}); return p ? playerName(p) : ''; }).filter(Boolean).join('<br>') : '') + '</div>' +
-            '</div>' +
-            '<div style="display:flex;align-items:center;font-size:13px;font-weight:700;color:#9CA3AF;padding:0 2px">vs</div>' +
-            '<div style="flex:1;background:#FEF2F2;border-radius:10px;padding:12px 10px;text-align:center">' +
-              '<div style="font-size:17px;font-weight:700;color:#DC2626;margin-bottom:6px">' + (tB ? tB.name : '—') + '</div>' +
-              '<div style="font-size:12px;color:#9B6666">' + (tB ? tB.playerIds.map(function(pid){ var p = DATA.players.find(function(pl){return pl.id===pid;}); return p ? playerName(p) : ''; }).filter(Boolean).join('<br>') : '') + '</div>' +
-            '</div>' +
-          '</div>' +
+          (function(){
+            var myTeamObj = DATA.currentUserId && tA && tA.playerIds.includes(DATA.currentUserId) ? tA : tB;
+            var oppTeamObj = myTeamObj === tA ? tB : tA;
+            function playerLines(team) {
+              return (team ? team.playerIds : []).map(function(pid){
+                var p = DATA.players.find(function(pl){return pl.id===pid;});
+                return p ? '<div style="font-size:15px;font-weight:600;color:#1A1A1A;padding:3px 0">' + playerName(p) + '</div>' : '';
+              }).filter(Boolean).join('');
+            }
+            return '<div style="margin-bottom:16px">' +
+              playerLines(myTeamObj) +
+              '<div style="text-align:center;font-size:12px;font-weight:700;color:#9CA3AF;padding:10px 0">vs</div>' +
+              playerLines(oppTeamObj) +
+            '</div>';
+          })() +
           '<div id="subs-section-auto"></div>' +
           '<button class="btn-green" style="width:100%" onclick="startScheduledMatch(\'' + myMatchup.teamAId + '\',\'' + myMatchup.teamBId + '\')">Start Match →</button>' +
         '</div>' +
