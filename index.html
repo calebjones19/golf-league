@@ -676,9 +676,17 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
             <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">B9</div>
             <div id="par-grid" class="hole-grid" style="margin:0;flex:1"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
             <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">HCP</div>
             <div id="hcp-grid" class="hole-grid" style="margin:0;flex:1"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;width:28px;flex-shrink:0">YDS</div>
+            <div id="yds-grid" class="hole-grid" style="margin:0;flex:1"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div style="font-size:10px;font-weight:700;color:#6B7280;white-space:nowrap">Tee Color</div>
+            <input id="cfg-tee-name" class="form-input" style="max-width:110px;padding:4px 8px;font-size:12px" placeholder="e.g. White" disabled>
           </div>
           <div style="font-size:10px;color:#9CA3AF;margin-top:5px">HCP = stroke index, 1 = hardest hole</div>
         </div>
@@ -3396,7 +3404,10 @@ function renderHoleGrids() {
   const parFrontGrid = document.getElementById('par-front-grid');
   if (parFrontGrid) parFrontGrid.innerHTML = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="6" placeholder="—" value="${parFront[i]||''}" id="par-front-${i}">`).join('');
   parGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="3" max="6" placeholder="—" value="${par[i]||''}" id="par-${i}">`).join('');
-  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes}" placeholder="—" value="${hcp[i]||''}" id="hcp-${i}">`).join('');
+  hcpGrid.innerHTML  = Array.from({length:holes},(_,i)=>`<input type="number" min="1" max="${holes*2}" placeholder="—" value="${hcp[i]||''}" id="hcp-${i}">`).join('');
+  const yds = DATA.league?.holeYards || [];
+  const ydsGrid = document.getElementById('yds-grid');
+  if (ydsGrid) ydsGrid.innerHTML = Array.from({length:holes},(_,i)=>`<input type="number" min="50" max="700" placeholder="—" value="${yds[i]||''}" id="yds-${i}">`).join('');
   document.querySelectorAll('input[name="cfg-holes"]').forEach(r => { r.onchange = () => renderHoleGrids(); });
   // Re-apply disabled state if not in edit mode
   if (!adminEditModes['league']) {
@@ -3492,7 +3503,12 @@ function _applyTeeByIndex(teeIdx) {
   parGrid.innerHTML = holeData.map((h, i) =>
     `<input type="number" min="3" max="6" placeholder="—" value="${h.par || ''}" id="par-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
   hcpGrid.innerHTML = holeData.map((h, i) =>
-    `<input type="number" min="1" max="${holes}" placeholder="—" value="${h.handicap || ''}" id="hcp-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
+    `<input type="number" min="1" max="${holes*2}" placeholder="—" value="${h.handicap || ''}" id="hcp-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
+  const ydsGrid = document.getElementById('yds-grid');
+  if (ydsGrid) ydsGrid.innerHTML = holeData.map((h, i) =>
+    `<input type="number" min="50" max="700" placeholder="—" value="${h.yardage || h.yards || ''}" id="yds-${i}"${isEditMode ? '' : ' disabled'}>`).join('');
+  const teeNameEl = document.getElementById('cfg-tee-name');
+  if (teeNameEl) teeNameEl.value = tee.tee_name || '';
 
   // Build confirmation text; include tee switcher if multiple options exist
   const sel = document.getElementById('course-selected');
@@ -3535,6 +3551,8 @@ function loadLeagueForm() {
   if (nameEl) nameEl.value = L.name || '';
   if (courseEl) courseEl.value = L.course || '';
   if (selEl && L.course) { selEl.textContent = '✓ Saved'; selEl.style.display = 'block'; }
+  const teeNameEl = document.getElementById('cfg-tee-name');
+  if (teeNameEl) teeNameEl.value = L.teeName || '';
   if (startEl) startEl.value = L.startDate || '';
   if (weeksEl) weeksEl.value = L.weeks || 16;
   if (startTimeEl) startTimeEl.value = L.startTime || '17:30';
@@ -3579,8 +3597,10 @@ function saveLeagueConfig() {
   const par      = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-'+i)?.value)||null);
   const parFront = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('par-front-'+i)?.value)||null);
   const holeHcp  = Array.from({length:holes},(_,i)=>parseInt(document.getElementById('hcp-'+i)?.value)||null);
+  const holeYards= Array.from({length:holes},(_,i)=>parseInt(document.getElementById('yds-'+i)?.value)||null);
+  const teeName  = (document.getElementById('cfg-tee-name')?.value || '').trim();
   const leagueCode = ((document.getElementById('cfg-league-code') || {value:''}).value || '').trim().toUpperCase() || null;
-  DATA.league = { name, course, holes, par, parFront, holeHcp, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear(), leagueCode };
+  DATA.league = { name, course, holes, par, parFront, holeHcp, holeYards, teeName, startDate: start, weeks, enableMatchPlay, enableStableford, startTime, teeInterval, season: start ? new Date(start).getFullYear() : new Date().getFullYear(), leagueCode };
   DATA.scoringConfig.enableMatchPlay  = enableMatchPlay;
   DATA.scoringConfig.enableStableford = enableStableford;
   generateSchedule();
@@ -4833,11 +4853,44 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
   document.getElementById('asc-sub').textContent = (scoringNine === 'front' ? 'Front 9 · Holes 1–9' : 'Back 9 · Holes 10–18') +
     (sched && sched.date ? '  ·  ' + new Date(sched.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
 
-  // Column headers — compact so all 9 holes + TOT/HCP/NET fit on one screen
+  // ── Course header data ─────────────────────────────────────
+  var teeName   = (DATA.league && DATA.league.teeName)   || 'Tee';
+  var holeYards = (DATA.league && DATA.league.holeYards) || [];
+  var totalYds  = holeYards.reduce(function(s, v) { return s + (v || 0); }, 0);
+  var totalPar  = scoringPars.reduce(function(s, v) { return s + (v || 0); }, 0);
+
+  // Column headers (hole numbers only — par/hcp moved to header rows)
   var holeHeaders = scoringPars.map(function(par, h) {
-    return '<th style="width:24px;padding:3px 1px;text-align:center;font-size:8px;color:#9CA3AF;font-weight:700">' +
-      (h + 1 + holeOffset) + '<br><span style="font-weight:400;color:#D1D5DB;font-size:7px">p' + par + '</span></th>';
+    return '<th style="padding:4px 1px;text-align:center;font-size:9px;color:#A7C4B5;font-weight:700">' +
+      (h + 1 + holeOffset) + '</th>';
   }).join('');
+
+  // Course info rows (tee yardage, par, handicap)
+  function courseRow(label, vals, total, labelColor, valColor) {
+    var cells = scoringPars.map(function(_, h) {
+      return '<td style="text-align:center;font-size:9px;color:' + valColor + ';padding:2px 1px">' + (vals[h] || '—') + '</td>';
+    }).join('');
+    var totalCell = total
+      ? '<td colspan="2" style="text-align:center;font-size:9px;font-weight:700;color:' + labelColor + ';padding:2px 3px">' + total + '</td><td></td>'
+      : '<td colspan="3"></td>';
+    return '<tr style="background:#2A5C42">' +
+      '<td style="padding:2px 6px;font-size:8px;font-weight:700;color:' + labelColor + ';white-space:nowrap">' + label + '</td>' +
+      cells + totalCell + '</tr>';
+  }
+
+  // Team strokes row — shows "+" for each hole where team gets ≥1 stroke
+  function buildStrokesRow(team) {
+    var cells = scoringPars.map(function(_, h) {
+      var teamGetsStroke = (team.playerIds || []).some(function(pid) {
+        var p = DATA.players.find(function(pl) { return pl.id === pid; });
+        return p ? playerStrokesOnHole(effectiveHandicap(p), scoringHoleHcp[h], holes) > 0 : false;
+      });
+      return '<td style="text-align:center;font-size:10px;color:#9CA3AF;padding:1px">' + (teamGetsStroke ? '+' : '') + '</td>';
+    }).join('');
+    return '<tr style="background:#FAFAFA;border-top:1px dashed #E5E7EB">' +
+      '<td style="padding:2px 6px;font-size:8px;font-weight:700;color:#9CA3AF;white-space:nowrap">Strokes</td>' +
+      cells + '<td colspan="3"></td></tr>';
+  }
 
   function buildTeamRows(team) {
     if (!team) return '';
@@ -4852,22 +4905,34 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
         return '<td style="padding:1px 1px;text-align:center">' +
           '<input id="asc-' + pid + '-' + h + '" type="number" min="1" max="15" value="' + val + '"' +
           ' oninput="recalcAdminPoints()" inputmode="numeric"' +
-          ' style="width:22px;height:26px;text-align:center;font-size:11px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:4px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
+          ' style="width:22px;height:24px;text-align:center;font-size:11px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:4px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
           '</td>';
       }).join('');
       return '<tr style="border-bottom:1px solid #F5F0E8;background:#fff">' +
-        '<td style="padding:4px 6px;white-space:nowrap;min-width:46px;max-width:56px">' +
+        '<td style="padding:3px 6px;white-space:nowrap">' +
           '<div style="font-size:11px;font-weight:600;color:#1A1A1A;overflow:hidden;text-overflow:ellipsis">' + playerLastName(p) + '</div>' +
           '<div style="font-size:8px;color:#9CA3AF">' + hcp + '</div>' +
         '</td>' +
         cells +
-        '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:11px;font-weight:700;color:#6B7280;padding:1px 3px;white-space:nowrap;min-width:22px">—</td>' +
-        '<td id="asc-hcp-' + pid + '" style="text-align:center;font-size:11px;font-weight:600;color:#9CA3AF;padding:1px 3px;white-space:nowrap;min-width:22px">—</td>' +
-        '<td id="asc-net-' + pid + '" style="text-align:center;font-size:12px;font-weight:800;color:#1B4332;padding:1px 3px;white-space:nowrap;min-width:26px">—</td>' +
+        '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:10px;font-weight:700;color:#6B7280;padding:1px 2px">—</td>' +
+        '<td id="asc-hcp-' + pid + '" style="text-align:center;font-size:10px;font-weight:600;color:#9CA3AF;padding:1px 2px">—</td>' +
+        '<td id="asc-net-' + pid + '" style="text-align:center;font-size:11px;font-weight:800;color:#1B4332;padding:1px 2px">—</td>' +
       '</tr>';
     }).join('');
-    return separator + rows;
+    return separator + rows + buildStrokesRow(team);
   }
+
+  // Per-hole points row (Team A perspective, updates live)
+  var pointsRowCells = scoringPars.map(function(_, h) {
+    return '<td id="asc-hole-' + h + '" style="text-align:center;font-size:10px;font-weight:700;color:#059669;padding:2px 1px">—</td>';
+  }).join('');
+  var pointsRow = '<tr style="background:#FEF9EE;border-top:2px solid #FDE68A">' +
+    '<td style="padding:2px 6px;font-size:8px;font-weight:700;color:#C9A84C;white-space:nowrap">Pts</td>' +
+    pointsRowCells +
+    '<td id="asc-match-bonus" style="text-align:center;font-size:8px;font-weight:700;color:#C9A84C;padding:1px 2px"></td>' +
+    '<td id="asc-medal-bonus" style="text-align:center;font-size:8px;font-weight:700;color:#C9A84C;padding:1px 2px"></td>' +
+    '<td id="asc-pts-total"   style="text-align:center;font-size:11px;font-weight:800;color:#C9A84C;padding:1px 2px">—</td>' +
+  '</tr>';
 
   var tableHtml =
     '<div style="border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">' +
@@ -4877,14 +4942,19 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
           scoringPars.map(function() { return '<col style="width:24px">'; }).join('') +
           '<col style="width:26px"><col style="width:26px"><col style="width:30px">' +
         '</colgroup>' +
-        '<thead><tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">' +
-          '<th style="text-align:left;padding:5px 6px;font-size:8px;font-weight:700;color:#9CA3AF">PLAYER</th>' +
-          holeHeaders +
-          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#9CA3AF">TOT</th>' +
-          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#9CA3AF">HCP</th>' +
-          '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#1B4332">NET</th>' +
-        '</tr></thead>' +
-        '<tbody>' + buildTeamRows(tA) + buildTeamRows(tB) + '</tbody>' +
+        '<thead>' +
+          '<tr style="background:#1B4332">' +
+            '<th style="text-align:left;padding:5px 6px;font-size:8px;font-weight:700;color:#A7C4B5">PLAYER</th>' +
+            holeHeaders +
+            '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#A7C4B5">TOT</th>' +
+            '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#A7C4B5">HCP</th>' +
+            '<th style="padding:3px 2px;text-align:center;font-size:8px;font-weight:700;color:#C9A84C">NET</th>' +
+          '</tr>' +
+          courseRow(teeName, holeYards, totalYds || null, '#C9A84C', '#E5C97E') +
+          courseRow('Par',  scoringPars,   totalPar, '#9CA3AF', '#D1D5DB') +
+          courseRow('HCP',  scoringHoleHcp, null,    '#9CA3AF', '#D1D5DB') +
+        '</thead>' +
+        '<tbody>' + buildTeamRows(tA) + buildTeamRows(tB) + pointsRow + '</tbody>' +
       '</table>' +
     '</div>';
 
@@ -4960,8 +5030,39 @@ function recalcAdminPoints() {
   var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
   var elA = document.getElementById('asc-pts-a');
   var elB = document.getElementById('asc-pts-b');
-  if (elA) elA.textContent = mp.allPlayed ? mp.pointsA : '—';
-  if (elB) elB.textContent = mp.allPlayed ? mp.pointsB : '—';
+  if (elA) elA.textContent = mp.pointsA > 0 || mp.pointsB > 0 ? mp.pointsA : '—';
+  if (elB) elB.textContent = mp.pointsA > 0 || mp.pointsB > 0 ? mp.pointsB : '—';
+
+  // Per-hole points row (Team A perspective)
+  var cfg    = DATA.scoringConfig || {};
+  var ptsWin = cfg.pointsPerHole != null ? cfg.pointsPerHole : 1;
+  var ptsTie = cfg.tiePoints     != null ? cfg.tiePoints     : 0.5;
+  var holesPts = 0;
+  (mp.holeResults || []).forEach(function(result, h) {
+    var cell = document.getElementById('asc-hole-' + h);
+    if (!cell) return;
+    if (result === 'A')      { cell.textContent = ptsWin; cell.style.color = '#059669'; holesPts += ptsWin; }
+    else if (result === 'T') { cell.textContent = ptsTie; cell.style.color = '#9CA3AF'; holesPts += ptsTie; }
+    else if (result === 'B') { cell.textContent = '';     cell.style.color = '#9CA3AF'; }
+    else                     { cell.textContent = '—';    cell.style.color = '#D1D5DB'; }
+  });
+  // Match/medal bonus cells + total
+  var matchBonus = (cfg.matchBonus != null ? cfg.matchBonus : 1);
+  var medalBonus = (cfg.medalBonus != null ? cfg.medalBonus : 1);
+  var matchEl = document.getElementById('asc-match-bonus');
+  var medalEl = document.getElementById('asc-medal-bonus');
+  var totalEl = document.getElementById('asc-pts-total');
+  if (mp.allPlayed) {
+    var mBonus = mp.pointsA > mp.pointsB ? matchBonus : 0;
+    var dBonus = medalBonus > 0 ? (teamTotalNetScore(tA.playerIds, scores) < teamTotalNetScore(tB.playerIds, scores) ? medalBonus : 0) : 0;
+    if (matchEl) { matchEl.textContent = mBonus > 0 ? '+' + mBonus : ''; }
+    if (medalEl) { medalEl.textContent = dBonus > 0 ? '+' + dBonus : ''; }
+    if (totalEl) { totalEl.textContent = mp.pointsA; }
+  } else {
+    if (matchEl) matchEl.textContent = '';
+    if (medalEl) medalEl.textContent = '';
+    if (totalEl) totalEl.textContent = holesPts > 0 ? holesPts : '—';
+  }
 }
 
 function saveAdminScorecard() {
