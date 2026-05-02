@@ -357,8 +357,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 /* Reply count button under messages */
 .msg-reply-count{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#1B4332;margin:3px 4px 0;cursor:pointer;padding:3px 8px;background:rgba(27,67,50,0.07);border-radius:10px;border:none;font-family:'DM Sans',sans-serif}
 .msg-row.mine .msg-reply-count{color:#a0bfab;background:rgba(255,255,255,0.12)}
-/* Floating keyboard-escape button */
-#keyboard-close-btn{display:none;position:fixed;z-index:900;right:14px;align-items:center;gap:6px;background:#1B4332;color:#fff;border-radius:20px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.35);border:none;letter-spacing:0.01em}
+/* Floating keyboard-escape button — frosted circle, upper-left */
+#keyboard-close-btn{display:none;position:fixed;z-index:900;left:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.22);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border:1.5px solid rgba(255,255,255,0.45);align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 16px rgba(0,0,0,0.22);padding:0}
 /* League setup banner */
 .league-setup-banner{background:#1B4332;border-radius:14px;margin:12px 16px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .league-setup-banner:active{opacity:0.85}
@@ -497,10 +497,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
   </div>
 
   <!-- Floating keyboard-escape button (shows when keyboard hides the panel header) -->
-  <button id="keyboard-close-btn" onclick="handleKeyboardCloseBtn()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="kb-close-icon"><polyline points="15 18 9 12 15 6"/></svg>
-    <span id="kb-close-label">Close</span>
-  </button>
+  <button id="keyboard-close-btn" onclick="handleKeyboardCloseBtn()"></button>
 
   <!-- Hidden file inputs -->
   <input type="file" id="chat-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelected(this)">
@@ -5639,19 +5636,14 @@ function _adjustChatForKeyboard() {
   const threadOpen = document.getElementById('thread-panel') && document.getElementById('thread-panel').classList.contains('open');
   const anyOpen = chatOpen || threadOpen;
   if (keyboardHeight > 100 && anyOpen) {
-    // Position just below the status bar in the visual viewport
-    closeBtn.style.top = (vv.offsetTop + 50) + 'px';
+    // Sit 56px below the top of the visual viewport (clears status bar + safe area)
+    closeBtn.style.top = (vv.offsetTop + 56) + 'px';
     closeBtn.style.display = 'flex';
-    // Label and icon change based on which panel is foreground
-    const icon  = document.getElementById('kb-close-icon');
-    const label = document.getElementById('kb-close-label');
     if (threadOpen) {
-      // Back arrow — goes back to chat
-      if (icon)  icon.setAttribute('d', ''); // reset; use polyline already in SVG
-      if (label) label.textContent = 'Back';
+      closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>';
       closeBtn.setAttribute('data-kb-action', 'thread');
     } else {
-      if (label) label.textContent = 'Close';
+      closeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       closeBtn.setAttribute('data-kb-action', 'chat');
     }
   } else {
@@ -5726,6 +5718,42 @@ function getKeyboardHeight() {
 
   _attachPanelTouchHandlers('chat-panel',   function(){ return document.getElementById('chat-messages');   });
   _attachPanelTouchHandlers('thread-panel', function(){ return document.getElementById('thread-messages'); });
+})();
+
+// Left-edge swipe to navigate back (like native iOS back gesture)
+(function() {
+  function _attachEdgeSwipe(panelId, onSwipe) {
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    var _ex = null, _ey = null;
+    panel.addEventListener('touchstart', function(e) {
+      var t = e.touches[0];
+      if (t.clientX < 24) { _ex = t.clientX; _ey = t.clientY; }
+      else { _ex = null; _ey = null; }
+    }, { passive: true });
+    panel.addEventListener('touchend', function(e) {
+      if (_ex === null) return;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - _ex;
+      var dy = Math.abs(t.clientY - _ey);
+      // Horizontal swipe right ≥ 60px, more horizontal than vertical
+      if (dx >= 60 && dy < dx * 0.65) onSwipe();
+      _ex = null; _ey = null;
+    }, { passive: true });
+  }
+
+  _attachEdgeSwipe('thread-panel', function() {
+    if (document.getElementById('thread-panel').classList.contains('open')) {
+      if (document.activeElement) document.activeElement.blur();
+      closeThread();
+    }
+  });
+  _attachEdgeSwipe('chat-panel', function() {
+    if (document.getElementById('chat-panel').classList.contains('open')) {
+      if (document.activeElement) document.activeElement.blur();
+      closeChat();
+    }
+  });
 })();
 
 // ── Long-press on message bubbles ───────────────────────────────
