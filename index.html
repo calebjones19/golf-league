@@ -484,7 +484,11 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     <div class="chat-messages" id="thread-messages"></div>
     <!-- Input -->
     <div class="chat-input-bar" id="thread-input-bar">
+      <div id="thread-attach-preview-bar" style="display:none" class="img-preview-bar"></div>
       <div class="chat-input-row">
+        <button onclick="openAttachMenu()" style="width:36px;height:36px;border-radius:50%;background:#F3F4F6;border:none;color:#374151;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
         <textarea class="chat-input" id="thread-input" placeholder="Reply…" rows="1"
           autocorrect="on" autocomplete="on" autocapitalize="sentences" spellcheck="true"
           oninput="threadInputChanged(this)" onkeydown="threadInputKeyDown(event)"
@@ -5568,24 +5572,43 @@ function updateChatBadge() {
 }
 
 // Shrink chat/thread panel height when iOS keyboard opens so input stays visible
+// ── Keyboard-open state ─────────────────────────────────────────────────────
+// _inputFocused is the primary "keyboard is open" signal — reliable on all
+// iOS versions including PWA standalone where window.innerHeight can equal
+// visualViewport.height (making getKeyboardHeight() return 0).
+var _inputFocused = false;
+var _vpMaxHeight  = window.innerHeight; // grows as we observe the keyboard-closed height
+
+document.addEventListener('focusin', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    _inputFocused = true;
+    setTimeout(_adjustChatForKeyboard, 300); // let keyboard animate open
+  }
+}, true);
+document.addEventListener('focusout', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    _inputFocused = false;
+    setTimeout(_adjustChatForKeyboard, 50);
+  }
+}, true);
+
 function _adjustChatForKeyboard() {
-  if (!window.visualViewport) return;
-  const vv = window.visualViewport;
-  const keyboardHeight = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  const vv  = window.visualViewport;
+  if (vv && vv.height > _vpMaxHeight) _vpMaxHeight = vv.height; // keep max updated
+  const kbH = vv ? Math.max(0, _vpMaxHeight - vv.offsetTop - vv.height) : 0;
 
   // Apply adjustment to whichever panel(s) are open
   ['chat-panel', 'thread-panel'].forEach(function(id) {
     const panel = document.getElementById(id);
     if (!panel || !panel.classList.contains('open')) return;
-    if (keyboardHeight > 100) {
-      panel.style.top           = vv.offsetTop + 'px';
-      panel.style.height        = window.innerHeight + 'px';
+    if (_inputFocused && kbH > 50) {
+      panel.style.top           = (vv ? vv.offsetTop : 0) + 'px';
+      panel.style.height        = _vpMaxHeight + 'px';
       panel.style.boxSizing     = 'border-box';
-      panel.style.paddingBottom = keyboardHeight + 'px';
-      // Scroll to bottom of whichever messages list is in this panel
+      panel.style.paddingBottom = kbH + 'px';
       const msgs = panel.querySelector('.chat-messages');
       if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
-    } else {
+    } else if (!_inputFocused) {
       panel.style.top           = '';
       panel.style.height        = '';
       panel.style.boxSizing     = '';
@@ -5596,12 +5619,11 @@ function _adjustChatForKeyboard() {
   // Show/hide floating keyboard-escape button
   const closeBtn = document.getElementById('keyboard-close-btn');
   if (!closeBtn) return;
-  const chatOpen   = document.getElementById('chat-panel')   && document.getElementById('chat-panel').classList.contains('open');
-  const threadOpen = document.getElementById('thread-panel') && document.getElementById('thread-panel').classList.contains('open');
-  const anyOpen = chatOpen || threadOpen;
-  if (keyboardHeight > 100 && anyOpen) {
-    // Sit 56px below the top of the visual viewport (clears status bar + safe area)
-    closeBtn.style.top = (vv.offsetTop + 56) + 'px';
+  const chatOpen   = document.getElementById('chat-panel').classList.contains('open');
+  const threadOpen = document.getElementById('thread-panel').classList.contains('open');
+  if (_inputFocused && (chatOpen || threadOpen)) {
+    const offsetTop = vv ? vv.offsetTop : 0;
+    closeBtn.style.top     = (offsetTop + 56) + 'px';
     closeBtn.style.display = 'flex';
     if (threadOpen) {
       closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>';
@@ -5626,8 +5648,12 @@ function handleKeyboardCloseBtn() {
   }
 }
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', _adjustChatForKeyboard);
-  window.visualViewport.addEventListener('scroll',  _adjustChatForKeyboard);
+  window.visualViewport.addEventListener('resize', function() {
+    // Keep _vpMaxHeight up-to-date (keyboard-closed height is always the largest)
+    if (window.visualViewport.height > _vpMaxHeight) _vpMaxHeight = window.visualViewport.height;
+    _adjustChatForKeyboard();
+  });
+  window.visualViewport.addEventListener('scroll', _adjustChatForKeyboard);
 }
 
 // ── Stub custom keyboard references (keyboard reverted to native) ─────────────
@@ -5645,7 +5671,7 @@ function _kbSuggest()    {}
 // Helper: current keyboard height (0 when keyboard is closed)
 function getKeyboardHeight() {
   if (!window.visualViewport) return 0;
-  return Math.max(0, window.innerHeight - window.visualViewport.offsetTop - window.visualViewport.height);
+  return Math.max(0, _vpMaxHeight - window.visualViewport.offsetTop - window.visualViewport.height);
 }
 
 // Prevent iOS rubber-band from revealing the page behind the chat/thread panel.
@@ -5666,8 +5692,8 @@ function getKeyboardHeight() {
       var swipeDown = curY > _startY;
       var swipeUp   = curY < _startY;
 
-      // Dismiss keyboard on any downward drag — regardless of scroll position
-      if (swipeDown && !_kbDismissed && getKeyboardHeight() > 100) {
+      // Dismiss keyboard on any downward drag — use _inputFocused (reliable on iOS PWA)
+      if (swipeDown && !_kbDismissed && _inputFocused) {
         _kbDismissed = true;
         if (document.activeElement) document.activeElement.blur();
       }
@@ -5891,15 +5917,14 @@ function sendThreadReply() {
     reactions:  {},
     replyTo:    _threadParentId,
     deleted:    false,
-    attachment: null,
+    attachment: _pendingAttachment ? Object.assign({}, _pendingAttachment) : null,
     seenBy:     {}
   };
   DATA.messages.push(msg);
   saveMessageToFirestore(msg);
 
   if (input) { input.value = ''; input.style.height = 'auto'; }
-  const btn = document.getElementById('thread-send-btn');
-  if (btn) btn.disabled = true;
+  clearPendingAttachment();
 
   renderThreadHeader();
   renderThreadMessages();
@@ -6247,8 +6272,10 @@ var _pendingAttachment = null; // { type, dataUrl, name, size, mimeType, gifUrl 
 
 function clearPendingAttachment() {
   _pendingAttachment = null;
-  const bar = document.getElementById('attach-preview-bar');
-  if (bar) { bar.style.display = 'none'; bar.innerHTML = ''; }
+  ['attach-preview-bar','thread-attach-preview-bar'].forEach(function(id){
+    var b = document.getElementById(id);
+    if (b) { b.style.display = 'none'; b.innerHTML = ''; }
+  });
   updateSendBtn();
 }
 
@@ -6256,10 +6283,19 @@ function updateSendBtn() {
   const input = document.getElementById('chat-input');
   const btn   = document.getElementById('chat-send-btn');
   if (btn) btn.disabled = (!input || !input.value.trim()) && !_pendingAttachment;
+  const tinput = document.getElementById('thread-input');
+  const tbtn   = document.getElementById('thread-send-btn');
+  if (tbtn) tbtn.disabled = (!tinput || !tinput.value.trim()) && !_pendingAttachment;
+}
+
+function _attachPreviewBarId() {
+  // Show preview in whichever panel is currently open
+  return document.getElementById('thread-panel').classList.contains('open')
+    ? 'thread-attach-preview-bar' : 'attach-preview-bar';
 }
 
 function showAttachPreview() {
-  const bar = document.getElementById('attach-preview-bar');
+  const bar = document.getElementById(_attachPreviewBarId());
   if (!bar || !_pendingAttachment) return;
   bar.style.display = 'flex';
   if (_pendingAttachment.type === 'image' || _pendingAttachment.type === 'gif') {
