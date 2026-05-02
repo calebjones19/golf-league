@@ -1679,7 +1679,10 @@ function buildDashboard() {
     rounds.forEach(function(r) {
       const tA = DATA.teams.find(function(t){return t.id===r.teamAId;});
       const tB = DATA.teams.find(function(t){return t.id===r.teamBId;});
-      const allPids = (tA?tA.playerIds:[]).concat(tB?tB.playerIds:[]);
+      const skinsIn = r.week ? (getWeekLineup(r.week).skinsIn || []) : [];
+      if (skinsIn.length === 0) return; // nobody opted in this week — skip
+      const allPids = (tA?tA.playerIds:[]).concat(tB?tB.playerIds:[]).filter(function(pid){ return skinsIn.includes(pid); });
+      if (allPids.length === 0) return;
       const potPerHole = allPids.length * fee;
       const numH = r.holeResults ? r.holeResults.length : 9;
       let carry = 0;
@@ -2947,7 +2950,9 @@ function buildSkins() {
     // Filter to only players who were opted into skins for this round's week
     var roundWeek = r.week || null;
     var skinsIn = roundWeek ? (getWeekLineup(roundWeek).skinsIn || []) : [];
-    var allPids = idsA.concat(idsB).filter(function(pid){ return skinsIn.length === 0 || skinsIn.includes(pid); });
+    if (skinsIn.length === 0) continue; // nobody opted in this week — skip
+    var allPids = idsA.concat(idsB).filter(function(pid){ return skinsIn.includes(pid); });
+    if (allPids.length === 0) continue;
     var potPerHole = allPids.length * fee;
 
     for (var h = 0; h < numHoles; h++) {
