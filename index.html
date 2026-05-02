@@ -4360,71 +4360,36 @@ function renderSkinsAdmin() {
     '<div style="background:#FEF9EE;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:#C9A84C">Pot: $' + (inCount * fee) + '</div>' +
   '</div>';
 
-  // Player toggles grouped by team matchup
-  var matchupRows = (DATA.matchups || []).filter(function(m){ return m.week === week; });
-  var playerHtml = '';
+  // Flat alphabetical list of all playing this week — no team grouping
+  rows.sort(function(a, b) {
+    var pA = DATA.players.find(function(pl){ return pl.id === a.pid; }) || (DATA.subs||[]).find(function(pl){ return pl.id === a.pid; });
+    var pB = DATA.players.find(function(pl){ return pl.id === b.pid; }) || (DATA.subs||[]).find(function(pl){ return pl.id === b.pid; });
+    var nA = pA ? playerName(pA).toLowerCase() : '';
+    var nB = pB ? playerName(pB).toLowerCase() : '';
+    return nA < nB ? -1 : nA > nB ? 1 : 0;
+  });
 
-  if (matchupRows.length > 0) {
-    matchupRows.forEach(function(m, idx) {
-      var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
-      var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
-      if (!tA || !tB) return;
-      var teeTime = calcTeeTime(idx);
-      var matchRows = rows.filter(function(r){
-        return (tA.playerIds.includes(r.origPid || r.pid) || tB.playerIds.includes(r.origPid || r.pid));
-      });
-      playerHtml += '<div style="margin-bottom:16px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-          '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.4px">' + tA.name + ' vs ' + tB.name + '</div>' +
-          '<span style="font-size:10px;color:#C9A84C;font-weight:700">' + teeTime + '</span>' +
+  var playerHtml = rows.map(function(r) {
+    var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
+         || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
+    if (!p) return '';
+    var inSkins = (lineup.skinsIn || []).includes(r.pid);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
+      avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:600;color:' + (inSkins ? '#1A1A1A' : '#9CA3AF') + '">' + playerName(p) +
+          (r.isSubbing ? ' <span style="font-size:10px;color:#C9A84C;font-weight:700">sub</span>' : '') +
         '</div>' +
-        matchRows.map(function(r) {
-          var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
-               || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
-          if (!p) return '';
-          var inSkins = (lineup.skinsIn || []).includes(r.pid);
-          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
-            avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
-            '<div style="flex:1;min-width:0">' +
-              '<div style="font-size:13px;font-weight:600;color:' + (inSkins ? '#1A1A1A' : '#9CA3AF') + '">' + playerName(p) +
-                (r.isSubbing ? ' <span style="font-size:10px;color:#C9A84C;font-weight:700">sub</span>' : '') +
-              '</div>' +
-              '<div style="font-size:10px;color:#9CA3AF">Hcp ' + effectiveHandicap(p) + ' · ' + r.teamName + '</div>' +
-            '</div>' +
-            '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">' +
-              '<span style="font-size:12px;font-weight:600;color:' + (inSkins ? '#1B4332' : '#9CA3AF') + '">' + (inSkins ? 'In' : 'Out') + '</span>' +
-              '<div onclick="toggleSkinsIn(\'' + r.pid + '\',' + week + ')" style="position:relative;width:40px;height:22px;border-radius:11px;background:' + (inSkins ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s;cursor:pointer;flex-shrink:0">' +
-                '<div style="position:absolute;top:3px;' + (inSkins ? 'right:3px' : 'left:3px') + ';width:16px;height:16px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>' +
-              '</div>' +
-            '</label>' +
-          '</div>';
-        }).join('') +
-      '</div>';
-    });
-  } else {
-    // No matchups yet — just list all active players
-    playerHtml = rows.map(function(r) {
-      var p = DATA.players.find(function(pl){ return pl.id === r.pid; })
-           || (DATA.subs||[]).find(function(pl){ return pl.id === r.pid; });
-      if (!p) return '';
-      var inSkins = (lineup.skinsIn || []).includes(r.pid);
-      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F3F4F6">' +
-        avatarHtml(playerInitials(p), inSkins ? '#E8F5E9' : '#F3F4F6', inSkins ? '#1B4332' : '#9CA3AF', 32) +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:600;color:' + (inSkins ? '#1A1A1A' : '#9CA3AF') + '">' + playerName(p) +
-            (r.isSubbing ? ' <span style="font-size:10px;color:#C9A84C;font-weight:700">sub</span>' : '') +
-          '</div>' +
-          '<div style="font-size:10px;color:#9CA3AF">Hcp ' + effectiveHandicap(p) + ' · ' + r.teamName + '</div>' +
+        '<div style="font-size:10px;color:#9CA3AF">Hcp ' + effectiveHandicap(p) + '</div>' +
+      '</div>' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">' +
+        '<span style="font-size:12px;font-weight:600;color:' + (inSkins ? '#1B4332' : '#9CA3AF') + '">' + (inSkins ? 'In' : 'Out') + '</span>' +
+        '<div onclick="toggleSkinsIn(\'' + r.pid + '\',' + week + ')" style="position:relative;width:40px;height:22px;border-radius:11px;background:' + (inSkins ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s;cursor:pointer;flex-shrink:0">' +
+          '<div style="position:absolute;top:3px;' + (inSkins ? 'right:3px' : 'left:3px') + ';width:16px;height:16px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>' +
         '</div>' +
-        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">' +
-          '<span style="font-size:12px;font-weight:600;color:' + (inSkins ? '#1B4332' : '#9CA3AF') + '">' + (inSkins ? 'In' : 'Out') + '</span>' +
-          '<div onclick="toggleSkinsIn(\'' + r.pid + '\',' + week + ')" style="position:relative;width:40px;height:22px;border-radius:11px;background:' + (inSkins ? '#1B4332' : '#D1D5DB') + ';transition:background 0.2s;cursor:pointer;flex-shrink:0">' +
-            '<div style="position:absolute;top:3px;' + (inSkins ? 'right:3px' : 'left:3px') + ';width:16px;height:16px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>' +
-          '</div>' +
-        '</label>' +
-      '</div>';
-    }).join('');
-  }
+      '</label>' +
+    '</div>';
+  }).join('');
 
   wrap.innerHTML =
     '<div style="padding:0 16px 16px">' +
