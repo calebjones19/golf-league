@@ -360,7 +360,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 @media(max-width:430px){.emoji-sheet{left:0;margin-left:0}}
 .emoji-sheet.open{transform:translateY(0)}
 .emoji-sheet-handle{width:36px;height:4px;background:#D1D5DB;border-radius:2px;margin:10px auto 0;flex-shrink:0}
-.emoji-sheet-grid{flex:1;overflow-y:auto;padding:6px 8px 10px;-webkit-overflow-scrolling:touch}
+.emoji-sheet-grid{flex:1;overflow-y:auto;padding:6px 8px 80px;-webkit-overflow-scrolling:touch}
 .emoji-cat-header{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;padding:10px 4px 4px;display:block}
 .emoji-grid-row{display:grid;grid-template-columns:repeat(8,1fr)}
 .emoji-btn{border:none;background:none;font-size:26px;padding:3px 0;border-radius:8px;cursor:pointer;width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;line-height:1;transition:background 0.1s}
@@ -6275,8 +6275,14 @@ function _setActiveEmojiTab(catId) {
 function _emojiScrollSpy() {
   var grid = document.getElementById('emoji-sheet-grid');
   if (!grid) return;
+  // If scrolled to the bottom, always activate the last category
+  var atBottom = grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 8;
+  if (atBottom) {
+    _setActiveEmojiTab(EMOJI_SHEET_CATS[EMOJI_SHEET_CATS.length - 1].id);
+    return;
+  }
   var scrollTop = grid.scrollTop;
-  // Walk sections from last to first — first one whose top <= scrollTop wins
+  // Walk sections — last one whose top is within the visible area wins
   var active = EMOJI_SHEET_CATS[0].id;
   for (var i = 0; i < EMOJI_SHEET_CATS.length; i++) {
     var sect = document.getElementById('emoji-sect-' + EMOJI_SHEET_CATS[i].id);
