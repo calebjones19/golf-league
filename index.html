@@ -961,6 +961,21 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     </div>
   </div>
 
+  <!-- ADMIN HOLE-BY-HOLE SCORECARD OVERLAY -->
+  <div id="admin-scorecard-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:960;align-items:flex-end;justify-content:center;touch-action:none">
+    <div style="background:#F5F0E8;border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:92vh;display:flex;flex-direction:column;animation:slideUp 0.3s ease">
+      <div style="background:#1B4332;border-radius:24px 24px 0 0;padding:16px 20px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div id="asc-title" style="font-size:15px;font-weight:700;color:#fff">Week 1 Scorecard</div>
+          <div id="asc-sub" style="font-size:11px;color:#a0bfab;margin-top:2px">Back 9 · Holes 10–18</div>
+        </div>
+        <button onclick="closeAdminScorecard()" style="background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:18px;line-height:1">×</button>
+      </div>
+      <div id="asc-body" style="overflow-y:auto;flex:1;padding:14px 14px 8px;-webkit-overflow-scrolling:touch"></div>
+      <div id="asc-footer" style="background:#fff;border-top:1px solid #E5E7EB;padding:14px 20px max(14px,env(safe-area-inset-bottom));flex-shrink:0"></div>
+    </div>
+  </div>
+
   <!-- ENTER RESULTS MODAL -->
   <div id="enter-results-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:950;align-items:flex-end;justify-content:center;touch-action:none">
     <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 max(24px,env(safe-area-inset-bottom));animation:slideUp 0.3s ease">
@@ -4714,120 +4729,276 @@ function selectMatchupWeek(w) {
 }
 
 // ── Weekly Scores tab ─────────────────────────────────────────
+
+// Set scoringPars / scoringHoleHcp globals for any given week (used by computeMatchPoints)
+function setScoringSectionForWeek(week) {
+  var sched = (DATA.schedule || []).find(function(s) { return s.week === week; });
+  var nine  = (sched && sched.nine) || getWeekNine(week);
+  var holes = DATA.league ? (DATA.league.holes || 9) : 9;
+  scoringNine       = nine;
+  scoringHoleOffset = nine === 'back' ? 9 : 0;
+  scoringPars       = nine === 'front'
+    ? ((DATA.league && DATA.league.parFront) || Array(holes).fill(4))
+    : ((DATA.league && DATA.league.par)      || Array(holes).fill(4));
+  scoringHoleHcp    = (DATA.league && DATA.league.holeHcp) || Array(holes).fill(1).map(function(_, i) { return i + 1; });
+}
+
 function renderWeeklyScores() {
-  const el = document.getElementById('weekly-scores-content');
+  var el = document.getElementById('weekly-scores-content');
   if (!el) return;
 
-  const totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
-  const selWeek = _matchupSelWeek !== null ? _matchupSelWeek : getCurrentWeek();
+  var totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
+  var selWeek = _matchupSelWeek !== null ? _matchupSelWeek : getCurrentWeek();
 
-  const weekOpts = Array.from({ length: totalWeeks }, (_, i) => i + 1)
+  var weekOpts = Array.from({ length: totalWeeks }, function(_, i) { return i + 1; })
     .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
     .join('');
-  const weekSel =
+  var weekSel =
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
       '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</span>' +
-      '<select class="form-input" style="flex:1;max-width:130px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
-        weekOpts +
-      '</select>' +
+      '<select class="form-input" style="flex:1;max-width:130px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' + weekOpts + '</select>' +
     '</div>';
 
-  const weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
+  var weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
 
   if (weekMatchups.length === 0) {
     el.innerHTML = weekSel + '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + selWeek + '.</div>';
     return;
   }
 
-  function pLastName(pid) {
-    var p = DATA.players.find(function(pl) { return pl.id === pid; });
-    return p ? playerLastName(p) : '';
-  }
-  function teamNames(team) {
-    return (team.playerIds || []).map(pLastName).filter(Boolean)
-      .map(function(n) { return '<div style="font-size:12px;font-weight:600;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + n + '</div>'; })
-      .join('');
-  }
-
   var rowsHtml = weekMatchups.map(function(m) {
     var tA = DATA.teams.find(function(t) { return t.id === m.teamAId; });
     var tB = DATA.teams.find(function(t) { return t.id === m.teamBId; });
     if (!tA || !tB) return '';
-    var mid = m.id;
 
-    // Find existing round, check both orderings
+    // Find existing round (both orderings)
     var r = (DATA.rounds || []).find(function(r) { return r.week === selWeek && r.teamAId === m.teamAId && r.teamBId === m.teamBId; })
           || (DATA.rounds || []).find(function(r) { return r.week === selWeek && r.teamAId === m.teamBId && r.teamBId === m.teamAId; });
 
-    // Normalize to matchup team order
-    var ptsA = r ? (r.teamAId === m.teamAId ? r.pointsA : r.pointsB) : '';
-    var ptsB = r ? (r.teamAId === m.teamAId ? r.pointsB : r.pointsA) : '';
+    var ptsA = r ? (r.teamAId === m.teamAId ? r.pointsA : r.pointsB) : null;
+    var ptsB = r ? (r.teamAId === m.teamAId ? r.pointsB : r.pointsA) : null;
 
-    var sourceBadge = '';
-    if (r) {
-      var isPlayerScored = !r.manual && r.scores && Object.keys(r.scores).length > 0;
-      sourceBadge = isPlayerScored
-        ? '<span style="font-size:10px;font-weight:600;color:#059669;background:#F0FFF4;border:1px solid #86EFAC;border-radius:8px;padding:1px 8px">● Player scored</span>'
-        : '<span style="font-size:10px;font-weight:600;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:1px 8px">● Admin entered</span>';
-    }
+    var hasHoleScores = r && r.scores && Object.keys(r.scores).length > 0;
+    var sourceBadge = r
+      ? (hasHoleScores
+          ? '<span style="font-size:10px;color:#059669;font-weight:600">● Player scored</span>'
+          : '<span style="font-size:10px;color:#6B7280;font-weight:600">● Admin entered</span>')
+      : '';
+    var scoreStr = ptsA !== null ? '<span style="font-size:14px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif">' + ptsA + ' – ' + ptsB + '</span>' : '<span style="font-size:12px;color:#9CA3AF">No scores yet</span>';
+    var btnLabel = r ? 'Edit Scores' : 'Enter Scores';
+    var btnStyle = 'flex-shrink:0;background:' + (r ? '#F0F7F3' : '#1B4332') + ';color:' + (r ? '#1B4332' : '#fff') + ';border:' + (r ? '1.5px solid #C6DDD2' : 'none') + ';border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif';
 
-    var inputStyle = 'width:48px;text-align:center;font-size:15px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:8px;padding:5px 4px;font-family:\'Space Grotesk\',sans-serif;color:#1B4332;background:#fff;-moz-appearance:textfield';
+    function pname(pid) { var p = DATA.players.find(function(pl) { return pl.id === pid; }); return p ? playerLastName(p) : ''; }
+    var tANames = (tA.playerIds || []).map(pname).filter(Boolean).join(' / ');
+    var tBNames = (tB.playerIds || []).map(pname).filter(Boolean).join(' / ');
 
-    return '<div style="padding:10px 0;border-bottom:1px solid #F5F0E8">' +
-      '<div style="display:flex;align-items:center;gap:6px">' +
-        '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + teamNames(tA) + '</div>' +
-        '<div style="flex-shrink:0;display:flex;align-items:center;gap:4px">' +
-          '<input id="ws-a-' + mid + '" type="number" step="0.5" min="0" max="18" value="' + ptsA + '" style="' + inputStyle + '" placeholder="—">' +
-          '<span style="font-size:13px;font-weight:700;color:#9CA3AF">–</span>' +
-          '<input id="ws-b-' + mid + '" type="number" step="0.5" min="0" max="18" value="' + ptsB + '" style="' + inputStyle + '" placeholder="—">' +
+    return '<div style="padding:12px 0;border-bottom:1px solid #F5F0E8">' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:700;color:#1A1A1A;margin-bottom:2px">' + tANames + '  <span style="color:#9CA3AF;font-weight:400">vs</span>  ' + tBNames + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:3px">' + scoreStr + (sourceBadge ? '<span style="color:#D1D5DB">·</span>' + sourceBadge : '') + '</div>' +
         '</div>' +
-        '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + teamNames(tB) + '</div>' +
-        '<button onclick="saveWeeklyScore(\'' + mid + '\',\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="flex-shrink:0;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-left:2px">Save</button>' +
+        '<button onclick="openAdminScorecard(\'' + m.id + '\',\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="' + btnStyle + '">' + btnLabel + '</button>' +
       '</div>' +
-      (sourceBadge ? '<div style="display:flex;justify-content:center;margin-top:5px">' + sourceBadge + '</div>' : '') +
     '</div>';
   }).join('');
 
-  el.innerHTML = weekSel +
-    '<div class="card" style="padding:0 12px;overflow:hidden">' + rowsHtml + '</div>' +
-    '<div style="height:16px"></div>';
+  el.innerHTML = weekSel + '<div class="card" style="padding:0 12px;overflow:hidden">' + rowsHtml + '</div>' + '<div style="height:16px"></div>';
 }
 
-function saveWeeklyScore(matchupId, teamAId, teamBId, week) {
-  var ptsA = parseFloat(document.getElementById('ws-a-' + matchupId).value);
-  var ptsB = parseFloat(document.getElementById('ws-b-' + matchupId).value);
-  if (isNaN(ptsA) || isNaN(ptsB)) { showToast('Enter points for both teams'); return; }
+// ── Admin Scorecard Overlay ────────────────────────────────────
+var _ascMatchupId = null, _ascTeamAId = null, _ascTeamBId = null, _ascWeek = null;
 
-  // Remove any existing round for this matchup/week (both orderings)
+function openAdminScorecard(mid, teamAId, teamBId, week) {
+  _ascMatchupId = mid;
+  _ascTeamAId   = teamAId;
+  _ascTeamBId   = teamBId;
+  _ascWeek      = week;
+
+  setScoringSectionForWeek(week);
+
+  var tA    = DATA.teams.find(function(t) { return t.id === teamAId; });
+  var tB    = DATA.teams.find(function(t) { return t.id === teamBId; });
+  var sched = (DATA.schedule || []).find(function(s) { return s.week === week; });
+  var holes = scoringPars.length;
+  var holeOffset = scoringHoleOffset;
+
+  // Existing scores (pre-fill)
+  var r = (DATA.rounds || []).find(function(r) { return r.week === week && r.teamAId === teamAId && r.teamBId === teamBId; })
+        || (DATA.rounds || []).find(function(r) { return r.week === week && r.teamAId === teamBId && r.teamBId === teamAId; });
+  var existingScores = (r && r.scores) ? r.scores : {};
+
+  // Header text
+  document.getElementById('asc-title').textContent = 'Week ' + week + ' · ' + (tA ? tA.name : '') + ' vs ' + (tB ? tB.name : '');
+  document.getElementById('asc-sub').textContent = (scoringNine === 'front' ? 'Front 9 · Holes 1–9' : 'Back 9 · Holes 10–18') +
+    (sched && sched.date ? '  ·  ' + new Date(sched.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+
+  // Column headers
+  var holeHeaders = scoringPars.map(function(par, h) {
+    return '<th style="width:34px;padding:4px 1px;text-align:center;font-size:9px;color:#9CA3AF;font-weight:700">' +
+      'H' + (h + 1 + holeOffset) + '<br><span style="font-weight:400;color:#D1D5DB;font-size:8px">p' + par + '</span></th>';
+  }).join('');
+
+  function buildTeamRows(team) {
+    if (!team) return '';
+    var separator = '<tr style="background:#1B4332"><td colspan="' + (holes + 2) + '" style="padding:4px 8px;font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:0.8px;text-transform:uppercase">' + team.name + '</td></tr>';
+    var rows = (team.playerIds || []).map(function(pid) {
+      var p = DATA.players.find(function(pl) { return pl.id === pid; });
+      if (!p) return '';
+      var hcp = effectiveHandicap(p);
+      var prev = existingScores[pid] || [];
+      var cells = scoringPars.map(function(_, h) {
+        var val = prev[h] != null ? prev[h] : '';
+        return '<td style="padding:2px 1px;text-align:center">' +
+          '<input id="asc-' + pid + '-' + h + '" type="number" min="1" max="15" value="' + val + '"' +
+          ' oninput="recalcAdminPoints()" inputmode="numeric"' +
+          ' style="width:30px;height:28px;text-align:center;font-size:12px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:5px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
+          '</td>';
+      }).join('');
+      return '<tr style="border-bottom:1px solid #F5F0E8;background:#fff">' +
+        '<td style="padding:5px 8px;white-space:nowrap">' +
+          '<div style="font-size:12px;font-weight:600;color:#1A1A1A">' + playerLastName(p) + '</div>' +
+          '<div style="font-size:9px;color:#9CA3AF">Hcp ' + hcp + '</div>' +
+        '</td>' +
+        cells +
+        '<td id="asc-tot-' + pid + '" style="text-align:center;font-size:12px;font-weight:700;color:#9CA3AF;padding:2px 4px;white-space:nowrap">—</td>' +
+      '</tr>';
+    }).join('');
+    return separator + rows;
+  }
+
+  var tableHtml =
+    '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:' + (88 + holes * 32 + 38) + 'px">' +
+        '<thead><tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">' +
+          '<th style="text-align:left;padding:6px 8px;width:88px;font-size:9px;font-weight:700;color:#9CA3AF">PLAYER</th>' +
+          holeHeaders +
+          '<th style="width:38px;padding:4px;text-align:center;font-size:9px;font-weight:700;color:#9CA3AF">TOT</th>' +
+        '</tr></thead>' +
+        '<tbody>' + buildTeamRows(tA) + buildTeamRows(tB) + '</tbody>' +
+      '</table>' +
+    '</div>';
+
+  document.getElementById('asc-body').innerHTML = tableHtml;
+
+  document.getElementById('asc-footer').innerHTML =
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+      '<div style="flex:1;text-align:center">' +
+        '<div style="font-size:9px;font-weight:700;color:#9CA3AF;letter-spacing:0.6px;margin-bottom:2px">' + (tA ? tA.name.toUpperCase() : 'TEAM A') + '</div>' +
+        '<div id="asc-pts-a" style="font-size:28px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;line-height:1">—</div>' +
+        '<div style="font-size:10px;color:#9CA3AF;margin-top:1px">pts</div>' +
+      '</div>' +
+      '<div style="font-size:18px;font-weight:700;color:#E5E7EB">–</div>' +
+      '<div style="flex:1;text-align:center">' +
+        '<div style="font-size:9px;font-weight:700;color:#9CA3AF;letter-spacing:0.6px;margin-bottom:2px">' + (tB ? tB.name.toUpperCase() : 'TEAM B') + '</div>' +
+        '<div id="asc-pts-b" style="font-size:28px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;line-height:1">—</div>' +
+        '<div style="font-size:10px;color:#9CA3AF;margin-top:1px">pts</div>' +
+      '</div>' +
+    '</div>' +
+    '<button onclick="saveAdminScorecard()" style="width:100%;background:#1B4332;color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">Calculate & Save</button>';
+
+  var overlay = document.getElementById('admin-scorecard-overlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(function() { overlay.style.opacity = '1'; });
+
+  recalcAdminPoints();
+}
+
+function closeAdminScorecard() {
+  var overlay = document.getElementById('admin-scorecard-overlay');
+  overlay.style.transition = 'opacity 0.2s ease';
+  overlay.style.opacity = '0';
+  setTimeout(function() { overlay.style.display = 'none'; overlay.style.opacity = ''; overlay.style.transition = ''; }, 220);
+}
+
+function recalcAdminPoints() {
+  if (!_ascTeamAId || !_ascTeamBId || !_ascWeek) return;
+  setScoringSectionForWeek(_ascWeek);
+  var tA = DATA.teams.find(function(t) { return t.id === _ascTeamAId; });
+  var tB = DATA.teams.find(function(t) { return t.id === _ascTeamBId; });
+  if (!tA || !tB) return;
+
+  var allIds = (tA.playerIds || []).concat(tB.playerIds || []);
+  var holes  = scoringPars.length;
+  var scores = {};
+
+  allIds.forEach(function(pid) {
+    scores[pid] = [];
+    var gross = 0, hasAny = false;
+    for (var h = 0; h < holes; h++) {
+      var inp = document.getElementById('asc-' + pid + '-' + h);
+      var v   = inp ? parseInt(inp.value) : NaN;
+      scores[pid][h] = isNaN(v) ? null : v;
+      if (!isNaN(v)) { gross += v; hasAny = true; }
+    }
+    var totEl = document.getElementById('asc-tot-' + pid);
+    if (totEl) totEl.textContent = hasAny ? gross : '—';
+  });
+
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
+  var elA = document.getElementById('asc-pts-a');
+  var elB = document.getElementById('asc-pts-b');
+  if (elA) elA.textContent = mp.allPlayed ? mp.pointsA : '—';
+  if (elB) elB.textContent = mp.allPlayed ? mp.pointsB : '—';
+}
+
+function saveAdminScorecard() {
+  if (!_ascTeamAId || !_ascTeamBId || !_ascWeek) return;
+  setScoringSectionForWeek(_ascWeek);
+  var tA = DATA.teams.find(function(t) { return t.id === _ascTeamAId; });
+  var tB = DATA.teams.find(function(t) { return t.id === _ascTeamBId; });
+  if (!tA || !tB) return;
+
+  var allIds = (tA.playerIds || []).concat(tB.playerIds || []);
+  var holes  = scoringPars.length;
+  var scores = {};
+
+  allIds.forEach(function(pid) {
+    scores[pid] = [];
+    for (var h = 0; h < holes; h++) {
+      var inp = document.getElementById('asc-' + pid + '-' + h);
+      var v   = inp ? parseInt(inp.value) : NaN;
+      scores[pid][h] = isNaN(v) ? null : v;
+    }
+  });
+
+  // Require all holes for all players
+  var missing = allIds.some(function(pid) {
+    return scores[pid].some(function(s) { return s === null; });
+  });
+  if (missing) { showToast('Please enter scores for every player on every hole'); return; }
+
+  var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
+
+  // Remove existing round for this matchup/week
   DATA.rounds = (DATA.rounds || []).filter(function(r) {
-    return !(r.week === week && (
-      (r.teamAId === teamAId && r.teamBId === teamBId) ||
-      (r.teamAId === teamBId  && r.teamBId === teamAId)
+    return !(r.week === _ascWeek && (
+      (r.teamAId === _ascTeamAId && r.teamBId === _ascTeamBId) ||
+      (r.teamAId === _ascTeamBId && r.teamBId === _ascTeamAId)
     ));
   });
 
-  var sched = (DATA.schedule || []).find(function(s) { return s.week === week; });
-  var nine = (sched && sched.nine) || getWeekNine(week);
-
+  var sched = (DATA.schedule || []).find(function(s) { return s.week === _ascWeek; });
+  if (!DATA.rounds) DATA.rounds = [];
   DATA.rounds.push({
     id: 'r' + Date.now(),
-    week: week,
-    nine: nine,
-    teamAId: teamAId,
-    teamBId: teamBId,
-    scores: {},
-    pointsA: ptsA,
-    pointsB: ptsB,
-    holeResults: [],
+    week: _ascWeek,
+    nine: scoringNine,
+    teamAId: _ascTeamAId,
+    teamBId: _ascTeamBId,
+    scores: scores,
+    pointsA: mp.pointsA,
+    pointsB: mp.pointsB,
+    holeResults: mp.holeResults,
     completedAt: sched && sched.date ? sched.date + 'T23:59:00.000Z' : new Date().toISOString(),
-    subs: {},
-    manual: true
+    subs: {}
   });
 
   if (sched) sched.status = 'completed';
   saveData();
-  showToast('Week ' + week + ' score saved ✓');
-  renderMatchupsList(); // re-renders the scores tab
+  showToast('Saved · ' + mp.pointsA + ' – ' + mp.pointsB + ' pts ✓');
+  closeAdminScorecard();
+  renderMatchupsList();
 }
 
 function tapTeamForMatchup(teamId) {
