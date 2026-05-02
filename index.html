@@ -712,12 +712,12 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           </div>
         </div>
 
-        <!-- ── Week 1 seed button (hidden once used) ────────── -->
-        <div id="week1-seed-wrap" class="form-group">
-          <button onclick="seedWeek1Scores()" style="width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
+        <!-- ── Week 1 seed button ────────────────────────────── -->
+        <div class="form-group">
+          <button id="week1-seed-btn" onclick="seedWeek1Scores()" style="width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
             ⛳ Import Week 1 Scores
           </button>
-          <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:5px">One-time import — disappears after use</div>
+          <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:5px">Tap to import all Week 1 scores from your records</div>
         </div>
 
       </div>
@@ -1397,7 +1397,7 @@ function startFirestoreSync() {
     }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
-    _updateSeedButton();
+
 
     // Re-attempt player matching if we still don't know who the user is.
     // This handles the race where auth resolved before Firestore data arrived.
@@ -3410,7 +3410,7 @@ function buildAdmin() {
   renderTeamsList();
   renderMatchupsList();
   // Hide seed button once week 1 rounds exist
-  _updateSeedButton();
+
 }
 
 function renderHoleGrids() {
@@ -3592,7 +3592,7 @@ function loadLeagueForm() {
   if (mpCheck) mpCheck.checked = L.enableMatchPlay !== false;
   if (sfCheck) sfCheck.checked = L.enableStableford !== false;
   renderHoleGrids();
-  _updateSeedButton();
+
 }
 
 function shareLeagueLink() {
@@ -8029,19 +8029,11 @@ auth.onAuthStateChanged(user => {
   }, 600);
 });
 
-// ── Week 1 Seed Button visibility ───────────────────────────────
-function _updateSeedButton() {
-  var el = document.getElementById('week1-seed-wrap');
-  if (!el) return;
-  var hasWeek1 = (DATA.rounds||[]).some(function(r){ return r.week === 1; });
-  el.style.display = hasWeek1 ? 'none' : '';
-}
-
 // ── Week 1 Score Seeder ──────────────────────────────────────────
 function seedWeek1Scores() {
-  if (!isAdmin) { showToast('Admin only'); return; }
+  var btn = document.getElementById('week1-seed-btn');
   if ((DATA.rounds||[]).some(function(r){ return r.week === 1; })) {
-    showToast('Week 1 scores already entered'); return;
+    showToast('Week 1 scores already entered ✓'); return;
   }
 
   // Hole-by-hole gross scores from GHIN export (Back 9: holes 10-18)
@@ -8155,8 +8147,8 @@ function seedWeek1Scores() {
 
   saveData();
   showToast('Week 1: ' + created + ' rounds saved ✓');
+  if (btn) { btn.textContent = '✓ Week 1 Imported'; btn.disabled = true; btn.style.background = '#6B7280'; }
   console.log('[seedWeek1] Created ' + created + ' rounds. Missing players:', missing);
-  // Re-render so results appear immediately
   buildDashboard();
   switchLeagueSubTab(_leagueSubTab);
 }
