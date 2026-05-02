@@ -1397,6 +1397,7 @@ function startFirestoreSync() {
     }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
+    _updateSeedButton();
 
     // Re-attempt player matching if we still don't know who the user is.
     // This handles the race where auth resolved before Firestore data arrived.
@@ -8033,7 +8034,7 @@ function _updateSeedButton() {
   var el = document.getElementById('week1-seed-wrap');
   if (!el) return;
   var hasWeek1 = (DATA.rounds||[]).some(function(r){ return r.week === 1; });
-  el.style.display = (isAdmin && !hasWeek1) ? '' : 'none';
+  el.style.display = hasWeek1 ? 'none' : '';
 }
 
 // ── Week 1 Score Seeder ──────────────────────────────────────────
