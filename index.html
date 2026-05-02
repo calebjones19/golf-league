@@ -2764,7 +2764,7 @@ function switchStandingsTab(tab) {
   _standingsTab = tab;
   document.getElementById('standings-tab-schedule').classList.toggle('active', tab === 'schedule');
   document.getElementById('standings-tab-stats').classList.toggle('active', tab === 'stats');
-  if (tab === 'schedule') renderStandings();
+  if (tab === 'schedule') buildMatchups();
   else buildSeasonStats();
 }
 
@@ -3052,8 +3052,9 @@ function buildMatchups() {
 
     // Check if live
     var isLive = activeMatch && activeMatch.teamAId===m.teamAId && activeMatch.teamBId===m.teamBId;
-    // Check if completed
-    var done = (roundsByWeek[m.week]||[]).find(function(r){return r.teamAId===m.teamAId&&r.teamBId===m.teamBId;});
+    // Check if completed (check both team orderings — manual results may have teams swapped)
+    var done = (roundsByWeek[m.week]||[]).find(function(r){return r.teamAId===m.teamAId&&r.teamBId===m.teamBId;})
+            || (roundsByWeek[m.week]||[]).find(function(r){return r.teamAId===m.teamBId&&r.teamBId===m.teamAId;});
 
     var bg = isMyMatch ? 'background:rgba(27,67,50,0.04);' : '';
     var border = isMyMatch ? 'border-left:3px solid #1B4332;padding-left:13px;' : 'padding-left:16px;';
@@ -3070,11 +3071,14 @@ function buildMatchups() {
           '<button onclick="showSection(\'score\')" style="margin-left:auto;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">View →</button>' +
         '</div>';
     } else if (done) {
-      var winnerName = done.pointsA > done.pointsB ? tA.name : done.pointsB > done.pointsA ? tB.name : null;
+      // Normalize scores to tA/tB order regardless of which way the round was stored
+      var doneApts = done.teamAId === m.teamAId ? done.pointsA : done.pointsB;
+      var doneBpts = done.teamAId === m.teamAId ? done.pointsB : done.pointsA;
+      var winnerName = doneApts > doneBpts ? tA.name : doneBpts > doneApts ? tB.name : null;
       statusHtml =
         '<div style="display:flex;align-items:center;gap:8px;margin-top:5px">' +
           '<span style="font-size:16px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' +
-            done.pointsA + ' – ' + done.pointsB +
+            doneApts + ' – ' + doneBpts +
           '</span>' +
           (winnerName
             ? '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + winnerName + ' wins</span>'
