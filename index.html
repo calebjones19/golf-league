@@ -5686,30 +5686,46 @@ function _kbRender()     {}
 function _kbSuggest()    {}
 
 
-// Prevent iOS rubber-band from revealing the page behind the chat panel.
-// We intercept touchmove on the panel itself: allow scrolling inside the
-// messages list normally, but block overscroll at the top/bottom boundaries
-// and block any touch on non-scrollable areas (header, input bar).
+// Helper: current keyboard height (0 when keyboard is closed)
+function getKeyboardHeight() {
+  if (!window.visualViewport) return 0;
+  return Math.max(0, window.innerHeight - window.visualViewport.offsetTop - window.visualViewport.height);
+}
+
+// Prevent iOS rubber-band from revealing the page behind the chat/thread panel.
+// Also: pull-down while at the top of the message list dismisses the keyboard.
 (function() {
-  var _chatTouchStartY = 0;
-  var chatPanel = document.getElementById('chat-panel');
-  chatPanel.addEventListener('touchstart', function(e) {
-    _chatTouchStartY = e.touches[0].clientY;
-  }, { passive: true });
-  chatPanel.addEventListener('touchmove', function(e) {
-    var msgs = document.getElementById('chat-messages');
-    if (msgs && msgs.contains(e.target)) {
-      var atTop    = msgs.scrollTop <= 0;
-      var atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 1;
-      var swipeDown = e.touches[0].clientY > _chatTouchStartY;
-      var swipeUp   = e.touches[0].clientY < _chatTouchStartY;
-      // Block overscroll at boundaries; allow normal scroll otherwise
-      if ((atTop && swipeDown) || (atBottom && swipeUp)) e.preventDefault();
-    } else {
-      // Header, input bar, etc. — never scroll the page
-      e.preventDefault();
-    }
-  }, { passive: false });
+  function _attachPanelTouchHandlers(panelId, getMsgsEl) {
+    var _startY = 0;
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    panel.addEventListener('touchstart', function(e) {
+      _startY = e.touches[0].clientY;
+    }, { passive: true });
+    panel.addEventListener('touchmove', function(e) {
+      var msgs = getMsgsEl();
+      if (msgs && msgs.contains(e.target)) {
+        var atTop     = msgs.scrollTop <= 0;
+        var atBottom  = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 1;
+        var swipeDown = e.touches[0].clientY > _startY;
+        var swipeUp   = e.touches[0].clientY < _startY;
+        if (atTop && swipeDown) {
+          e.preventDefault();
+          // If keyboard is open, dismiss it on pull-down
+          if (getKeyboardHeight() > 100 && document.activeElement) {
+            document.activeElement.blur();
+          }
+        } else if (atBottom && swipeUp) {
+          e.preventDefault();
+        }
+      } else {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+
+  _attachPanelTouchHandlers('chat-panel',   function(){ return document.getElementById('chat-messages');   });
+  _attachPanelTouchHandlers('thread-panel', function(){ return document.getElementById('thread-messages'); });
 })();
 
 // ── Long-press on message bubbles ───────────────────────────────
@@ -6112,11 +6128,20 @@ function showReactionPicker(msgId, anchorEl) {
     btn.onclick = function(e){ e.stopPropagation(); toggleReaction(msgId, em); };
     picker.appendChild(btn);
   });
+  // "Any emoji" button — opens native OS emoji keyboard
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'reaction-picker-emoji';
+  moreBtn.style.cssText = 'font-size:16px;border-left:1px solid #E5E7EB;margin-left:2px;padding-left:8px;border-radius:0 8px 8px 0';
+  moreBtn.title = 'More emoji';
+  moreBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+  moreBtn.onclick = function(e){ e.stopPropagation(); dismissReactionPicker(); openFreeformEmojiReaction(msgId); };
+  picker.appendChild(moreBtn);
+
   document.body.appendChild(picker);
   _reactionPickerEl = picker;
   // position above the bubble
   const rect = anchorEl.getBoundingClientRect();
-  const pw = picker.offsetWidth || 300;
+  const pw = picker.offsetWidth || 340;
   let left = rect.left + rect.width/2 - pw/2;
   left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
   picker.style.left = left + 'px';
@@ -6125,6 +6150,44 @@ function showReactionPicker(msgId, anchorEl) {
   setTimeout(function(){
     document.addEventListener('click', dismissReactionPicker, {once:true});
   }, 0);
+}
+
+// Open the OS native emoji keyboard by focusing a hidden input,
+// capture the first emoji the user types, apply it as a reaction.
+function openFreeformEmojiReaction(msgId) {
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.setAttribute('inputmode', 'text');
+  input.setAttribute('autocorrect', 'off');
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('autocapitalize', 'none');
+  input.setAttribute('spellcheck', 'false');
+  // Position off-screen but not display:none so it can be focused
+  input.style.cssText = 'position:fixed;left:-999px;top:50%;width:40px;height:40px;opacity:0;font-size:16px;border:none;outline:none;z-index:-1';
+  document.body.appendChild(input);
+
+  input.addEventListener('input', function() {
+    var val = input.value;
+    if (!val) return;
+    // Grab the first grapheme cluster (handles multi-codepoint emoji)
+    var segs = [];
+    try {
+      var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+      for (var s of seg.segment(val)) { segs.push(s.segment); break; }
+    } catch(_) {
+      segs = [val[0]]; // fallback
+    }
+    var emoji = segs[0] || val[0];
+    input.remove();
+    if (emoji) toggleReaction(msgId, emoji);
+  });
+
+  input.addEventListener('blur', function() {
+    setTimeout(function(){ if (input.parentNode) input.remove(); }, 400);
+  });
+
+  // Small delay so the reaction picker animation finishes before keyboard appears
+  setTimeout(function(){ input.focus(); }, 80);
 }
 
 function showMsgContextMenu(msgId, anchorEl, isMine) {
