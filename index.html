@@ -954,6 +954,24 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     </div>
   </div>
 
+  <!-- INSTALL PROMPT MODAL -->
+  <div id="install-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:950;align-items:flex-end;justify-content:center;touch-action:none">
+    <div id="install-modal-sheet" style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 max(24px,env(safe-area-inset-bottom));animation:slideUp 0.3s ease">
+      <!-- Green header -->
+      <div style="background:#1B4332;border-radius:24px 24px 0 0;padding:28px 24px 24px;text-align:center">
+        <div style="font-family:'Pinyon Script',cursive;font-size:52px;color:#C9A84C;line-height:1;margin-bottom:8px">Fairway</div>
+        <div style="font-size:14px;color:#a0bfab;font-weight:500">Add to your Home Screen for the best experience</div>
+      </div>
+      <!-- Steps -->
+      <div id="install-steps" style="padding:20px 24px 4px"></div>
+      <!-- Button -->
+      <div style="padding:0 24px">
+        <button onclick="dismissInstallModal()" style="width:100%;background:#1B4332;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px">Got it! ⛳</button>
+        <button onclick="dismissInstallModal()" style="width:100%;background:none;border:none;color:#9CA3AF;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;padding:12px">Remind me later</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
 </div>
@@ -5440,6 +5458,130 @@ function claimAdmin() {
 
 function closeLanding() {
   document.getElementById('landing-overlay').classList.add('hidden');
+  setTimeout(maybeShowInstallPrompt, 600);
+}
+
+// ── Install prompt ────────────────────────────────────────────────────────
+function _isInstalledPWA() {
+  return window.navigator.standalone === true ||
+         window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function maybeShowInstallPrompt() {
+  if (_isInstalledPWA()) return;              // already installed
+  if (localStorage.getItem('golf_install_dismissed')) return;  // dismissed before
+  var overlay = document.getElementById('install-modal-overlay');
+  if (!overlay) return;
+
+  // Detect platform and build steps
+  var ua = navigator.userAgent || '';
+  var isIOS     = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var isAndroid = /Android/.test(ua);
+  var stepsEl = document.getElementById('install-steps');
+
+  if (isIOS) {
+    stepsEl.innerHTML = _installSteps([
+      { icon: _iosShareIcon(), text: 'Tap the <strong>Share</strong> button at the bottom of Safari' },
+      { icon: '➕', text: 'Scroll down and tap <strong>"Add to Home Screen"</strong>' },
+      { icon: '✅', text: 'Tap <strong>"Add"</strong> in the top right corner' }
+    ], 'Works in Safari only. If you\'re in Chrome, open this page in Safari first.');
+  } else if (isAndroid) {
+    stepsEl.innerHTML = _installSteps([
+      { icon: '⋮', text: 'Tap the <strong>menu</strong> in the top right of Chrome' },
+      { icon: '➕', text: 'Tap <strong>"Add to Home screen"</strong>' },
+      { icon: '✅', text: 'Tap <strong>"Add"</strong> to confirm' }
+    ], null);
+  } else {
+    stepsEl.innerHTML = _installSteps([
+      { icon: '🔗', text: 'Open this link on your <strong>iPhone or Android</strong> phone' },
+      { icon: '➕', text: 'Use your browser menu to <strong>Add to Home Screen</strong>' },
+      { icon: '✅', text: 'Launch Fairway from your home screen like any app' }
+    ], null);
+  }
+
+  overlay.style.display = 'flex';
+  requestAnimationFrame(function() { overlay.style.opacity = '1'; });
+}
+
+function _installSteps(steps, note) {
+  var html = '';
+  steps.forEach(function(s, i) {
+    html += '<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px">';
+    html += '<div style="width:36px;height:36px;border-radius:50%;background:#F5F0E8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + s.icon + '</div>';
+    html += '<div style="padding-top:6px">';
+    html += '<div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:0.5px;margin-bottom:2px">STEP ' + (i+1) + '</div>';
+    html += '<div style="font-size:14px;color:#1A1A1A;line-height:1.4">' + s.text + '</div>';
+    html += '</div></div>';
+  });
+  if (note) {
+    html += '<div style="background:#FEF9EE;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400E;border:1px solid #FDE68A;margin-bottom:4px">' +
+      '💡 ' + note + '</div>';
+  }
+  return html;
+}
+
+function _iosShareIcon() {
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+}
+
+function dismissInstallModal() {
+  playBallDrop();
+  localStorage.setItem('golf_install_dismissed', '1');
+  var overlay = document.getElementById('install-modal-overlay');
+  if (!overlay) return;
+  overlay.style.transition = 'opacity 0.2s ease';
+  overlay.style.opacity = '0';
+  setTimeout(function() { overlay.style.display = 'none'; overlay.style.opacity = ''; overlay.style.transition = ''; }, 220);
+}
+
+// ── Ball-drop sound (Web Audio synthesis) ────────────────────────────────
+function playBallDrop() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // 1. Impact click — very short noise burst
+    var impactBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
+    var impactData = impactBuf.getChannelData(0);
+    for (var i = 0; i < impactData.length; i++) {
+      impactData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / impactData.length, 8);
+    }
+    var impact = ctx.createBufferSource();
+    impact.buffer = impactBuf;
+    var impactGain = ctx.createGain();
+    impactGain.gain.setValueAtTime(0.5, ctx.currentTime);
+    impactGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+    impact.connect(impactGain);
+    impactGain.connect(ctx.destination);
+    impact.start(ctx.currentTime);
+
+    // 2. Metallic cup ring — high-freq oscillator with fast decay
+    var ring = ctx.createOscillator();
+    ring.type = 'sine';
+    ring.frequency.setValueAtTime(4200, ctx.currentTime);
+    ring.frequency.exponentialRampToValueAtTime(2800, ctx.currentTime + 0.25);
+    var ringGain = ctx.createGain();
+    ringGain.gain.setValueAtTime(0.35, ctx.currentTime);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    ring.connect(ringGain);
+    ringGain.connect(ctx.destination);
+    ring.start(ctx.currentTime);
+    ring.stop(ctx.currentTime + 0.55);
+
+    // 3. Low thud — body of the ball dropping
+    var thud = ctx.createOscillator();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(180, ctx.currentTime);
+    thud.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.12);
+    var thudGain = ctx.createGain();
+    thudGain.gain.setValueAtTime(0.6, ctx.currentTime);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    thud.connect(thudGain);
+    thudGain.connect(ctx.destination);
+    thud.start(ctx.currentTime);
+    thud.stop(ctx.currentTime + 0.18);
+
+    setTimeout(function(){ try { ctx.close(); } catch(e){} }, 800);
+  } catch(e) {}
 }
 
 async function signOut(skipConfirm) {
