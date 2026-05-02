@@ -335,11 +335,22 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .msg-row.mine .msg-file-card{background:rgba(255,255,255,0.12)}
 .msg-file-icon{width:36px;height:36px;border-radius:8px;background:rgba(27,67,50,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .msg-row.mine .msg-file-icon{background:rgba(255,255,255,0.15)}
-/* Reaction picker */
-.reaction-picker{position:fixed;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:10px 14px;display:flex;gap:6px;z-index:700;animation:popIn 0.15s ease;border:1px solid #E5E7EB}
+/* Emoji reaction bottom sheet */
+.emoji-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:800;display:none;touch-action:none}
+.emoji-sheet-backdrop.open{display:block}
+.emoji-sheet{position:fixed;bottom:0;left:50%;margin-left:-215px;width:100%;max-width:430px;background:#fff;border-radius:20px 20px 0 0;z-index:801;display:flex;flex-direction:column;max-height:72vh;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);touch-action:pan-y}
+@media(max-width:430px){.emoji-sheet{left:0;margin-left:0}}
+.emoji-sheet.open{transform:translateY(0)}
+.emoji-sheet-handle{width:36px;height:4px;background:#D1D5DB;border-radius:2px;margin:10px auto 0;flex-shrink:0}
+.emoji-sheet-grid{flex:1;overflow-y:auto;padding:6px 8px 10px;-webkit-overflow-scrolling:touch}
+.emoji-cat-header{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;padding:10px 4px 4px;display:block}
+.emoji-grid-row{display:grid;grid-template-columns:repeat(8,1fr)}
+.emoji-btn{border:none;background:none;font-size:26px;padding:3px 0;border-radius:8px;cursor:pointer;width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;line-height:1;transition:background 0.1s}
+.emoji-btn:active{background:#F3F4F6}
+.emoji-sheet-tabs{display:flex;align-items:center;border-top:1px solid #F3F4F6;padding:4px 8px;padding-bottom:max(6px,env(safe-area-inset-bottom));gap:0;flex-shrink:0}
+.emoji-tab{flex:1;height:36px;border:none;background:none;border-radius:8px;font-size:20px;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;padding:0}
+.emoji-tab.active{background:#F0FDF4}
 @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
-.reaction-picker-emoji{font-size:22px;cursor:pointer;padding:4px;border-radius:8px;transition:background 0.1s;border:none;background:none}
-.reaction-picker-emoji:hover{background:#F3F4F6}
 /* Msg context menu */
 .msg-context-menu{position:fixed;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.15);padding:6px;z-index:700;min-width:160px;animation:popIn 0.15s ease;border:1px solid #E5E7EB}
 .msg-context-item{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;border-radius:8px;transition:background 0.1s;border:none;background:none;width:100%;font-family:'DM Sans',sans-serif}
@@ -499,7 +510,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     </div>
   </div>
 
-  <!-- Floating keyboard-escape button (shows when keyboard hides the panel header) -->
+  <!-- Emoji reaction bottom sheet -->
+  <div class="emoji-sheet-backdrop" id="emoji-sheet-backdrop" onclick="closeEmojiSheet()"></div>
+  <div class="emoji-sheet" id="emoji-sheet">
+    <div class="emoji-sheet-handle"></div>
+    <div class="emoji-sheet-grid" id="emoji-sheet-grid"></div>
+    <div class="emoji-sheet-tabs" id="emoji-sheet-tabs"></div>
+  </div>
 
   <!-- Hidden file inputs -->
   <input type="file" id="chat-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelected(this)">
@@ -6101,92 +6118,147 @@ function deleteMessage(msgId) {
   renderChatMessages();
 }
 
-// Reaction picker
-var _reactionPickerEl = null;
+// Context menu helpers
 var _contextMenuEl = null;
-
-function dismissReactionPicker() {
-  if (_reactionPickerEl) { _reactionPickerEl.remove(); _reactionPickerEl = null; }
-}
 function dismissContextMenu() {
   if (_contextMenuEl) { _contextMenuEl.remove(); _contextMenuEl = null; }
 }
+// Keep stub so any legacy call sites don't error
+function dismissReactionPicker() {}
 
-function showReactionPicker(msgId, anchorEl) {
-  dismissReactionPicker();
-  dismissContextMenu();
-  const EMOJIS = ['❤️','😂','👍','🔥','⛳','😮','👏','🤣'];
-  const picker = document.createElement('div');
-  picker.className = 'reaction-picker';
-  EMOJIS.forEach(function(em){
-    const btn = document.createElement('button');
-    btn.className = 'reaction-picker-emoji';
-    btn.textContent = em;
-    btn.onclick = function(e){ e.stopPropagation(); toggleReaction(msgId, em); };
-    picker.appendChild(btn);
-  });
-  // "Any emoji" button — opens native OS emoji keyboard
-  const moreBtn = document.createElement('button');
-  moreBtn.className = 'reaction-picker-emoji';
-  moreBtn.style.cssText = 'font-size:16px;border-left:1px solid #E5E7EB;margin-left:2px;padding-left:8px;border-radius:0 8px 8px 0';
-  moreBtn.title = 'More emoji';
-  moreBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
-  moreBtn.onclick = function(e){ e.stopPropagation(); dismissReactionPicker(); openFreeformEmojiReaction(msgId); };
-  picker.appendChild(moreBtn);
+// ── Emoji reaction bottom sheet ──────────────────────────────────────────────
+var _emojiSheetMsgId = null;
+var _recentEmoji = [];
 
-  document.body.appendChild(picker);
-  _reactionPickerEl = picker;
-  // position above the bubble
-  const rect = anchorEl.getBoundingClientRect();
-  const pw = picker.offsetWidth || 340;
-  let left = rect.left + rect.width/2 - pw/2;
-  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-  picker.style.left = left + 'px';
-  picker.style.top  = (rect.top - 60) + 'px';
-  // dismiss on outside tap
-  setTimeout(function(){
-    document.addEventListener('click', dismissReactionPicker, {once:true});
-  }, 0);
+var EMOJI_SHEET_CATS = [
+  { id:'smileys', icon:'😀', label:'Smileys', emoji:[
+    '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😉','😊','😇',
+    '🥰','😍','🤩','😘','😋','😜','🤪','😝','🤑','🤗','🤭','🫢',
+    '🤔','🤨','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪',
+    '🥱','😴','🤧','🥵','🥶','😵','🤯','🥳','🥸','😎','🤓','🧐',
+    '😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨',
+    '😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','😤',
+    '😡','😠','🤬','😈','👿','💀','💩','🤡','👻','👽','🤖','😺'
+  ]},
+  { id:'people', icon:'👋', label:'People', emoji:[
+    '👋','🤚','✋','🖐️','👌','🤌','✌️','🤞','🤟','🤘','🤙','👍',
+    '👎','✊','👊','🤛','🤜','👏','🙌','🤝','🙏','💪','🫶','🫵',
+    '☝️','👆','👇','👈','👉','💅','🤳','🫂','👶','🧒','👦','👧',
+    '🧑','👱','🧔','👩','👨','🧓','👴','👵','💃','🕺','🧘','🧗'
+  ]},
+  { id:'animals', icon:'🐶', label:'Animals', emoji:[
+    '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮',
+    '🐷','🐸','🐵','🐔','🐧','🦆','🦅','🦉','🦇','🐺','🐴','🦄',
+    '🐝','🦋','🐌','🐞','🐢','🐍','🦎','🐙','🦑','🐬','🐳','🦈',
+    '🐊','🦒','🦓','🐘','🦛','🦏','🦘','🐕','🐈','🦜','🐇','🦔'
+  ]},
+  { id:'food', icon:'🍎', label:'Food', emoji:[
+    '🍎','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍑','🥭','🍍','🥥',
+    '🥝','🍅','🥑','🥦','🥕','🌽','🌶️','🧄','🥔','🍳','🥞','🧇',
+    '🥓','🍗','🍔','🍟','🍕','🌮','🌯','🍝','🍜','🍣','🍱','🍦',
+    '🍰','🎂','🍫','🍬','🍭','🍿','🍩','🍪','🧁','☕','🍺','🍻',
+    '🥂','🍷','🧃','🥤','🧊','🍾'
+  ]},
+  { id:'sports', icon:'⛳', label:'Sports', emoji:[
+    '⛳','🏌️','🏌️‍♂️','🏆','🥇','🥈','🥉','🏅','🎖️','🏀','⚽','🏈',
+    '⚾','🎾','🏐','🎱','🏓','🥊','🎯','🎳','🏹','🤿','⛷️','🏂',
+    '🏋️','🤸','🏊','🚴','🥋','🏇','🤺','🥌','⛸️','🎿','🎽','🛹'
+  ]},
+  { id:'travel', icon:'✈️', label:'Travel', emoji:[
+    '✈️','🚀','🛸','🚁','🚗','🏎️','🚌','🚂','🚢','⛵','🏖️','🏔️',
+    '🌋','🏕️','🌃','🏙️','🌅','🗺️','🌍','🌎','🌏','🗼','🏰','🎡',
+    '🎢','🎠','⛪','🕌','⛩️','🌈','⭐','🌙','☀️','🌤️','⛅','🌧️',
+    '❄️','🌊','🌸','🌺','🌻','🌹','🍀','🌴','🌵','🎋','🍁','🌾'
+  ]},
+  { id:'objects', icon:'💡', label:'Objects', emoji:[
+    '💡','🔦','💰','💎','📱','💻','📷','📸','📺','📻','🎙️','⏰',
+    '⌚','🔋','💾','💿','🧲','🔧','🔨','⚙️','🔑','🔒','🔓','🪜',
+    '🧰','🎁','🎈','🎉','🎊','🧨','✨','🎆','🎇','🪄','🎭','🎨',
+    '🎤','🎧','🎵','🎶','🎸','🎹','🎺','🎻','🥁','🪘','🎮','🎲'
+  ]},
+  { id:'symbols', icon:'❤️', label:'Symbols', emoji:[
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','💕',
+    '💞','💓','💗','💖','💘','💝','💟','✅','❌','❓','❗','💯',
+    '🔞','⚠️','♻️','✔️','➕','➖','✖️','➗','💲','©️','®️','™️',
+    '🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🔶','🔷','🔔','🔕',
+    '💬','💭','♠️','♣️','♥️','♦️','🎴','🀄','🃏','🔮','💫','⚡'
+  ]}
+];
+
+function _loadRecentEmoji() {
+  try { _recentEmoji = JSON.parse(localStorage.getItem('golf_recent_emoji') || '[]'); } catch(_) { _recentEmoji = []; }
+}
+function _saveRecentEmoji(emoji) {
+  _recentEmoji = [emoji].concat(_recentEmoji.filter(function(e){ return e !== emoji; })).slice(0, 24);
+  try { localStorage.setItem('golf_recent_emoji', JSON.stringify(_recentEmoji)); } catch(_) {}
 }
 
-// Open the OS native emoji keyboard by focusing a hidden input,
-// capture the first emoji the user types, apply it as a reaction.
-function openFreeformEmojiReaction(msgId) {
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.setAttribute('inputmode', 'text');
-  input.setAttribute('autocorrect', 'off');
-  input.setAttribute('autocomplete', 'off');
-  input.setAttribute('autocapitalize', 'none');
-  input.setAttribute('spellcheck', 'false');
-  // Keep on-screen and above z-0 so iOS allows focus within the gesture handler.
-  // Tiny 1×1 transparent square in the corner — invisible but focusable.
-  input.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;font-size:16px;border:none;outline:none;z-index:1000';
-  document.body.appendChild(input);
+function openEmojiSheet(msgId) {
+  _loadRecentEmoji();
+  _emojiSheetMsgId = msgId;
+  _renderEmojiSheetGrid();
+  document.getElementById('emoji-sheet-backdrop').classList.add('open');
+  document.getElementById('emoji-sheet').classList.add('open');
+  var grid = document.getElementById('emoji-sheet-grid');
+  if (grid) grid.scrollTop = 0;
+}
+function closeEmojiSheet() {
+  document.getElementById('emoji-sheet-backdrop').classList.remove('open');
+  document.getElementById('emoji-sheet').classList.remove('open');
+  _emojiSheetMsgId = null;
+}
+function _renderEmojiSheetGrid(activeCatId) {
+  var grid  = document.getElementById('emoji-sheet-grid');
+  var tabs  = document.getElementById('emoji-sheet-tabs');
+  if (!grid || !tabs) return;
 
-  input.addEventListener('input', function() {
-    var val = input.value;
-    if (!val) return;
-    // Grab the first grapheme cluster (handles multi-codepoint emoji)
-    var segs = [];
-    try {
-      var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-      for (var s of seg.segment(val)) { segs.push(s.segment); break; }
-    } catch(_) {
-      segs = [val[0]]; // fallback
-    }
-    var emoji = segs[0] || val[0];
-    input.remove();
-    if (emoji) toggleReaction(msgId, emoji);
+  var html = '';
+  // Recent row
+  if (_recentEmoji.length) {
+    html += '<span class="emoji-cat-header">Recently Used</span><div class="emoji-grid-row">';
+    _recentEmoji.forEach(function(em) {
+      html += '<button class="emoji-btn" onclick="pickSheetEmoji(\'' + _escEmoji(em) + '\')">' + em + '</button>';
+    });
+    html += '</div>';
+  }
+  // Category sections
+  EMOJI_SHEET_CATS.forEach(function(cat) {
+    html += '<div id="emoji-sect-' + cat.id + '"><span class="emoji-cat-header">' + cat.label + '</span><div class="emoji-grid-row">';
+    cat.emoji.forEach(function(em) {
+      html += '<button class="emoji-btn" onclick="pickSheetEmoji(\'' + _escEmoji(em) + '\')">' + em + '</button>';
+    });
+    html += '</div></div>';
   });
+  grid.innerHTML = html;
 
-  input.addEventListener('blur', function() {
-    setTimeout(function(){ if (input.parentNode) input.remove(); }, 400);
+  // Tab bar
+  var tabHtml = '';
+  EMOJI_SHEET_CATS.forEach(function(cat) {
+    var active = cat.id === (activeCatId || EMOJI_SHEET_CATS[0].id) ? ' active' : '';
+    tabHtml += '<button class="emoji-tab' + active + '" onclick="scrollToEmojiCat(\'' + cat.id + '\')">' + cat.icon + '</button>';
   });
-
-  // Must focus synchronously within the user-gesture call stack so iOS
-  // permits keyboard activation. No setTimeout.
-  input.focus();
+  tabs.innerHTML = tabHtml;
+}
+function _escEmoji(em) {
+  // Safely escape emoji for inline onclick attribute
+  return em.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+function scrollToEmojiCat(catId) {
+  // Update active tab
+  document.querySelectorAll('.emoji-tab').forEach(function(t){ t.classList.remove('active'); });
+  var idx = EMOJI_SHEET_CATS.findIndex(function(c){ return c.id === catId; });
+  var tabEls = document.querySelectorAll('.emoji-tab');
+  if (tabEls[idx]) tabEls[idx].classList.add('active');
+  // Scroll grid to section
+  var sect = document.getElementById('emoji-sect-' + catId);
+  var grid = document.getElementById('emoji-sheet-grid');
+  if (sect && grid) grid.scrollTop = sect.offsetTop;
+}
+function pickSheetEmoji(emoji) {
+  if (!_emojiSheetMsgId) return;
+  _saveRecentEmoji(emoji);
+  toggleReaction(_emojiSheetMsgId, emoji);
+  closeEmojiSheet();
 }
 
 function showMsgContextMenu(msgId, anchorEl, isMine) {
@@ -6207,7 +6279,7 @@ function showMsgContextMenu(msgId, anchorEl, isMine) {
   const reactBtn = document.createElement('button');
   reactBtn.className = 'msg-context-item';
   reactBtn.innerHTML = '<span style="font-size:14px">😊</span> React';
-  reactBtn.onclick = function(){ dismissContextMenu(); showReactionPicker(msgId, anchorEl); };
+  reactBtn.onclick = function(){ dismissContextMenu(); openEmojiSheet(msgId); };
   menu.appendChild(reactBtn);
 
   if (isOwner || isAdmin) {
@@ -6415,47 +6487,7 @@ function selectGif(url, title) {
   showAttachPreview();
 }
 
-function openEmojiPicker() {
-  // Simple emoji insertion into chat input
-  const EMOJIS = ['⛳','🏌️','🏆','🔥','❤️','😂','👍','🎉','💪','😮','👏','🤣','😎','🙌','💰'];
-  dismissContextMenu();
-  dismissReactionPicker();
-  const picker = document.createElement('div');
-  picker.className = 'reaction-picker';
-  picker.style.flexWrap = 'wrap';
-  picker.style.maxWidth = '260px';
-  picker.style.padding = '10px';
-  picker.style.gap = '4px';
-  EMOJIS.forEach(function(em){
-    const btn = document.createElement('button');
-    btn.className = 'reaction-picker-emoji';
-    btn.textContent = em;
-    btn.onclick = function(e){
-      e.stopPropagation();
-      const input = document.getElementById('chat-input');
-      if (input) {
-        const pos = input.selectionStart || input.value.length;
-        input.value = input.value.slice(0,pos) + em + input.value.slice(pos);
-        input.focus();
-        chatInputChanged(input);
-      }
-      dismissReactionPicker();
-    };
-    picker.appendChild(btn);
-  });
-  document.body.appendChild(picker);
-  _reactionPickerEl = picker;
-  const emojiBtn = document.getElementById('emoji-btn');
-  if (emojiBtn) {
-    const rect = emojiBtn.getBoundingClientRect();
-    picker.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
-    picker.style.left   = Math.max(8, rect.left - 10) + 'px';
-    picker.style.top    = 'auto';
-  }
-  setTimeout(function(){
-    document.addEventListener('click', dismissReactionPicker, {once:true});
-  }, 0);
-}
+// openEmojiPicker() reserved for future emoji insertion into text input
 
 function formatChatTime(iso) {
   const d = new Date(iso);
