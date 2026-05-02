@@ -284,6 +284,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .msg-bubble.deleted{font-style:italic;color:#9CA3AF;background:#F3F4F6;font-size:12px}
 .msg-row.mine .msg-bubble.deleted{background:#2D6A4F;color:#a0bfab}
 .msg-time{font-size:10px;color:#9CA3AF;margin:0 4px;align-self:flex-end}
+.msg-seen-by{font-size:10px;color:#9CA3AF;margin:1px 4px 0;text-align:right}
 .msg-reactions{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;margin-left:4px}
 .msg-row.mine .msg-reactions{justify-content:flex-end;margin-right:4px;margin-left:0}
 .reaction-pill{display:inline-flex;align-items:center;gap:2px;background:#fff;border:1.5px solid #E5E7EB;border-radius:10px;padding:1px 6px;font-size:12px;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
@@ -1107,9 +1108,17 @@ function _applyRemoteData(raw) {
   const remotePlayers = Array.isArray(raw.players)   ? raw.players   : [];
   // currentUserId is per-device only — preserve the local value, never overwrite from Firestore.
   const savedUserId = DATA.currentUserId;
+  const localMsgsForMerge = Array.isArray(DATA.messages) ? DATA.messages : [];
   DATA = { ...DATA, ...raw };
   DATA.currentUserId = savedUserId;
-  DATA.messages = remoteMsgs;
+  // Merge local seenBy into remote messages so optimistic marks aren't lost
+  DATA.messages = remoteMsgs.map(function(rm) {
+    var lm = localMsgsForMerge.find(function(m){ return m.id === rm.id; });
+    if (lm && lm.seenBy && Object.keys(lm.seenBy).length > 0) {
+      return Object.assign({}, rm, { seenBy: Object.assign({}, rm.seenBy || {}, lm.seenBy) });
+    }
+    return rm;
+  });
   DATA.players  = remotePlayers.length >= localPlayers.length ? remotePlayers : localPlayers;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
@@ -1203,10 +1212,12 @@ function startFirestoreSync() {
         _deduplicatePlayerLinks(player.id);
         saveData();
         updateAvatarBtn();
+        updateChatBadge();
         if (landingOpen) { closeLanding(); showSection('dashboard'); checkAnnouncements(); }
         return; // refreshCurrentSection called via showSection
       } else if (isAdmin) {
         updateAvatarBtn();
+        updateChatBadge();
         // Only navigate if the landing screen is still blocking the UI
         if (landingOpen) { closeLanding(); showSection('dashboard'); checkAnnouncements(); }
         return;
@@ -1224,9 +1235,11 @@ function startFirestoreSync() {
 
     // Refresh whatever section is currently visible
     refreshCurrentSection();
+    checkAnnouncements();
     updateChatBadge();
     // Re-render chat if it's open so incoming messages appear in real-time
     if (document.getElementById('chat-panel').classList.contains('open')) {
+      _markMessagesSeen();
       renderChatMessages();
       // Scroll to bottom only if already near it (don't hijack manual scroll)
       setTimeout(function() {
@@ -5549,15 +5562,17 @@ function _adjustChatForKeyboard() {
   // keyboardHeight = screen area covered by keyboard + accessory bar.
   const keyboardHeight = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
   if (keyboardHeight > 100) {
-    // Keep the panel full-screen so it always covers the bottom nav.
-    // Use padding-bottom + border-box to shrink only the content area,
-    // pushing the input bar up to sit just above the keyboard.
-    panel.style.height      = window.innerHeight + 'px';
-    panel.style.boxSizing   = 'border-box';
+    // Pin the panel top to the visual viewport so it stays on-screen when iOS
+    // scrolls the page behind the keyboard. Height covers the whole viewport
+    // and padding-bottom pushes the input bar up above the keyboard.
+    panel.style.top           = vv.offsetTop + 'px';
+    panel.style.height        = window.innerHeight + 'px';
+    panel.style.boxSizing     = 'border-box';
     panel.style.paddingBottom = keyboardHeight + 'px';
     const msgs = document.getElementById('chat-messages');
     if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 50);
   } else {
+    panel.style.top           = '';
     panel.style.height        = '';
     panel.style.boxSizing     = '';
     panel.style.paddingBottom = '';
@@ -5606,6 +5621,34 @@ function _kbSuggest()    {}
   }, { passive: false });
 })();
 
+// ── Read receipts ────────────────────────────────────────────────
+var _seenFlushTimer = null;
+
+function _markMessagesSeen() {
+  const me = chatSenderId();
+  if (!me || !DATA.messages) return;
+  let changed = false;
+  DATA.messages.forEach(function(msg) {
+    if (msg.deleted) return;
+    if (msg.senderId === me) return; // don't mark own messages
+    if (!msg.seenBy) msg.seenBy = {};
+    if (!msg.seenBy[me]) {
+      msg.seenBy[me] = true;
+      changed = true;
+    }
+  });
+  if (!changed) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+  // Debounce Firestore write so rapid scrolling/opens don't flood
+  clearTimeout(_seenFlushTimer);
+  _seenFlushTimer = setTimeout(_flushSeenUpdates, 800);
+}
+
+function _flushSeenUpdates() {
+  if (!_firestoreLoaded) return;
+  LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
+}
+
 function openChat() {
   const panel = document.getElementById('chat-panel');
   panel.classList.add('open');
@@ -5613,6 +5656,7 @@ function openChat() {
   // mark all as seen
   setChatSeen((DATA.messages||[]).filter(m=>!m.deleted).length);
   updateChatBadge();
+  _markMessagesSeen();
   renderChatMessages();
   updateChatHeaderSub();
   // scroll to bottom
@@ -5689,7 +5733,8 @@ function sendMessage() {
     reactions:  {},
     replyTo:    chatReplyingTo ? chatReplyingTo.id : null,
     deleted:    false,
-    attachment: _pendingAttachment ? Object.assign({}, _pendingAttachment) : null
+    attachment: _pendingAttachment ? Object.assign({}, _pendingAttachment) : null,
+    seenBy:     {}
   };
   DATA.messages.push(msg);
 
@@ -6173,6 +6218,23 @@ function renderChatMessages() {
       bubbleInner = '<div class="msg-bubble" onclick="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ')">' + (msg.text||'') + '</div>';
     }
 
+    // Build "Seen by" label for my own outgoing messages
+    var seenByHtml = '';
+    if (isMine && msg.seenBy && !msg.deleted) {
+      var seenNames = [];
+      Object.keys(msg.seenBy).forEach(function(uid) {
+        if (!msg.seenBy[uid]) return;
+        var p = DATA.players.find(function(pl){ return pl.id === uid || pl.googleUid === uid; });
+        if (p) seenNames.push(playerName(p).split(' ')[0]);
+      });
+      if (seenNames.length > 0) {
+        var seenLabel = seenNames.length <= 2
+          ? seenNames.join(' & ')
+          : seenNames.slice(0, 2).join(', ') + ' +' + (seenNames.length - 2);
+        seenByHtml = '<div class="msg-seen-by">Seen by ' + seenLabel + '</div>';
+      }
+    }
+
     html += '<div class="msg-row' + (isMine?' mine':'') + '" id="msg-' + msg.id + '">' +
       (!isMine ? '<div class="msg-avatar">' + initStr + '</div>' : '') +
       '<div class="msg-col">' +
@@ -6180,6 +6242,7 @@ function renderChatMessages() {
         replyHtml +
         bubbleInner +
         reactHtml +
+        seenByHtml +
         '<div class="msg-time">' + msgTime + '</div>' +
       '</div>' +
     '</div>';
