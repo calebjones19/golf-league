@@ -2950,9 +2950,9 @@ function buildSkins() {
     // Filter to only players who were opted into skins for this round's week
     var roundWeek = r.week || null;
     var skinsIn = roundWeek ? (getWeekLineup(roundWeek).skinsIn || []) : [];
-    if (skinsIn.length === 0) continue; // nobody opted in this week — skip
+    if (skinsIn.length === 0) return; // nobody opted in this week — skip
     var allPids = idsA.concat(idsB).filter(function(pid){ return skinsIn.includes(pid); });
-    if (allPids.length === 0) continue;
+    if (allPids.length === 0) return;
     var potPerHole = allPids.length * fee;
 
     for (var h = 0; h < numHoles; h++) {
