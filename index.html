@@ -5506,7 +5506,7 @@ function _isInstalledPWA() {
 
 function maybeShowInstallPrompt() {
   if (_isInstalledPWA()) return;                                 // already installed
-  if (localStorage.getItem('golf_install_dismissed')) return;   // permanently dismissed ("don't show again")
+  if (localStorage.getItem('golf_install_dismissed_v2')) return;   // permanently dismissed ("don't show again")
 
   var overlay = document.getElementById('install-modal-overlay');
   if (!overlay) return;
@@ -5571,7 +5571,7 @@ function dismissInstallModal() {
   // If "Don't show again" is checked → save permanently; otherwise just close for now
   var cb = document.getElementById('install-no-show');
   if (cb && cb.checked) {
-    localStorage.setItem('golf_install_dismissed', '1');
+    localStorage.setItem('golf_install_dismissed_v2', '1');
   }
   var overlay = document.getElementById('install-modal-overlay');
   if (!overlay) return;
