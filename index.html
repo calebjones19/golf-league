@@ -8048,9 +8048,8 @@ auth.onAuthStateChanged(user => {
 // ── Week 1 Score Seeder ──────────────────────────────────────────
 function seedWeek1Scores() {
   var btn = document.getElementById('week1-seed-btn');
-  if ((DATA.rounds||[]).some(function(r){ return r.week === 1; })) {
-    showToast('Week 1 scores already entered ✓'); return;
-  }
+  // Remove any stale week 1 rounds so we always re-import fresh
+  DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
 
   // Hole-by-hole gross scores from GHIN export (Back 9: holes 10-18)
   var GHIN = [
@@ -8090,26 +8089,28 @@ function seedWeek1Scores() {
     return p ? p.id : null;
   }
 
+  // Log all players for debugging
+  console.log('[seedWeek1] Players in DATA:', DATA.players.map(function(p){ return p.id + ': ' + p.name; }));
+  console.log('[seedWeek1] Teams in DATA:', DATA.teams.map(function(t){ return t.id + ': ' + t.name + ' → ' + t.playerIds; }));
+  console.log('[seedWeek1] Matchups in DATA:', DATA.matchups);
+
   // Map GHIN entries to { pid, scores }
   var pidScores = {};
   var missing = [];
   GHIN.forEach(function(g) {
     var pid = findPid(g.last, g.first);
-    if (pid) { pidScores[pid] = g.scores; }
-    else { missing.push(g.first + ' ' + g.last); }
+    if (pid) { pidScores[pid] = g.scores; console.log('[seedWeek1] Matched: ' + g.first + ' ' + g.last + ' → ' + pid); }
+    else { missing.push(g.first + ' ' + g.last); console.warn('[seedWeek1] NO MATCH: ' + g.first + ' ' + g.last); }
   });
-  if (missing.length > 0) {
-    showToast('Could not find: ' + missing.join(', '));
-    console.warn('[seedWeek1] Missing players:', missing);
-  }
 
   // Set scoring globals for week 1
   setScoringSectionForWeek(1);
+  console.log('[seedWeek1] scoringPars:', scoringPars, 'scoringHoleHcp:', scoringHoleHcp, 'nine:', scoringNine);
 
   var week1Matchups = (DATA.matchups||[]).filter(function(m){ return m.week === 1; });
+  console.log('[seedWeek1] Week 1 matchups found:', week1Matchups.length);
   if (week1Matchups.length === 0) {
-    showToast('No Week 1 matchups set up yet — go to Matchups tab first');
-    console.warn('[seedWeek1] DATA.matchups:', DATA.matchups);
+    showToast('No Week 1 matchups — check Matchups tab (' + (DATA.matchups||[]).length + ' total matchups found)');
     return;
   }
 
