@@ -713,6 +713,14 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </div>
       </div>
 
+      <!-- ── Week 1 seed button (hidden once used) ────────────── -->
+      <div id="week1-seed-wrap" style="display:none;padding:0 16px 16px">
+        <button onclick="seedWeek1Scores()" style="width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
+          ⛳ Import Week 1 Scores from GHIN
+        </button>
+        <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:5px">One-time import — button disappears after use</div>
+      </div>
+
       <!-- ── Schedule ───────────────────────────────────────── -->
       <div id="league-sec-schedule" style="display:none">
         <div class="form-group">
@@ -3399,6 +3407,12 @@ function buildAdmin() {
   renderPlayersList();
   renderTeamsList();
   renderMatchupsList();
+  // Show one-time seed button for week 1 scores if not yet entered
+  var seedWrap = document.getElementById('week1-seed-wrap');
+  if (seedWrap) {
+    var hasWeek1 = (DATA.rounds||[]).some(function(r){ return r.week === 1; });
+    seedWrap.style.display = hasWeek1 ? 'none' : 'block';
+  }
 }
 
 function renderHoleGrids() {
@@ -8015,6 +8029,130 @@ auth.onAuthStateChanged(user => {
     }
   }, 600);
 });
+
+// ── Week 1 Score Seeder ──────────────────────────────────────────
+function seedWeek1Scores() {
+  if (!isAdmin) { showToast('Admin only'); return; }
+  if ((DATA.rounds||[]).some(function(r){ return r.week === 1; })) {
+    showToast('Week 1 scores already entered'); return;
+  }
+
+  // Hole-by-hole gross scores from GHIN export (Back 9: holes 10-18)
+  var GHIN = [
+    { last:'dahlke',      first:'jon',     scores:[6,6,4,8,4,5,6,4,3] },
+    { last:'morgan',      first:'mike',    scores:[6,5,5,7,6,7,7,4,4] },
+    { last:'jipping',     first:'daniel',  scores:[9,3,5,5,5,6,6,6,6] },
+    { last:'waldorf',     first:'jake',    scores:[5,5,7,5,5,6,6,6,5] },
+    { last:'dahlke',      first:'jim',     scores:[7,4,5,7,5,5,5,5,6] },
+    { last:'house',       first:'brad',    scores:[5,5,7,6,4,5,5,4,5] },
+    { last:'bocquet',     first:'scott',   scores:[8,3,4,3,5,6,8,6,7] },
+    { last:'para',        first:'bill',    scores:[10,8,5,6,6,6,8,7,5] },
+    { last:'briel',       first:'kevin',   scores:[5,3,5,6,4,6,7,5,3] },
+    { last:'jones',       first:'caleb',   scores:[6,2,5,5,6,7,6,6,5] },
+    { last:'oneil',       first:'nicholas',scores:[8,5,5,6,5,5,5,5,6] },
+    { last:'codrean',     first:'anthony', scores:[8,4,5,6,5,6,6,5,4] },
+    { last:'cela',        first:'ray',     scores:[6,4,5,8,7,8,7,8,7] },
+    { last:'zellers',     first:'matt',    scores:[9,5,5,6,7,5,5,6,5] },
+    { last:'larock',      first:'eric',    scores:[8,8,6,7,6,7,7,6,7] },
+    { last:'gillespie',   first:'ryan',    scores:[10,4,5,6,6,6,8,7,7] },
+    { last:'fitzpatrick', first:'rob',     scores:[8,4,4,6,7,8,6,7,4] },
+    { last:'wright',      first:'denzel',  scores:[7,6,5,6,5,7,7,7,3] },
+    { last:'noruk',       first:'jason',   scores:[5,4,3,6,5,6,4,4,5] },
+    { last:'potter',      first:'truman',  scores:[8,6,6,6,6,5,8,7,6] },
+    { last:'marshall',    first:'calvin',  scores:[5,6,6,14,7,6,8,6,4] },
+    { last:'dion',        first:'matt',    scores:[7,4,7,3,8,3,7,5,6] }
+  ];
+
+  // Build last+first → pid lookup from DATA.players
+  function findPid(last, first) {
+    var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
+    // Try exact last+first match first
+    var p = DATA.players.find(function(pl){
+      return norm(pl.name).includes(norm(last)) && norm(pl.name).includes(norm(first));
+    });
+    // Fallback: last name only (for unique last names)
+    if (!p) p = DATA.players.find(function(pl){ return norm(pl.name).includes(norm(last)); });
+    return p ? p.id : null;
+  }
+
+  // Map GHIN entries to { pid, scores }
+  var pidScores = {};
+  var missing = [];
+  GHIN.forEach(function(g) {
+    var pid = findPid(g.last, g.first);
+    if (pid) { pidScores[pid] = g.scores; }
+    else { missing.push(g.first + ' ' + g.last); }
+  });
+  if (missing.length > 0) {
+    showToast('Could not find: ' + missing.join(', '));
+    console.warn('[seedWeek1] Missing players:', missing);
+  }
+
+  // Set scoring globals for week 1
+  setScoringSectionForWeek(1);
+
+  var week1Matchups = (DATA.matchups||[]).filter(function(m){ return m.week === 1; });
+  if (week1Matchups.length === 0) { showToast('No Week 1 matchups found'); return; }
+
+  var created = 0;
+  week1Matchups.forEach(function(m) {
+    var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+    var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+    if (!tA || !tB) return;
+
+    // Build scores object for just the players in this matchup (+ any subs)
+    var allPids = (tA.playerIds||[]).concat(tB.playerIds||[]);
+    var scores = {};
+    allPids.forEach(function(pid) {
+      if (pidScores[pid]) scores[pid] = pidScores[pid];
+    });
+
+    // Skip if we couldn't find scores for any player on either team
+    var hasA = (tA.playerIds||[]).some(function(pid){ return scores[pid]; });
+    var hasB = (tB.playerIds||[]).some(function(pid){ return scores[pid]; });
+    if (!hasA || !hasB) {
+      console.warn('[seedWeek1] Missing scores for matchup', tA.name, 'vs', tB.name);
+      return;
+    }
+
+    var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
+    var round = {
+      id: 'w1seed_' + m.teamAId + '_' + m.teamBId,
+      week: 1,
+      nine: scoringNine,
+      teamAId: m.teamAId,
+      teamBId: m.teamBId,
+      scores: scores,
+      pointsA: mp.pointsA,
+      pointsB: mp.pointsB,
+      holeResults: mp.holeResults,
+      completedAt: new Date().toISOString(),
+      subs: {}
+    };
+    if (!DATA.rounds) DATA.rounds = [];
+    DATA.rounds.push(round);
+    created++;
+
+    // Mark week as completed
+    var sched = (DATA.schedule||[]).find(function(s){ return s.week === 1; });
+    if (sched) sched.status = 'completed';
+  });
+
+  recalcHandicaps();
+  DATA.rounds.forEach(function(r) {
+    if (r.week === 1) {
+      r.handicapsAfter = {};
+      DATA.players.forEach(function(p){ r.handicapsAfter[p.id] = p.leagueHandicap || 0; });
+    }
+  });
+
+  saveData();
+  showToast('Week 1: ' + created + ' rounds saved ✓');
+  console.log('[seedWeek1] Created ' + created + ' rounds. Missing players:', missing);
+  // Re-render so results appear immediately
+  buildDashboard();
+  switchLeagueSubTab(_leagueSubTab);
+}
 </script>
 </body>
 </html>
