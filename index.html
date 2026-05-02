@@ -2191,7 +2191,6 @@ function getActivePids() {
 
 function adjustScore(pid, delta) {
   if (!activeMatch || (activeMatch.saved[pid] && activeMatch.saved[pid][currentHole])) return;
-  haptic('light');
   var cur = activeMatch.scores[pid][currentHole];
   activeMatch.scores[pid][currentHole] = cur === null ? scoringPars[currentHole] : Math.max(1, cur + delta);
   var teams = getActiveTeams();
@@ -2200,7 +2199,6 @@ function adjustScore(pid, delta) {
 
 function saveHoleScores() {
   if (!activeMatch) return;
-  haptic('medium');
   var teams = getActiveTeams();
   if (!teams) return;
   var allPids = teams.idsA.concat(teams.idsB);
@@ -5769,7 +5767,6 @@ function msgTouchStart(e, msgId, isMine) {
   _lpAnchor = e.currentTarget;
   _lpTimer  = setTimeout(function() {
     _lpTimer = null;
-    haptic('medium');
     showMsgContextMenu(msgId, _lpAnchor, isMine);
   }, 500);
 }
@@ -5915,7 +5912,6 @@ function sendThreadReply() {
   const input = document.getElementById('thread-input');
   const text  = (input ? input.value : '').trim();
   if (!text) return;
-  haptic('heavy');
   const senderId   = chatSenderId();
   const senderName = chatSenderName();
   if (!senderId) { showToast('Sign in to reply'); return; }
@@ -6045,7 +6041,6 @@ function sendMessage() {
   const text  = (input ? input.value : '').trim();
   if (!text && !_pendingAttachment) return;
 
-  haptic('heavy');
   const senderName = chatSenderName();
   const senderId   = chatSenderId();
   if (!senderId) { showToast('Sign in to chat'); return; }
@@ -6112,7 +6107,6 @@ function clearReply() {
 }
 
 function toggleReaction(msgId, emoji) {
-  haptic('light');
   const msg = (DATA.messages||[]).find(m=>m.id===msgId);
   if (!msg) return;
   const me = chatSenderId();
@@ -6765,17 +6759,6 @@ function viewFullImage(msgId) {
 // ============================================================
 // HAPTICS
 // ============================================================
-// light (10ms) — tap confirmations, reactions, selections
-// medium (30ms) — already used for long-press
-// heavy (60ms) — send message, score save
-function haptic(type) {
-  if (!navigator.vibrate) return;
-  if (type === 'light')  navigator.vibrate(10);
-  else if (type === 'medium') navigator.vibrate(30);
-  else if (type === 'heavy')  navigator.vibrate(60);
-  else navigator.vibrate(type); // pass raw ms
-}
-
 // ============================================================
 // NOTIFICATIONS & SERVICE WORKER
 // ============================================================
