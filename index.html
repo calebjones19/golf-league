@@ -1493,7 +1493,7 @@ function showSection(id) {
     if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
     if (id === 'score')       buildScoring();
     if (id === 'leaderboard') buildLeaderboard();
-    if (id === 'skins')       buildSkins();
+    if (id === 'skins')       { buildSkins(); playBallDrop(); }
     if (id === 'standings')   buildStandings();
     if (id === 'admin')       buildAdmin();
     // Start fade after content is ready
@@ -5581,75 +5581,11 @@ function dismissInstallModal() {
   setTimeout(function() { overlay.style.display = 'none'; overlay.style.opacity = ''; overlay.style.transition = ''; }, 220);
 }
 
-// ── Ball-drop sound (Web Audio synthesis) ────────────────────────────────
-// Golf ball dropping in aluminum cup:
-// Hard urethane ball → metal cup wall = bright tock, short cup resonance, brief rattle, settle
+// ── Ball-drop sound ──────────────────────────────────────────────────────
 function playBallDrop() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var t   = ctx.currentTime;
-    var dst = ctx.destination;
-
-    // Helper — bandpass-filtered noise burst
-    function noiseBurst(startT, dur, freq, Q, peak, decay) {
-      var len = Math.ceil(ctx.sampleRate * Math.max(dur, decay + 0.02));
-      var buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      var d   = buf.getChannelData(0);
-      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      var src = ctx.createBufferSource(); src.buffer = buf;
-      var f   = ctx.createBiquadFilter(); f.type = 'bandpass';
-      f.frequency.value = freq; f.Q.value = Q;
-      var g   = ctx.createGain();
-      g.gain.setValueAtTime(peak, startT);
-      g.gain.exponentialRampToValueAtTime(0.001, startT + decay);
-      src.connect(f); f.connect(g); g.connect(dst);
-      src.start(startT); src.stop(startT + decay + 0.02);
-    }
-
-    // Helper — short tonal partial
-    function tone(startT, freq, peak, decay) {
-      var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
-      var g = ctx.createGain();
-      g.gain.setValueAtTime(0.001, startT);
-      g.gain.linearRampToValueAtTime(peak, startT + 0.002);
-      g.gain.exponentialRampToValueAtTime(0.001, startT + decay);
-      o.connect(g); g.connect(dst);
-      o.start(startT); o.stop(startT + decay + 0.01);
-    }
-
-    // ── 1. PRIMARY IMPACT (t = 0) ──────────────────────────────────
-    // Bright hard click: ball (urethane) striking aluminum cup wall
-    noiseBurst(t, 0.04, 4800, 0.9, 3.2, 0.010);   // high-freq crack
-    noiseBurst(t, 0.04, 2600, 1.4, 1.8, 0.016);   // body of click
-
-    // ── 2. CUP CAVITY RESONANCE ────────────────────────────────────
-    // 4.25″ diam × 4″ deep aluminum cup → ~850 Hz quarter-wave
-    // Real cup decays in ~60 ms — NOT a bell ring
-    tone(t, 850,  0.28, 0.060);   // fundamental
-    tone(t, 1700, 0.10, 0.038);   // 2nd mode
-    tone(t, 2620, 0.04, 0.022);   // 3rd mode
-
-    // ── 3. SETTLE RATTLE (25–80 ms) ────────────────────────────────
-    // Ball rolling/catching on cup walls; modulate noise at ~80 Hz
-    var rLen = Math.ceil(ctx.sampleRate * 0.060);
-    var rBuf = ctx.createBuffer(1, rLen, ctx.sampleRate);
-    var rd   = rBuf.getChannelData(0);
-    for (var j = 0; j < rLen; j++) {
-      var ts = j / ctx.sampleRate;
-      rd[j] = (Math.random() * 2 - 1) * Math.abs(Math.sin(Math.PI * 80 * ts)) * Math.exp(-ts * 38);
-    }
-    var rSrc = ctx.createBufferSource(); rSrc.buffer = rBuf;
-    var rF   = ctx.createBiquadFilter(); rF.type = 'bandpass';
-    rF.frequency.value = 2800; rF.Q.value = 1.0;
-    var rG   = ctx.createGain(); rG.gain.value = 0.42;
-    rSrc.connect(rF); rF.connect(rG); rG.connect(dst);
-    rSrc.start(t + 0.025); rSrc.stop(t + 0.090);
-
-    // ── 4. FINAL SETTLE THUD (~95 ms) ──────────────────────────────
-    noiseBurst(t + 0.092, 0.030, 1600, 0.9, 0.45, 0.016);
-    tone(t + 0.092, 720, 0.055, 0.038);
-
-    setTimeout(function() { try { ctx.close(); } catch(e) {} }, 500);
+    var audio = new Audio('/golf-league/sounds/ball-drop.mp3');
+    audio.play().catch(function() {});
   } catch(e) {}
 }
 
