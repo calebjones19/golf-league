@@ -3592,7 +3592,7 @@ function generateSchedule() {
       date: dateStr,
       status: wasCancelled ? 'cancelled' : (date < new Date() ? 'completed' : 'upcoming'),
       reason: wasCancelled?.reason || null,
-      nine: existingWeek?.nine || 'back'
+      nine: existingWeek?.nine || (weekNum % 2 === 1 ? 'back' : 'front')
     });
     date.setDate(date.getDate() + 7);
     weekNum++;
@@ -3670,6 +3670,26 @@ function setWeekNine(weekNum, nine) {
   w.nine = nine;
   saveData();
   renderScheduleList();
+}
+
+// Returns the nine for a given week: reads schedule, falls back to rotation (odd=back, even=front)
+function getWeekNine(weekNum) {
+  const sw = (DATA.schedule || []).find(function(w) { return w.week === weekNum; });
+  if (sw && sw.nine) return sw.nine;
+  return weekNum % 2 === 1 ? 'back' : 'front';
+}
+
+// Save nine to schedule (creates entry if missing), then re-render matchups panel
+function setWeekNineFromMatchups(weekNum, nine) {
+  if (!DATA.schedule) DATA.schedule = [];
+  let sw = DATA.schedule.find(function(w) { return w.week === weekNum; });
+  if (sw) {
+    sw.nine = nine;
+  } else {
+    DATA.schedule.push({ week: weekNum, nine: nine });
+  }
+  saveData();
+  renderMatchupsList();
 }
 
 function undoCancellation(weekNum) {
@@ -4565,12 +4585,17 @@ function renderMatchupsList() {
   const weekOpts = Array.from({ length: totalWeeks }, (_, i) => i + 1)
     .map(function(w) { return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>Week ' + w + '</option>'; })
     .join('');
+  const selNine = getWeekNine(selWeek);
   const weekSelector =
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
       '<span style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">' + (on ? 'ADD TO' : 'WEEK') + '</span>' +
-      '<select class="form-input" style="flex:1;max-width:140px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
+      '<select class="form-input" style="flex:1;max-width:130px;padding:5px 10px;font-size:13px" onchange="selectMatchupWeek(parseInt(this.value))">' +
         weekOpts +
       '</select>' +
+      '<div style="display:flex;border-radius:8px;overflow:hidden;border:1.5px solid #E5E7EB;flex-shrink:0">' +
+        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'front\')" style="padding:4px 10px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='front'?'#1B4332':'#fff') + ';color:' + (selNine==='front'?'#fff':'#6B7280') + '">F9</button>' +
+        '<button onclick="setWeekNineFromMatchups(' + selWeek + ',\'back\')" style="padding:4px 10px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;background:' + (selNine==='back'?'#1B4332':'#fff') + ';color:' + (selNine==='back'?'#fff':'#6B7280') + '">B9</button>' +
+      '</div>' +
     '</div>';
 
   // ── Edit-mode: team pairing cards ────────────────────────────
