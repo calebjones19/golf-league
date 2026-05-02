@@ -1159,8 +1159,21 @@ function startFirestoreSync() {
       return;
     }
     const remote = snap.data();
+    // Snapshot message count before applying so we can detect new arrivals
+    const prevMsgCount = (DATA.messages || []).filter(function(m){return !m.deleted;}).length;
     _applyRemoteData(remote);
     _firestoreLoaded = true;
+
+    // Fire push notification for new incoming messages (other device sent them)
+    if (_firestoreLoaded) {
+      const allMsgs = (DATA.messages || []).filter(function(m){return !m.deleted;});
+      const newMsgs = allMsgs.slice(prevMsgCount);
+      const chatOpen = document.getElementById('chat-panel') && document.getElementById('chat-panel').classList.contains('open');
+      newMsgs.forEach(function(msg) {
+        const ours = msg.senderId && msg.senderId === chatSenderId();
+        if (!ours && !chatOpen) _triggerNotification(msg);
+      });
+    }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
 
