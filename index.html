@@ -526,11 +526,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     <div class="admin-panel active" id="admin-league">
 
       <!-- Sub-tab bar -->
-      <div style="display:flex;background:#E8E0D0;border-radius:0;padding:4px 8px;gap:3px;margin-top:8px" id="league-subtab-bar">
+      <div style="display:flex;background:#E8E0D0;border-radius:10px;padding:4px;gap:3px;margin:8px 16px 0" id="league-subtab-bar">
         <button id="league-stab-basic"    style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:#fff;color:#1B4332;box-shadow:0 1px 3px rgba(0,0,0,0.08)" onclick="switchLeagueSubTab('basic')">Basic Info</button>
         <button id="league-stab-schedule" style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('schedule')">Schedule</button>
         <button id="league-stab-scoring"  style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('scoring')">Scoring</button>
-        <button id="league-stab-announce" style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#6B7280" onclick="switchLeagueSubTab('announce')">Announcements</button>
+        <button id="league-stab-announce" style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;cursor:pointer;background:transparent;color:#6B7280;display:flex;align-items:center;justify-content:center" onclick="switchLeagueSubTab('announce')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4"/><path d="M22 6l-4 2"/><path d="M22 18l-4-2"/><rect x="2" y="9" width="8" height="6" rx="1"/><path d="M10 9l8-5v16l-8-5"/><path d="M6 15v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3"/></svg>
+        </button>
       </div>
 
       <!-- Action row: injected by switchLeagueSubTab() -->
