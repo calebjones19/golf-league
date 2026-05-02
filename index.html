@@ -4672,13 +4672,13 @@ function renderMatchupsList() {
       ? '<span style="font-size:11px;font-weight:700;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;white-space:nowrap">' + existingRound.pointsA + '–' + existingRound.pointsB + '</span>'
       : '<button onclick="openEnterResults(\'' + m.teamAId + '\',\'' + m.teamBId + '\',' + selWeek + ')" style="font-size:9px;font-weight:700;color:#C9A84C;background:#FEF9EE;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">+ Score</button>';
     return '<div style="display:flex;align-items:center;gap:4px;padding:7px 10px;border-bottom:1px solid #F5F0E8">' +
-      '<div style="flex:1;min-width:0;text-align:right;overflow:hidden">' + playerLines(tA) + '</div>' +
+      '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tA) + '</div>' +
       '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 4px">' +
         '<span style="font-size:9px;font-weight:700;color:#9CA3AF">vs</span>' +
         '<span style="font-size:8px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:4px;padding:1px 5px;white-space:nowrap">' + teeTime + '</span>' +
         '<div style="margin-top:2px">' + resultEl + '</div>' +
       '</div>' +
-      '<div style="flex:1;min-width:0;overflow:hidden">' + playerLines(tB) + '</div>' +
+      '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tB) + '</div>' +
       (on ? '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;padding:0;line-height:1;font-size:11px;margin-left:2px">✕</button>' : '') +
     '</div>';
   }
