@@ -586,6 +586,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <button id="board-tab-team" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('team')">Leaders</button>
         <button id="board-tab-sf" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('sf')">Stableford</button>
         <button id="board-tab-history" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('history')">History</button>
+        <button id="board-tab-stats" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('stats')">Stats</button>
       </div>
     </div>
     <div id="leaderboard-content" style="overflow-y:auto;flex:1"></div>
@@ -598,12 +599,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- ===== STANDINGS ===== -->
   <section id="sec-standings">
-    <div style="padding:16px 16px 8px;flex-shrink:0;background:var(--bg)">
-      <div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;gap:2px">
-        <button id="standings-tab-schedule" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('schedule')">Schedule</button>
-        <button id="standings-tab-stats" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchStandingsTab('stats')">Stats</button>
-      </div>
-    </div>
     <div id="standings-content" style="overflow-y:auto;flex:1"></div>
   </section>
 
@@ -1349,6 +1344,8 @@ function _normalizeWeekTypes() {
   (DATA.rounds    || []).forEach(function(r){ if (r.week    !== undefined) r.week    = +r.week;    });
   (DATA.matchups  || []).forEach(function(m){ if (m.week    !== undefined) m.week    = +m.week;    });
   (DATA.schedule  || []).forEach(function(s){ if (s.week    !== undefined) s.week    = +s.week;    });
+  // Ensure all teams have a playerIds array (prevents .includes/.map crashes)
+  (DATA.teams     || []).forEach(function(t){ if (!Array.isArray(t.playerIds)) t.playerIds = []; });
 }
 
 function loadData() {
@@ -2647,7 +2644,7 @@ function _toggleRoundExpand(id) {
 
 // ── Season Stats ──────────────────────────────────────────────────────────
 function buildSeasonStats() {
-  var el = document.getElementById('standings-content');
+  var el = document.getElementById('leaderboard-content');
   var rounds = DATA.rounds || [];
   var players = DATA.players || [];
   // pars resolved per-round below; parTotal uses back 9 as league default
@@ -2830,14 +2827,17 @@ function switchBoardTab(tab) {
   document.getElementById('board-tab-team').classList.toggle('active', tab === 'team');
   document.getElementById('board-tab-sf').classList.toggle('active', tab === 'sf');
   document.getElementById('board-tab-history').classList.toggle('active', tab === 'history');
+  document.getElementById('board-tab-stats').classList.toggle('active', tab === 'stats');
   if (tab === 'team') buildTeamLeaderboard();
   else if (tab === 'sf') buildStablefordLeaderboard('leaderboard-content');
+  else if (tab === 'stats') buildSeasonStats();
   else buildRoundHistory();
 }
 
 function buildLeaderboard() {
   if (boardTab === 'sf') buildStablefordLeaderboard('leaderboard-content');
   else if (boardTab === 'history') buildRoundHistory();
+  else if (boardTab === 'stats') buildSeasonStats();
   else buildTeamLeaderboard();
 }
 
@@ -2845,10 +2845,7 @@ var _standingsTab = 'schedule';
 function switchStandingsTab(tab) {
   _standingsTab = tab;
   _schedSelWeek = null; // reset to current week when switching to schedule tab
-  document.getElementById('standings-tab-schedule').classList.toggle('active', tab === 'schedule');
-  document.getElementById('standings-tab-stats').classList.toggle('active', tab === 'stats');
-  if (tab === 'schedule') buildMatchups();
-  else buildSeasonStats();
+  buildMatchups();
 }
 
 function buildTeamLeaderboard() {
@@ -3077,11 +3074,7 @@ function buildSkins() {
 // STANDINGS
 // ============================================================
 function buildStandings() {
-  _standingsTab = _standingsTab || 'schedule';
-  document.getElementById('standings-tab-schedule').classList.toggle('active', _standingsTab === 'schedule');
-  document.getElementById('standings-tab-stats').classList.toggle('active', _standingsTab === 'stats');
-  if (_standingsTab === 'stats') buildSeasonStats();
-  else buildMatchups();
+  buildMatchups();
 }
 
 var _schedSelWeek = null; // null = use current week
@@ -3411,6 +3404,10 @@ function switchAdminTab(id, btn) {
     setTimeout(() => { if (panel) panel.style.animation = ''; }, 210);
   }
   _currentAdminTab = id;
+  // Re-render dynamic panels when switching to them
+  if (id === 'players')  renderPlayersList();
+  if (id === 'teams')    renderTeamsList();
+  if (id === 'matchups') renderMatchupsList();
 }
 
 function buildAdmin() {
@@ -3975,10 +3972,13 @@ function renderPlayersList() {
   if (!wrap) return;
 
   // ── League Players ──────────────────────────────────────────
-  const leagueListHtml = DATA.players.length === 0
-    ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No league players yet.</div>'
-    : DATA.players.slice().sort((a,b) => playerName(a).localeCompare(playerName(b))).map(p => {
-        const team     = DATA.teams.find(t => t.playerIds.includes(p.id));
+  const players = DATA.players || [];
+  let leagueListHtml;
+  try {
+    leagueListHtml = players.length === 0
+      ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No league players yet.</div>'
+      : players.slice().sort((a,b) => playerName(a).localeCompare(playerName(b))).map(p => {
+        const team     = DATA.teams.find(t => (t.playerIds||[]).includes(p.id));
         const claimed  = !!(p.googleUid || p.googleEmail);
         const pIsAdmin = claimed && isAdminEmail(p.googleEmail);
         const claimBadge = claimed
@@ -3996,6 +3996,10 @@ function renderPlayersList() {
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>';
       }).join('');
+  } catch(e) {
+    console.error('renderPlayersList leagueList error:', e);
+    leagueListHtml = '<div style="color:#DC2626;font-size:13px;padding:16px 0">Error loading players: ' + e.message + '</div>';
+  }
 
   const addLeagueFormHtml = ''; // form lives in the Add Player modal now
 
@@ -4927,7 +4931,6 @@ function renderMatchupsList() {
         '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;padding:0;line-height:1;font-size:11px">✕</button>' +
       '</div>';
     }
-    const teeTime = calcTeeTime(idx);
     const existingRound = (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamAId && r.teamBId === m.teamBId && +r.week === +selWeek; })
       || (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamBId && r.teamBId === m.teamAId && +r.week === +selWeek; });
     function playerLines(team) {
@@ -4946,7 +4949,6 @@ function renderMatchupsList() {
       '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tA) + '</div>' +
       '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 4px">' +
         '<span style="font-size:9px;font-weight:700;color:#9CA3AF">vs</span>' +
-        '<span style="font-size:8px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:4px;padding:1px 5px;white-space:nowrap">' + teeTime + '</span>' +
         '<div style="margin-top:2px">' + resultEl + '</div>' +
       '</div>' +
       '<div style="flex:1;min-width:0;text-align:center;overflow:hidden">' + playerLines(tB) + '</div>' +
@@ -4954,11 +4956,23 @@ function renderMatchupsList() {
     '</div>';
   }
 
+  const scoredCount = weekMatchups.filter(function(m) {
+    return (DATA.rounds||[]).some(function(r){
+      return +r.week === +selWeek && ((r.teamAId===m.teamAId&&r.teamBId===m.teamBId)||(r.teamAId===m.teamBId&&r.teamBId===m.teamAId));
+    });
+  }).length;
+  const matchupCountBadge = weekMatchups.length > 0
+    ? '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.4px;margin-bottom:8px">' +
+        weekMatchups.length + ' MATCHUP' + (weekMatchups.length !== 1 ? 'S' : '') +
+        (scoredCount > 0 ? ' · <span style="color:#16A34A">' + scoredCount + ' scored</span>' : '') +
+      '</div>'
+    : '';
+
   const listHtml = weekMatchups.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">' +
         (on ? 'No matchups for Week ' + selWeek + ' yet — tap teams above to add.' : 'No matchups for Week ' + selWeek + '. Tap Edit to add some.') +
       '</div>'
-    : '<div class="card" style="padding:0;overflow:hidden;margin:0">' +
+    : matchupCountBadge + '<div class="card" style="padding:0;overflow:hidden;margin:0">' +
         weekMatchups.map(function(m, idx){ return adminMatchupRow(m, idx); }).join('') +
       '</div>';
 
