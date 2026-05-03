@@ -712,14 +712,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           </div>
         </div>
 
-        <!-- ── Week 1 seed section ────────────────────────────── -->
-        <div id="w1-seed-section" class="form-group">
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <button onclick="showW1Diag()" style="flex:1;padding:10px;background:#F3F4F6;color:#374151;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Diagnose</button>
-            <button id="week1-seed-btn" onclick="seedWeek1Scores()" style="flex:2;padding:10px;background:#1B4332;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">⛳ Import Week 1</button>
-          </div>
-          <div id="w1-diag-output" style="display:none;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;line-height:1.6;white-space:pre-wrap;color:#374151;max-height:320px;overflow-y:auto;word-break:break-all"></div>
-        </div>
 
       </div>
 
@@ -8051,76 +8043,20 @@ auth.onAuthStateChanged(user => {
 });
 
 // ── Week 1 Auto-Seeder (runs after every Firestore sync until done) ─
-// ── Week 1 diagnostic (visible in admin panel) ──────────────────
-function showW1Diag() {
-  var out = document.getElementById('w1-diag-output');
-  if (!out) return;
-  out.style.display = out.style.display === 'none' ? 'block' : 'none';
-  if (out.style.display === 'none') return;
-
-  var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
-  var lines = [];
-  lines.push('── PLAYERS (' + (DATA.players||[]).length + ') ──');
-  (DATA.players||[]).forEach(function(p){ lines.push(p.id + ' | ' + p.name); });
-
-  lines.push('');
-  lines.push('── TEAMS (' + (DATA.teams||[]).length + ') ──');
-  (DATA.teams||[]).forEach(function(t){
-    var pnames = (t.playerIds||[]).map(function(pid){
-      var pl = (DATA.players||[]).find(function(p){ return p.id === pid; });
-      return pl ? pl.name : '?' + pid;
-    });
-    lines.push(t.id + ' | ' + t.name + ' [' + pnames.join(', ') + ']');
-  });
-
-  lines.push('');
-  lines.push('── MATCHUPS (' + (DATA.matchups||[]).length + ') ──');
-  (DATA.matchups||[]).forEach(function(m){
-    var tA = (DATA.teams||[]).find(function(t){ return t.id === m.teamAId; });
-    var tB = (DATA.teams||[]).find(function(t){ return t.id === m.teamBId; });
-    lines.push('W' + m.week + ' [' + typeof m.week + ']: ' + (tA?tA.name:m.teamAId) + ' vs ' + (tB?tB.name:m.teamBId));
-  });
-
-  lines.push('');
-  var w1rounds = (DATA.rounds||[]).filter(function(r){ return r.week === 1; });
-  lines.push('── WEEK 1 ROUNDS (' + w1rounds.length + ') ──');
-  w1rounds.forEach(function(r){
-    var tA = (DATA.teams||[]).find(function(t){ return t.id === r.teamAId; });
-    var tB = (DATA.teams||[]).find(function(t){ return t.id === r.teamBId; });
-    var pCount = Object.keys(r.scores||{}).length;
-    lines.push(r.id + ' | ' + (tA?tA.name:r.teamAId) + ' vs ' + (tB?tB.name:r.teamBId) + ' | scores:' + pCount + ' | pts:' + r.pointsA + '-' + r.pointsB);
-  });
-
-  lines.push('');
-  lines.push('── PAR CONFIG ──');
-  setScoringSectionForWeek(1);
-  lines.push('nine=' + scoringNine + ' pars=[' + scoringPars.join(',') + '] hcp=[' + scoringHoleHcp.join(',') + ']');
-
-  // Check name matches for known players
-  lines.push('');
-  lines.push('── NAME LOOKUP ──');
-  var NAMES = [['dahlke','jon'],['dahlke','jim'],['morgan','mike'],['jipping','daniel'],['waldorf','jake'],
-    ['house','brad'],['bocquet','scott'],['para','bill'],['larock','eric'],['gillespie','ryan'],
-    ['fitzpatrick','rob'],['wright','denzel'],['noruk','jason'],['potter','truman'],
-    ['marshall','calvin'],['dion','matt'],['oneil','nicholas'],['codrean','anthony'],
-    ['cela','ray'],['zellers','matt'],['briel','kevin'],['jones','caleb']];
-  NAMES.forEach(function(n){
-    var p = (DATA.players||[]).find(function(pl){
-      return norm(pl.name).indexOf(norm(n[0])) !== -1 && norm(pl.name).indexOf(norm(n[1])) !== -1;
-    });
-    if (!p) p = (DATA.players||[]).find(function(pl){ return norm(pl.name).indexOf(norm(n[0])) !== -1; });
-    lines.push((p ? '✓ ' + p.id : '✗ NO MATCH') + ' → ' + n[1] + ' ' + n[0]);
-  });
-
-  out.textContent = lines.join('\n');
-}
 
 var _week1Seeded = false;
 function _autoSeedWeek1() {
   if (_week1Seeded) return;
-  if ((DATA.rounds||[]).some(function(r){ return r.week === 1; })) { _week1Seeded = true; return; }
   if (!DATA.players || DATA.players.length === 0) return;
   if (!DATA.teams   || DATA.teams.length   === 0) return;
+  // Skip only if week 1 rounds already have real scores; purge empty stale rounds
+  var w1 = (DATA.rounds||[]).filter(function(r){ return r.week === 1; });
+  if (w1.length > 0) {
+    var hasScores = w1.some(function(r){ return r.scores && Object.keys(r.scores).length > 0; });
+    if (hasScores) { _week1Seeded = true; return; }
+    // Stale empty rounds — remove and re-seed
+    DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
+  }
 
   // Known Week 1 pairings from score sheets (back 9, holes 10-18)
   var PAIRINGS = [
@@ -8140,14 +8076,16 @@ function _autoSeedWeek1() {
 
   function norm(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); }
   function findPid(last, first) {
+    // Players stored with firstName / lastName fields (not a combined .name)
     var p = DATA.players.find(function(pl){
-      return norm(pl.name).indexOf(norm(last)) !== -1 && norm(pl.name).indexOf(norm(first)) !== -1;
+      return norm(pl.lastName) === norm(last) && norm(pl.firstName) === norm(first);
     });
-    if (!p) p = DATA.players.find(function(pl){ return norm(pl.name).indexOf(norm(last)) !== -1; });
+    if (!p) p = DATA.players.find(function(pl){
+      return norm(pl.lastName) === norm(last);
+    });
     return p ? p.id : null;
   }
   function findTeamForPids(pids) {
-    // Best match: team containing the most of the given pids
     var best = null, bestCount = 0;
     DATA.teams.forEach(function(t){
       var count = pids.filter(function(pid){ return t.playerIds && t.playerIds.indexOf(pid) !== -1; }).length;
@@ -8157,7 +8095,6 @@ function _autoSeedWeek1() {
   }
 
   setScoringSectionForWeek(1);
-  // Fallback pars in case league hasn't saved course data yet
   if (!scoringPars || scoringPars.length === 0) scoringPars = Array(9).fill(4);
   if (!scoringHoleHcp || scoringHoleHcp.length === 0) scoringHoleHcp = [1,2,3,4,5,6,7,8,9];
 
@@ -8227,143 +8164,6 @@ function _autoSeedWeek1() {
   buildDashboard();
 }
 
-// ── Week 1 Score Seeder (manual button) ─────────────────────────
-function seedWeek1Scores() {
-  var btn    = document.getElementById('week1-seed-btn');
-  var outEl  = document.getElementById('w1-diag-output');
-  var lines  = [];
-  function log(s)  { lines.push(s); console.log('[seedWeek1]', s); }
-  function warn(s) { lines.push('⚠ ' + s); console.warn('[seedWeek1]', s); }
-  function flush(color) {
-    if (outEl) { outEl.style.display = 'block'; outEl.style.color = color || '#374151'; outEl.textContent = lines.join('\n'); }
-  }
-
-  if (!DATA.players || DATA.players.length === 0) { warn('No players in DATA'); flush('#b91c1c'); return; }
-  if (!DATA.teams   || DATA.teams.length   === 0) { warn('No teams in DATA');   flush('#b91c1c'); return; }
-
-  // Wipe any stale week 1 rounds so we always re-import fresh
-  DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
-  _week1Seeded = false; // allow auto-seeder to also re-run
-
-  // Scores from score sheets (Back 9: holes 10-18)
-  var GHIN = [
-    { last:'dahlke',      first:'jon',     scores:[6,6,4,8,4,5,6,4,3] },
-    { last:'morgan',      first:'mike',    scores:[6,5,5,7,6,7,7,4,4] },
-    { last:'jipping',     first:'daniel',  scores:[9,3,5,5,5,6,6,6,6] },
-    { last:'waldorf',     first:'jake',    scores:[5,5,7,5,5,6,6,6,5] },
-    { last:'dahlke',      first:'jim',     scores:[7,4,5,7,5,5,5,5,6] },
-    { last:'house',       first:'brad',    scores:[5,5,7,6,4,5,5,4,5] },
-    { last:'bocquet',     first:'scott',   scores:[8,3,4,3,5,6,8,6,7] },
-    { last:'para',        first:'bill',    scores:[10,8,5,6,6,6,8,7,5] },
-    { last:'briel',       first:'kevin',   scores:[5,3,5,6,4,6,7,5,3] },
-    { last:'jones',       first:'caleb',   scores:[6,2,5,5,6,7,6,6,5] },
-    { last:'oneil',       first:'nicholas',scores:[8,5,5,6,5,5,5,5,6] },
-    { last:'codrean',     first:'anthony', scores:[8,4,5,6,5,6,6,5,4] },
-    { last:'cela',        first:'ray',     scores:[6,4,5,8,7,8,7,8,7] },
-    { last:'zellers',     first:'matt',    scores:[9,5,5,6,7,5,5,6,5] },
-    { last:'larock',      first:'eric',    scores:[8,8,6,7,6,7,7,6,7] },
-    { last:'gillespie',   first:'ryan',    scores:[10,4,5,6,6,6,8,7,7] },
-    { last:'fitzpatrick', first:'rob',     scores:[8,4,4,6,7,8,6,7,4] },
-    { last:'wright',      first:'denzel',  scores:[7,6,5,6,5,7,7,7,3] },
-    { last:'noruk',       first:'jason',   scores:[5,4,3,6,5,6,4,4,5] },
-    { last:'potter',      first:'truman',  scores:[8,6,6,6,6,5,8,7,6] },
-    { last:'marshall',    first:'calvin',  scores:[5,6,6,14,7,6,8,6,4] },
-    { last:'dion',        first:'matt',    scores:[7,4,7,3,8,3,7,5,6] }
-  ];
-
-  var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
-  function findPid(last, first) {
-    var p = DATA.players.find(function(pl){
-      return norm(pl.name).indexOf(norm(last)) !== -1 && norm(pl.name).indexOf(norm(first)) !== -1;
-    });
-    if (!p) p = DATA.players.find(function(pl){ return norm(pl.name).indexOf(norm(last)) !== -1; });
-    return p ? p.id : null;
-  }
-
-  // Build pid → scores map and report matches
-  log('── PLAYER MATCHES ──');
-  var pidScores = {}, missing = [];
-  GHIN.forEach(function(g) {
-    var pid = findPid(g.last, g.first);
-    if (pid) { pidScores[pid] = g.scores; log('✓ ' + g.first + ' ' + g.last + ' → ' + pid); }
-    else { missing.push(g.first + ' ' + g.last); warn('NO MATCH: ' + g.first + ' ' + g.last); }
-  });
-  if (missing.length) log('Missing (' + missing.length + '): ' + missing.join(', '));
-
-  // Set scoring globals — use fallback pars if course not yet saved
-  setScoringSectionForWeek(1);
-  if (!scoringPars || scoringPars.length === 0) scoringPars = Array(9).fill(4);
-  if (!scoringHoleHcp || scoringHoleHcp.length === 0) scoringHoleHcp = [1,2,3,4,5,6,7,8,9];
-  log('nine=' + scoringNine + ' pars=[' + scoringPars.join(',') + ']');
-
-  // Find week 1 matchups — handle week stored as string or number
-  var week1Matchups = (DATA.matchups||[]).filter(function(m){ return +m.week === 1; });
-  log('── MATCHUPS: ' + week1Matchups.length + ' of ' + (DATA.matchups||[]).length + ' total ──');
-
-  if (week1Matchups.length === 0) {
-    warn('No Week 1 matchups found. Open the Matchups tab and confirm week 1 matchups exist.');
-    flush('#b91c1c');
-    return;
-  }
-
-  var created = 0, skipped = 0;
-  if (!DATA.rounds) DATA.rounds = [];
-  week1Matchups.forEach(function(m) {
-    var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
-    var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
-    if (!tA || !tB) { warn('Team not found for matchup ' + m.teamAId + ' vs ' + m.teamBId); return; }
-
-    var allPids = (tA.playerIds||[]).concat(tB.playerIds||[]);
-    var scores = {};
-    allPids.forEach(function(pid){ if (pidScores[pid]) scores[pid] = pidScores[pid]; });
-
-    var hasA = (tA.playerIds||[]).some(function(pid){ return scores[pid]; });
-    var hasB = (tB.playerIds||[]).some(function(pid){ return scores[pid]; });
-    if (!hasA || !hasB) {
-      warn('SKIP ' + tA.name + ' vs ' + tB.name + ': missing scores (A=' + hasA + ' B=' + hasB + ')');
-      skipped++;
-      return;
-    }
-
-    var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
-    DATA.rounds.push({
-      id: 'w1seed_' + m.teamAId + '_' + m.teamBId,
-      week: 1, nine: scoringNine,
-      teamAId: m.teamAId, teamBId: m.teamBId,
-      scores: scores,
-      pointsA: mp.pointsA, pointsB: mp.pointsB, holeResults: mp.holeResults,
-      completedAt: '2025-04-28T00:00:00.000Z', subs: {}
-    });
-    log('✓ Round: ' + tA.name + ' ' + mp.pointsA + ' – ' + mp.pointsB + ' ' + tB.name);
-    created++;
-  });
-
-  if (created === 0) {
-    warn('No rounds created. See details above.');
-    flush('#b91c1c');
-    return;
-  }
-
-  // Mark week 1 complete + recalc handicaps
-  var sched = (DATA.schedule||[]).find(function(s){ return s.week === 1; });
-  if (sched) sched.status = 'completed';
-  recalcHandicaps();
-  DATA.rounds.forEach(function(r){
-    if (r.week === 1) {
-      r.handicapsAfter = {};
-      DATA.players.forEach(function(p){ r.handicapsAfter[p.id] = p.leagueHandicap || 0; });
-    }
-  });
-
-  saveData();
-  _week1Seeded = true;
-  log('── DONE: ' + created + ' rounds saved' + (skipped ? ', ' + skipped + ' skipped' : '') + ' ──');
-  flush('#166534');
-  showToast('Week 1: ' + created + ' rounds saved ✓');
-  if (btn) { btn.textContent = '✓ Imported'; btn.disabled = true; btn.style.background = '#166534'; }
-  buildDashboard();
-  switchLeagueSubTab(_leagueSubTab);
-}
 </script>
 </body>
 </html>
