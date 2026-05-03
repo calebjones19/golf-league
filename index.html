@@ -8060,18 +8060,18 @@ function _autoSeedWeek1() {
 
   // Known Week 1 pairings from score sheets (back 9, holes 10-18)
   var PAIRINGS = [
-    { a: [['dahlke','jon'], ['morgan','mike']],        ascores: { 'dahlke-jon':[6,6,4,8,4,5,6,4,3],   'morgan-mike':[6,5,5,7,6,7,7,4,4]   },
-      b: [['jipping','daniel'],['waldorf','jake']],    bscores: { 'jipping-daniel':[9,3,5,5,5,6,6,6,6],'waldorf-jake':[5,5,7,5,5,6,6,6,5]  } },
-    { a: [['dahlke','jim'],  ['house','brad']],        ascores: { 'dahlke-jim':[7,4,5,7,5,5,5,5,6],   'house-brad':[5,5,7,6,4,5,5,4,5]    },
-      b: [['bocquet','scott'],['para','bill']],        bscores: { 'bocquet-scott':[8,3,4,3,5,6,8,6,7],'para-bill':[10,8,5,6,6,6,8,7,5]   } },
-    { a: [['larock','eric'],  ['gillespie','ryan']],   ascores: { 'larock-eric':[8,8,6,7,6,7,7,6,7],  'gillespie-ryan':[10,4,5,6,6,6,8,7,7]},
-      b: [['fitzpatrick','rob'],['wright','denzel']],  bscores: { 'fitzpatrick-rob':[8,4,4,6,7,8,6,7,4],'wright-denzel':[7,6,5,6,5,7,7,7,3]} },
-    { a: [['noruk','jason'],  ['potter','truman']],    ascores: { 'noruk-jason':[5,4,3,6,5,6,4,4,5],  'potter-truman':[8,6,6,6,6,5,8,7,6] },
-      b: [['marshall','calvin'],['dion','matt']],      bscores: { 'marshall-calvin':[5,6,6,14,7,6,8,6,4],'dion-matt':[7,4,7,3,8,3,7,5,6]  } },
-    { a: [['oneil','nicholas'],['codrean','anthony']], ascores: { 'oneil-nicholas':[8,5,5,6,5,5,5,5,6],'codrean-anthony':[8,4,5,6,5,6,6,5,4]},
-      b: [['cela','ray'],     ['zellers','matt']],     bscores: { 'cela-ray':[6,4,5,8,7,8,7,8,7],     'zellers-matt':[9,5,5,6,7,5,5,6,5]  } },
-    { a: [['briel','kevin'],  ['jones','caleb']],      ascores: { 'briel-kevin':[5,3,5,6,4,6,7,5,3],  'jones-caleb':[6,2,5,5,6,7,6,6,5]   },
-      b: [['wink','kevin'],   ['wink','kyle']],        bscores: { 'wink-kevin':[8,5,7,5,6,6,8,6,6],   'wink-kyle':[8,4,5,6,6,6,7,7,4]     } }
+    { a: [['dahlke','jon'],   ['morgan','mike']],      ascores: { 'dahlke-jon':[6,6,4,8,4,5,6,4,3],      'morgan-mike':[6,5,5,7,6,7,7,4,4]      },
+      b: [['jipping','daniel'],['waldorf','jake']],    bscores: { 'jipping-daniel':[9,3,5,5,5,6,6,6,6],  'waldorf-jake':[5,5,7,5,5,6,6,6,5]     } },
+    { a: [['dahlke','jim'],   ['house','brad']],       ascores: { 'dahlke-jim':[7,4,5,7,5,5,5,5,6],      'house-brad':[5,5,7,6,4,5,5,4,5]       },
+      b: [['bocquet','scott'],['nieporte','kyle']],    bscores: { 'bocquet-scott':[8,3,4,3,5,6,8,6,7],   'nieporte-kyle':[10,8,5,6,6,6,8,7,5]   } },
+    { a: [['larock','eric'],  ['gillespie','ryan']],   ascores: { 'larock-eric':[8,8,6,7,6,7,7,6,7],     'gillespie-ryan':[10,4,5,6,6,6,8,7,7]  },
+      b: [['fitzpatrick','rob'],['wright','denzel']],  bscores: { 'fitzpatrick-rob':[8,4,4,6,7,8,6,7,4], 'wright-denzel':[7,6,5,6,5,7,7,7,3]    } },
+    { a: [['polvi','eric'],   ['potter','truman']],    ascores: { 'polvi-eric':[5,4,3,6,5,6,4,4,5],      'potter-truman':[8,6,6,6,6,5,8,7,6]    },
+      b: [['marshall','calvin'],['dion','matt']],      bscores: { 'marshall-calvin':[5,6,6,14,7,6,8,6,4],'dion-matt':[7,4,7,3,8,3,7,5,6]        } },
+    { a: [['oneil','nicholas'],['codrean','anthony']], ascores: { 'oneil-nicholas':[8,5,5,6,5,5,5,5,6],  'codrean-anthony':[8,4,5,6,5,6,6,5,4]  },
+      b: [['cela','ray'],     ['zellers','matt']],     bscores: { 'cela-ray':[6,4,5,8,7,8,7,8,7],        'zellers-matt':[9,5,5,6,7,5,5,6,5]     } },
+    { a: [['breil','kevin'],  ['jones','caleb']],      ascores: { 'breil-kevin':[5,3,5,6,4,6,7,5,3],     'jones-caleb':[6,2,5,5,6,7,6,6,5]      },
+      b: [['wink','kevin'],   ['wink','kyle']],        bscores: { 'wink-kevin':[8,5,7,5,6,6,8,6,6],      'wink-kyle':[8,4,5,6,6,6,7,7,4]        } }
   ];
 
   function norm(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); }
