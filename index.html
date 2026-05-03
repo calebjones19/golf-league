@@ -576,7 +576,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- ===== LIVE SCORING ===== -->
   <section id="sec-score">
-    <div id="score-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden;padding-bottom:0"></div>
+    <div id="score-content" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;padding-bottom:0"></div>
   </section>
 
   <!-- ===== LEADERBOARD ===== -->
@@ -1609,7 +1609,7 @@ function goBackToDashboard() {
 function buildBottomNav() {
   const tabs = [
     { id:'dashboard',   label:'Home',     icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
-    { id:'score',       label:'Score',    icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
+    { id:'score',       label:'Scores',   icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>' },
     { id:'leaderboard', label:'Board',    icon:'<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>' },
     { id:'skins',       label:'Skins',    icon:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>' },
   ];
@@ -2137,11 +2137,11 @@ function buildScoring() {
           : DATA.players.find(function(s){return s.id===origPid;});
         var origP = isSub ? DATA.players.find(function(s){return s.id===origPid;}) : null;
         if (!p) return '';
-        return '<div style="font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+        return '<div style="font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.4;text-align:center">' +
           playerFirstName(p) + ' ' + (p.lastName||'') +
           (isSub ? '<span style="font-size:9px;color:#C9A84C;font-weight:700;margin-left:3px">SUB</span>' : '') +
         '</div>' +
-        (isSub && origP ? '<div style="font-size:10px;color:#9CA3AF;text-decoration:line-through;line-height:1.2">' + playerFirstName(origP) + ' ' + (origP.lastName||'') + '</div>' : '');
+        (isSub && origP ? '<div style="font-size:10px;color:#9CA3AF;text-decoration:line-through;line-height:1.2;text-align:center">' + playerFirstName(origP) + ' ' + (origP.lastName||'') + '</div>' : '');
       }).join('');
     }
 
@@ -2173,7 +2173,7 @@ function buildScoring() {
       html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F5F0E8">';
       html += '<div style="text-align:center;flex:1"><div style="font-size:10px;font-weight:700;color:#1B4332;margin-bottom:2px">' + tA.name + '</div><div style="font-size:28px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + doneApts + '</div></div>';
       html += '<div style="font-size:11px;font-weight:700;color:#9CA3AF">–</div>';
-      html += '<div style="text-align:center;flex:1"><div style="font-size:10px;font-weight:700;color:#DC2626;margin-bottom:2px">' + tB.name + '</div><div style="font-size:28px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + doneBpts + '</div></div>';
+      html += '<div style="text-align:center;flex:1"><div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:2px">' + tB.name + '</div><div style="font-size:28px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + doneBpts + '</div></div>';
       html += '</div>';
 
       // Scorecard table
@@ -2204,7 +2204,7 @@ function buildScoring() {
             firstTeamDone=true;
             html += '<tr><td colspan="' + (pars.length+2) + '" style="padding:0;height:2px;background:#E5E7EB"></td></tr>';
           }
-          var tc = entry.team===tA ? '#1B4332' : '#DC2626';
+          var tc = entry.team===tA ? '#1B4332' : '#6B7280';
           html += '<tr style="border-top:1px solid #F5F0E8"><td style="padding:5px 10px;font-weight:700;font-size:11px;white-space:nowrap;color:'+tc+'">' +
             (p ? playerFirstName(p) : '?') + (isSub ? '<span style="color:#C9A84C;font-size:8px"> SUB</span>' : '') + '</td>';
           pars.forEach(function(par,i){ html += '<td style="padding:4px 3px;text-align:center">' + scoreCell(sc[i]||null,par) + '</td>'; });
@@ -2221,34 +2221,43 @@ function buildScoring() {
       html += '<span style="font-size:11px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:2px 8px">' + teeTime + '</span>';
       html += '</div>';
       html += '<div style="display:flex;gap:4px"><div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:700;color:#1B4332">' + tA.name + '</div></div>';
-      html += '<div style="font-size:11px;color:#9CA3AF">vs</div>';
-      html += '<div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:700;color:#DC2626">' + tB.name + '</div></div></div>';
+      html += '<div style="font-size:11px;color:#9CA3AF">vs.</div>';
+      html += '<div style="flex:1;text-align:center"><div style="font-size:11px;font-weight:700;color:#6B7280">' + tB.name + '</div></div></div>';
       html += '<div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:8px">Not scored</div></div>';
 
     } else {
       // ── Current / upcoming week ───────────────────────────────────────────
-      // Team names header
-      html += '<div style="padding:10px 14px 0;display:flex;align-items:center;gap:8px">';
-      html += '<span style="font-size:11px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:2px 8px;white-space:nowrap">' + teeTime + '</span>';
-      if (isLive) html += '<span class="badge-live" style="font-size:10px;padding:2px 7px;margin-left:auto"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
+      var bottomPad = (isMyMatch && !done && !isLive) ? '6px' : '14px';
+
+      // Top meta row: tee time centered, LIVE badge if active
+      html += '<div style="display:flex;align-items:center;justify-content:center;padding:12px 14px 8px;position:relative">';
+      html += '<span style="font-size:11px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:2px 10px;white-space:nowrap">' + teeTime + '</span>';
+      if (isLive) html += '<span class="badge-live" style="font-size:10px;padding:2px 7px;position:absolute;right:14px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
       if (done) {
         var dPts_A = done.teamAId===m.teamAId ? done.pointsA : done.pointsB;
         var dPts_B = done.teamAId===m.teamAId ? done.pointsB : done.pointsA;
         var dWinner = dPts_A>dPts_B ? tA.name : dPts_B>dPts_A ? tB.name : null;
-        html += '<span style="margin-left:auto;font-size:14px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + dPts_A + ' – ' + dPts_B + '</span>';
+        html += '<div style="position:absolute;right:14px;display:flex;align-items:center;gap:6px">';
+        html += '<span style="font-size:14px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + dPts_A + ' – ' + dPts_B + '</span>';
         if (dWinner) html += '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + dWinner + ' wins</span>';
         else html += '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>';
+        html += '</div>';
       }
       html += '</div>';
-      // Player rows: two columns
-      html += '<div style="display:flex;gap:4px;padding:8px 14px ' + (isMyMatch && !done && !isLive ? '6px' : '12px') + '">';
-      html += '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.3px;margin-bottom:4px">' + tA.name + '</div>' +
-        playerRows(tA.playerIds, effA) + '</div>';
-      html += '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.3px;margin-bottom:4px">' + tB.name + '</div>' +
-        playerRows(tB.playerIds, effB) + '</div>';
+
+      // Teams + vs. centered layout
+      html += '<div style="display:flex;align-items:flex-start;justify-content:center;gap:8px;padding:0 14px ' + bottomPad + '">';
+      html += '<div style="flex:1;text-align:center;min-width:0">';
+      html += '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.3px;margin-bottom:5px">' + tA.name + '</div>';
+      html += '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">' + playerRows(tA.playerIds, effA) + '</div>';
       html += '</div>';
+      html += '<div style="flex-shrink:0;padding-top:2px;font-size:11px;font-weight:700;color:#9CA3AF;line-height:1.4">vs.</div>';
+      html += '<div style="flex:1;text-align:center;min-width:0">';
+      html += '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.3px;margin-bottom:5px">' + tB.name + '</div>';
+      html += '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">' + playerRows(tB.playerIds, effB) + '</div>';
+      html += '</div>';
+      html += '</div>';
+
       // Start Match button — only on user's card, only if not yet done
       if (isMyMatch && !done && !isLive) {
         html += '<div style="padding:0 14px 12px">' +
