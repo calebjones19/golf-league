@@ -4034,7 +4034,7 @@ function renderPlayersList() {
   }
   const tabBar =
     '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin-bottom:14px">' +
-      tabBtn('members', 'Members') + tabBtn('subs', 'Subs') + tabBtn('lineup', 'Lineup') +
+      tabBtn('members', 'Members') + tabBtn('subs', 'Subs') +
     '</div>';
 
   const addPlayerBtnHtml =
@@ -4048,85 +4048,6 @@ function renderPlayersList() {
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
       'Add Sub' +
     '</button>';
-
-  // ── Lineup tab ───────────────────────────────────────────────
-  let lineupPanel = '';
-  if (activeSubTab === 'lineup') {
-    const totalWeeks = (DATA.schedule || []).length || (DATA.league && DATA.league.weeks) || 18;
-    const curWeek    = getCurrentWeek();
-    if (!window._lineupWeek) window._lineupWeek = curWeek;
-    const week   = window._lineupWeek;
-    const lineup = getWeekLineup(week);
-
-    // Week selector
-    let weekOpts = '';
-    for (let w = 1; w <= totalWeeks; w++) {
-      weekOpts += '<option value="' + w + '"' + (w === week ? ' selected' : '') + '>Week ' + w + (w === curWeek ? ' (current)' : '') + '</option>';
-    }
-    const weekSel = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
-      '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</label>' +
-      '<select class="form-input" style="flex:1;padding:6px 10px;font-size:13px" onchange="window._lineupWeek=+this.value;renderPlayersList()">' + weekOpts + '</select>' +
-    '</div>';
-
-    const weekMatchups = (DATA.matchups || []).filter(function(m){ return m.week === week; });
-    if (weekMatchups.length === 0) {
-      lineupPanel = weekSel + '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 0">No matchups scheduled for Week ' + week + '.</div>';
-    } else {
-      const rows = weekMatchups.map(function(m) {
-        const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
-        const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
-        if (!tA || !tB) return '';
-
-        function playerRow(pid, teamColor) {
-          const isAbsent = (lineup.absent || []).includes(pid);
-          const subPid   = lineup.subs[pid];
-          const orig     = DATA.players.find(function(p){ return p.id === pid; });
-          const subP     = subPid ? (DATA.subs||[]).find(function(p){ return p.id === subPid; }) || DATA.players.find(function(p){ return p.id === subPid; }) : null;
-          if (!orig) return '';
-
-          // Status badge
-          var statusBadge = '';
-          var avatarBg = '#E8F5EE', avatarColor = '#1B4332';
-          if (subP) {
-            statusBadge = '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">SUB</span>';
-            avatarBg = '#FEF9EE'; avatarColor = '#C9A84C';
-          } else if (isAbsent) {
-            statusBadge = '<span style="background:#FEE2E2;color:#DC2626;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">OUT</span>';
-            avatarBg = '#FEE2E2'; avatarColor = '#DC2626';
-          }
-
-          var displayP = subP || orig;
-          var nameHtml = subP
-            ? '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + playerName(subP) + statusBadge + '</div>' +
-              '<div style="font-size:11px;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + '</div>'
-            : isAbsent
-              ? '<div style="font-size:13px;font-weight:600;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + statusBadge + '</div>' +
-                '<div style="font-size:11px;color:#DC2626;font-weight:600">Not playing</div>'
-              : '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(orig) + '</div>' +
-                '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(orig) + ' · Playing</div>';
-
-          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F5F0E8;cursor:pointer" onclick="openLineupPickerSheet(\'' + pid + '\',' + week + ')">' +
-            avatarHtml(playerInitials(displayP), avatarBg, avatarColor, 32) +
-            '<div style="flex:1;min-width:0">' + nameHtml + '</div>' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
-          '</div>';
-        }
-
-        return '<div style="margin-bottom:14px">' +
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">' +
-            '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px">' + tA.name + '</div>' +
-            '<div style="font-size:10px;color:#D1D5DB">·</div>' +
-            '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px">' + tB.name + '</div>' +
-          '</div>' +
-          '<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;padding:0 12px">' +
-            (tA.playerIds||[]).map(function(pid){ return playerRow(pid, '#1B4332'); }).join('') +
-            (tB.playerIds||[]).map(function(pid){ return playerRow(pid, '#DC2626'); }).join('') +
-          '</div>' +
-        '</div>';
-      }).join('');
-      lineupPanel = weekSel + rows;
-    }
-  }
 
   // ── Duplicate player warning banner ────────────────────────────────────
   var dupePairs = [];
@@ -4157,18 +4078,17 @@ function renderPlayersList() {
 
   wrap.innerHTML =
     tabBar +
-    (activeSubTab === 'members' ? dupeBanner + addPlayerBtnHtml + leagueListHtml :
-     activeSubTab === 'subs'    ? subDupeBanner + addSubBtnHtml + subsListHtml :
-                                  lineupPanel);
+    (activeSubTab === 'subs' ? subDupeBanner + addSubBtnHtml + subsListHtml :
+                               dupeBanner + addPlayerBtnHtml + leagueListHtml);
 }
 
 function onTonightSubChange(pid, week, subId) {
   setWeekSub(week, pid, subId || null);
-  renderPlayersList();
+  renderMatchupsList();
 }
 function onTonightAbsentChange(pid, week, absent) {
   setWeekAbsent(week, pid, absent);
-  renderPlayersList();
+  renderMatchupsList();
 }
 
 function openLineupPickerSheet(pid, week) {
@@ -5007,7 +4927,7 @@ function removeFromTeam(teamId, playerId) {
 // ============================================================
 var _matchupSelTeam = null;  // first-selected team id
 var _matchupSelWeek = null;  // currently targeted week (null = use current week)
-var _matchupsSubTab = 'matchups'; // 'matchups' | 'skins' | 'scores'
+var _matchupsSubTab = 'matchups'; // 'matchups' | 'lineup' | 'skins'
 
 function renderMatchupsList() {
   const wrap = document.getElementById('matchups-panel-content');
@@ -5021,8 +4941,85 @@ function renderMatchupsList() {
       '" onclick="_matchupsSubTab=\'' + id + '\';renderMatchupsList()">' + label + '</button>';
   }
   const subTabBar = '<div style="display:flex;background:#E8E0D0;border-radius:10px;padding:3px;gap:2px;margin:8px 16px 10px">' +
-    mTabBtn('matchups', 'Matchups') + mTabBtn('skins', 'Skins') +
+    mTabBtn('matchups', 'Matchups') + mTabBtn('lineup', 'Lineup') + mTabBtn('skins', 'Skins') +
   '</div>';
+
+  if (_matchupsSubTab === 'lineup') {
+    const totalWeeksL = (DATA.schedule || []).length || (DATA.league && DATA.league.weeks) || 18;
+    const curWeekL    = getCurrentWeek();
+    if (!window._lineupWeek) window._lineupWeek = curWeekL;
+    const weekL   = window._lineupWeek;
+    const lineupL = getWeekLineup(weekL);
+
+    let weekOptsL = '';
+    for (let w = 1; w <= totalWeeksL; w++) {
+      weekOptsL += '<option value="' + w + '"' + (w === weekL ? ' selected' : '') + '>Week ' + w + (w === curWeekL ? ' (current)' : '') + '</option>';
+    }
+    const weekSelL = '<div style="display:flex;align-items:center;gap:10px;margin:0 16px 14px">' +
+      '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</label>' +
+      '<select class="form-input" style="flex:1;padding:6px 10px;font-size:13px" onchange="window._lineupWeek=+this.value;renderMatchupsList()">' + weekOptsL + '</select>' +
+    '</div>';
+
+    const weekMatchupsL = (DATA.matchups || []).filter(function(m){ return m.week === weekL; });
+    let lineupBody = '';
+    if (weekMatchupsL.length === 0) {
+      lineupBody = '<div style="text-align:center;color:#6B7280;font-size:13px;padding:24px 16px">No matchups scheduled for Week ' + weekL + '.</div>';
+    } else {
+      lineupBody = '<div style="padding:0 16px">' + weekMatchupsL.map(function(m) {
+        const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+        const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+        if (!tA || !tB) return '';
+
+        function playerRowL(pid) {
+          const isAbsent = (lineupL.absent || []).includes(pid);
+          const subPid   = lineupL.subs[pid];
+          const orig     = DATA.players.find(function(p){ return p.id === pid; });
+          const subP     = subPid ? (DATA.subs||[]).find(function(p){ return p.id === subPid; }) || DATA.players.find(function(p){ return p.id === subPid; }) : null;
+          if (!orig) return '';
+
+          var statusBadge = '';
+          var avatarBg = '#E8F5EE', avatarColor = '#1B4332';
+          if (subP) {
+            statusBadge = '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">SUB</span>';
+            avatarBg = '#FEF9EE'; avatarColor = '#C9A84C';
+          } else if (isAbsent) {
+            statusBadge = '<span style="background:#FEE2E2;color:#DC2626;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">OUT</span>';
+            avatarBg = '#FEE2E2'; avatarColor = '#DC2626';
+          }
+
+          var displayP = subP || orig;
+          var nameHtml = subP
+            ? '<div style="font-size:13px;font-weight:700;color:#1A1A1A">' + playerName(subP) + statusBadge + '</div>' +
+              '<div style="font-size:11px;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + '</div>'
+            : isAbsent
+              ? '<div style="font-size:13px;font-weight:600;color:#9CA3AF;text-decoration:line-through">' + playerName(orig) + statusBadge + '</div>' +
+                '<div style="font-size:11px;color:#DC2626;font-weight:600">Not playing</div>'
+              : '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(orig) + '</div>' +
+                '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(orig) + ' · Playing</div>';
+
+          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F5F0E8;cursor:pointer" onclick="openLineupPickerSheet(\'' + pid + '\',' + weekL + ')">' +
+            avatarHtml(playerInitials(displayP), avatarBg, avatarColor, 32) +
+            '<div style="flex:1;min-width:0">' + nameHtml + '</div>' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
+          '</div>';
+        }
+
+        return '<div style="margin-bottom:14px">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
+            '<div style="font-size:10px;font-weight:700;color:#1B4332;letter-spacing:0.5px">' + tA.name + '</div>' +
+            '<div style="font-size:10px;color:#D1D5DB">·</div>' +
+            '<div style="font-size:10px;font-weight:700;color:#DC2626;letter-spacing:0.5px">' + tB.name + '</div>' +
+          '</div>' +
+          '<div style="background:#fff;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;padding:0 12px">' +
+            (tA.playerIds||[]).map(function(pid){ return playerRowL(pid); }).join('') +
+            (tB.playerIds||[]).map(function(pid){ return playerRowL(pid); }).join('') +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    }
+    wrap.innerHTML = subTabBar + weekSelL + lineupBody;
+    return;
+  }
 
   if (_matchupsSubTab === 'skins') {
     wrap.innerHTML = subTabBar + '<div id="skins-admin-content"></div>';
