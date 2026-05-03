@@ -575,7 +575,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 
   <!-- ===== LIVE SCORING ===== -->
   <section id="sec-score">
-    <div id="score-content" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;padding-bottom:0"></div>
+    <div id="score-content" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding-bottom:0"></div>
   </section>
 
   <!-- ===== LEADERBOARD ===== -->
@@ -1564,10 +1564,16 @@ function showSection(id, source) {
     // Build content first, then fade in — avoids jank from animating during DOM rebuild
     if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
     if (id === 'score')       { if (!activeMatch) _scoreTabWeek = null; buildScoring(); }
-    if (id === 'leaderboard') { boardTab = 'team'; buildLeaderboard(); }
+    if (id === 'leaderboard') { switchBoardTab('team'); }
     if (id === 'skins')       { buildSkins(); playBallDrop(); }
     if (id === 'standings')   buildStandings();
-    if (id === 'admin')       buildAdmin();
+    if (id === 'admin')       {
+      _currentAdminTab = 'league'; _leagueSubTab = 'basic'; _matchupsSubTab = 'matchups';
+      document.querySelectorAll('.admin-nav-tab').forEach(function(t,i){ t.classList.toggle('active', i===0); });
+      document.querySelectorAll('.admin-panel').forEach(function(p){ p.classList.remove('active'); });
+      var lp = document.getElementById('admin-league'); if (lp) lp.classList.add('active');
+      buildAdmin();
+    }
     // Start fade after content is ready
     sec.style.opacity = '0';
     requestAnimationFrame(() => {
@@ -2110,7 +2116,7 @@ function buildScoring() {
 
   var cardsHtml = isPast
     ? '<div style="padding:8px 16px 24px">'
-    : '<div style="display:flex;flex-direction:column;flex:1;gap:8px;padding:8px 16px;min-height:0">';
+    : '<div style="display:flex;flex-direction:column;flex:1;gap:6px;padding:6px 14px 8px;min-height:0">';
   weekMatchups.forEach(function(m, idx) {
     var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
     var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
@@ -2148,7 +2154,7 @@ function buildScoring() {
 
     var cardStyle = isPast
       ? 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)'
-      : 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);flex:1;display:flex;flex-direction:column';
+      : 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);flex:1;min-height:0;display:flex;flex-direction:column';
 
     var html = '<div style="' + cardStyle + '">';
 
