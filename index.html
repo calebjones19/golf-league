@@ -2832,6 +2832,7 @@ function buildLeaderboard() {
 var _standingsTab = 'schedule';
 function switchStandingsTab(tab) {
   _standingsTab = tab;
+  _schedSelWeek = null; // reset to current week when switching to schedule tab
   document.getElementById('standings-tab-schedule').classList.toggle('active', tab === 'schedule');
   document.getElementById('standings-tab-stats').classList.toggle('active', tab === 'stats');
   if (tab === 'schedule') buildMatchups();
@@ -3071,6 +3072,13 @@ function buildStandings() {
   else buildMatchups();
 }
 
+var _schedSelWeek = null; // null = use current week
+
+function selectScheduleWeek(w) {
+  _schedSelWeek = w;
+  buildMatchups();
+}
+
 function buildMatchups() {
   var el = document.getElementById('standings-content');
   if (!DATA.league || !DATA.matchups || DATA.matchups.length === 0) {
@@ -3084,6 +3092,7 @@ function buildMatchups() {
   var rounds    = DATA.rounds || [];
   var myTeam    = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
   var schedule  = DATA.schedule || [];
+  var totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
 
   // Build a map of week → completed round results
   var roundsByWeek = {};
@@ -3094,18 +3103,29 @@ function buildMatchups() {
   DATA.matchups.forEach(function(m){ if (!grouped[m.week]) grouped[m.week] = []; grouped[m.week].push(m); });
   var allWeeks = Object.keys(grouped).map(Number).sort(function(a,b){return a-b;});
 
-  function teamName(id) { var t = DATA.teams.find(function(t){return t.id===id;}); return t?t.name:'?'; }
-  function pnames(t) {
-    if (!t) return '';
-    return (t.playerIds||[]).map(function(pid){
-      var p = DATA.players.find(function(pl){return pl.id===pid;}); return p?playerLastName(p):'';
-    }).filter(Boolean).join(' / ');
-  }
+  // Selected week — default to current week, fall back to first week with matchups
+  var selWeek = _schedSelWeek !== null ? _schedSelWeek
+    : (grouped[thisWeek] ? thisWeek : (allWeeks[0] || thisWeek));
+
   function schedDate(week) {
     var s = schedule.find(function(s){return s.week===week;});
     if (!s) return '';
     return new Date(s.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   }
+
+  // ── Week selector dropdown ────────────────────────────────────────────────
+  var weekOpts = allWeeks.map(function(w) {
+    var label = 'Week ' + w + (w === thisWeek ? ' (This Week)' : w < thisWeek ? ' ✓' : '');
+    return '<option value="' + w + '"' + (w === selWeek ? ' selected' : '') + '>' + label + '</option>';
+  }).join('');
+  var dateStr = schedDate(selWeek);
+  var weekSelector =
+    '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px 0">' +
+      '<select style="flex:1;padding:8px 12px;border-radius:10px;border:1.5px solid #E5E7EB;font-size:14px;font-weight:600;font-family:\'DM Sans\',sans-serif;background:#fff;color:#1A1A1A;appearance:none;-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"12\\" height=\\"8\\" viewBox=\\"0 0 12 8\\"><path d=\\"M1 1l5 5 5-5\\" stroke=\\"%231B4332\\" stroke-width=\\"1.8\\" fill=\\"none\\" stroke-linecap=\\"round\\"/></svg>\');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px" onchange="selectScheduleWeek(parseInt(this.value))">' +
+        weekOpts +
+      '</select>' +
+    '</div>' +
+    (dateStr ? '<div style="font-size:11px;color:#9CA3AF;padding:4px 16px 0">' + dateStr + '</div>' : '');
 
   function matchupCard(m, weekStatus, idx) {
     var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
@@ -3171,76 +3191,34 @@ function buildMatchups() {
     '</div>';
   }
 
-  var html = '';
+  // ── Single selected week ─────────────────────────────────────────────────
+  var weekMatchups = grouped[selWeek] || [];
+  var isThisWeek   = selWeek === thisWeek;
+  var isPast       = selWeek < thisWeek;
+  var statusLabel  = isThisWeek ? 'THIS WEEK' : isPast ? 'RESULTS' : 'UPCOMING';
+  var statusColor  = isThisWeek ? '#C9A84C' : isPast ? '#16A34A' : '#6B7280';
 
-  // ── Separate weeks: past, this, upcoming ────────────────────────────────
-  var pastWeeks     = allWeeks.filter(function(w){ return w < thisWeek; });
-  var thisWeekArr   = allWeeks.filter(function(w){ return w === thisWeek; });
-  var upcomingWeeks = allWeeks.filter(function(w){ return w > thisWeek; });
+  var matchupHtml = '';
+  if (weekMatchups.length === 0) {
+    matchupHtml = '<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:28px 0">No matchups scheduled for Week ' + selWeek + '.</div>';
+  } else {
+    matchupHtml = weekMatchups.map(function(m, idx){ return matchupCard(m, isThisWeek ? 'this' : isPast ? 'past' : 'upcoming', idx); }).join('');
+  }
 
-  // THIS WEEK
-  if (thisWeekArr.length) {
-    var d = schedDate(thisWeek);
-    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;border-bottom:1px solid #F5F0E8">' +
-        '<div>' +
-          '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.8px">THIS WEEK — WEEK ' + thisWeek + '</div>' +
-          (d ? '<div style="font-size:12px;color:#6B7280;margin-top:1px">'+d+'</div>' : '') +
-        '</div>' +
-        (activeMatch ? '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>' : '') +
+  var liveBar = isThisWeek && activeMatch
+    ? '<div style="display:flex;justify-content:flex-end;padding:0 16px 6px"><span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span></div>'
+    : '';
+
+  var html = weekSelector +
+    '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;padding:8px 16px 6px;border-bottom:1px solid #F5F0E8">' +
+        '<span style="font-size:10px;font-weight:700;color:' + statusColor + ';letter-spacing:0.7px">' + statusLabel + '</span>' +
+        (isThisWeek && activeMatch ? '<span class="badge-live" style="font-size:10px;padding:2px 7px;margin-left:auto"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>' : '') +
       '</div>' +
-      grouped[thisWeek].map(function(m, idx){ return matchupCard(m, 'this', idx); }).join('') +
-    '</div>';
-  }
+      matchupHtml +
+    '</div>' +
+    '<div style="height:16px"></div>';
 
-  // UPCOMING WEEKS (next 4)
-  var nextFew = upcomingWeeks.slice(0, 4);
-  if (nextFew.length) {
-    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
-      '<div style="padding:12px 16px 10px;border-bottom:1px solid #F5F0E8">' +
-        '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.8px">UPCOMING</div>' +
-      '</div>';
-    nextFew.forEach(function(w) {
-      var d = schedDate(w);
-      html += '<div style="padding:10px 16px 4px;border-bottom:1px solid #F5F0E8">' +
-        '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:2px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
-        grouped[w].map(function(m, idx){
-          var tA = DATA.teams.find(function(t){return t.id===m.teamAId;});
-          var tB = DATA.teams.find(function(t){return t.id===m.teamBId;});
-          if(!tA||!tB) return '';
-          var isMyMatch = myTeam && (myTeam.id===m.teamAId||myTeam.id===m.teamBId);
-          return '<div style="display:flex;align-items:center;padding:5px 0;gap:6px">' +
-            (isMyMatch ? '<span style="width:6px;height:6px;border-radius:50%;background:#1B4332;flex-shrink:0;display:inline-block"></span>' : '<span style="width:6px;display:inline-block;flex-shrink:0"></span>') +
-            '<span style="font-size:12px;color:'+(isMyMatch?'#1A1A1A':'#6B7280')+';font-weight:'+(isMyMatch?'700':'400')+';flex:1">' + tA.name + ' vs ' + tB.name + '</span>' +
-            '<span style="font-size:10px;color:#C9A84C;font-weight:600;white-space:nowrap">' + calcTeeTime(idx) + '</span>' +
-          '</div>';
-        }).join('') +
-      '</div>';
-    });
-    html += '</div>';
-    if (upcomingWeeks.length > 4) {
-      html += '<div style="text-align:center;padding:10px 0 4px;font-size:11px;color:#9CA3AF">' + (upcomingWeeks.length - 4) + ' more weeks to come</div>';
-    }
-  }
-
-  // PAST RESULTS (last 3 weeks)
-  var recentPast = pastWeeks.slice(-3).reverse();
-  if (recentPast.length) {
-    html += '<div class="card" style="margin:12px 16px 0;padding:0;overflow:hidden">' +
-      '<div style="padding:12px 16px 10px;border-bottom:1px solid #F5F0E8">' +
-        '<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:0.8px">RECENT RESULTS</div>' +
-      '</div>' +
-      recentPast.map(function(w) {
-        var d = schedDate(w);
-        return '<div style="padding:10px 16px;border-bottom:1px solid #F5F0E8">' +
-          '<div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px">Week ' + w + (d ? '  ·  '+d : '') + '</div>' +
-          grouped[w].map(function(m, idx){ return matchupCard(m, 'past', idx); }).join('') +
-        '</div>';
-      }).join('') +
-    '</div>';
-  }
-
-  html += '<div style="height:16px"></div>';
   el.innerHTML = html;
 }
 
@@ -4123,9 +4101,34 @@ function renderPlayersList() {
     }
   }
 
+  // ── Duplicate player warning banner ────────────────────────────────────
+  var dupePairs = [];
+  var checked = new Set();
+  (DATA.players||[]).forEach(function(p) {
+    if (checked.has(p.id)) return;
+    var matches = _findDuplicatePlayers(p.firstName, p.lastName, p.id);
+    if (matches.length > 0) {
+      dupePairs.push({ keep: p, dupes: matches });
+      matches.forEach(function(d){ checked.add(d.id); });
+      checked.add(p.id);
+    }
+  });
+  var dupeBanner = dupePairs.length > 0
+    ? '<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+        '<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠ Duplicate players detected</div>' +
+        dupePairs.map(function(pair) {
+          var allNames = [pair.keep].concat(pair.dupes).map(function(p){ return playerName(p); }).join(' / ');
+          return '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">' +
+            '<span style="font-size:12px;color:#7F1D1D">' + allNames + '</span>' +
+            '<button onclick="openMergePlayersModal(\'' + pair.keep.id + '\',\'' + pair.dupes[0].id + '\')" style="font-size:11px;font-weight:700;color:#DC2626;background:none;border:1px solid #FCA5A5;border-radius:6px;padding:2px 8px;cursor:pointer;font-family:\'DM Sans\',sans-serif">Merge</button>' +
+          '</div>';
+        }).join('') +
+      '</div>'
+    : '';
+
   wrap.innerHTML =
     tabBar +
-    (activeSubTab === 'members' ? addPlayerBtnHtml + leagueListHtml :
+    (activeSubTab === 'members' ? dupeBanner + addPlayerBtnHtml + leagueListHtml :
      activeSubTab === 'subs'    ? addSubBtnHtml + subsListHtml :
                                   lineupPanel);
 }
@@ -4142,6 +4145,110 @@ function onTonightAbsentChange(pid, week, absent) {
 function switchPlayersSubTab(tab) {
   window._playersSubTab = tab;
   renderPlayersList();
+}
+
+function openMergePlayersModal(keepId, removeId) {
+  const keep   = DATA.players.find(function(p){ return p.id === keepId; });
+  const remove = DATA.players.find(function(p){ return p.id === removeId; });
+  if (!keep || !remove) return;
+
+  const existing = document.getElementById('merge-players-modal');
+  if (existing) existing.remove();
+
+  const keepTeam   = DATA.teams.find(function(t){ return (t.playerIds||[]).includes(keepId); });
+  const removeTeam = DATA.teams.find(function(t){ return (t.playerIds||[]).includes(removeId); });
+
+  function infoLine(p, team) {
+    var parts = [];
+    if (p.googleEmail) parts.push(p.googleEmail);
+    if (team) parts.push(team.name);
+    if (effectiveHandicap(p)) parts.push('Hcp ' + effectiveHandicap(p));
+    return parts.join(' · ') || 'No additional info';
+  }
+
+  const el = document.createElement('div');
+  el.id = 'merge-players-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px" onclick="event.stopPropagation()">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="font-size:17px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Merge Duplicate Players</div>' +
+      '<div style="font-size:13px;color:#6B7280;margin-bottom:20px">Choose which profile to keep. The other will be deleted and all their data (team slot, scores) will be transferred.</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">KEEP THIS PROFILE</div>' +
+      '<div style="border:2px solid #1B4332;border-radius:12px;padding:12px;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          avatarHtml(playerInitials(keep), '#1B4332', '#fff', 36) +
+          '<div><div style="font-size:14px;font-weight:700;color:#1A1A1A">' + playerName(keep) + '</div>' +
+          '<div style="font-size:11px;color:#6B7280">' + infoLine(keep, keepTeam) + '</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">MERGE & DELETE</div>' +
+      '<div style="border:1.5px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:20px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          avatarHtml(playerInitials(remove), '#E5E7EB', '#9CA3AF', 36) +
+          '<div><div style="font-size:14px;font-weight:700;color:#9CA3AF;text-decoration:line-through">' + playerName(remove) + '</div>' +
+          '<div style="font-size:11px;color:#6B7280">' + infoLine(remove, removeTeam) + '</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="confirmMergePlayers(\'' + keepId + '\',\'' + removeId + '\')" style="width:100%;padding:14px;background:#DC2626;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:10px">Merge Players</button>' +
+      '<button onclick="openMergePlayersModal(\'' + removeId + '\',\'' + keepId + '\')" style="width:100%;padding:12px;background:#F9FAFB;color:#6B7280;border:1.5px solid #E5E7EB;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:8px">↕ Swap — Keep the other one instead</button>' +
+      '<button onclick="document.getElementById(\'merge-players-modal\').remove()" style="width:100%;padding:12px;background:transparent;color:#9CA3AF;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  el.onclick = function(e){ if (e.target === el) el.remove(); };
+}
+
+function confirmMergePlayers(keepId, removeId) {
+  const modal = document.getElementById('merge-players-modal');
+  if (modal) modal.remove();
+
+  const keep   = DATA.players.find(function(p){ return p.id === keepId; });
+  const remove = DATA.players.find(function(p){ return p.id === removeId; });
+  if (!keep || !remove) return;
+
+  // Transfer Google link if "keep" profile is unclaimed but "remove" is claimed
+  if ((!keep.googleUid || !keep.googleEmail) && (remove.googleUid || remove.googleEmail)) {
+    keep.googleEmail = keep.googleEmail || remove.googleEmail;
+    keep.googleUid   = keep.googleUid   || remove.googleUid;
+    keep.claimed     = true;
+  }
+  keep.phone = keep.phone || remove.phone;
+
+  // Transfer team slot: replace removeId with keepId in any team
+  DATA.teams.forEach(function(t) {
+    var idx = (t.playerIds||[]).indexOf(removeId);
+    if (idx !== -1) {
+      // Only add keepId if not already on this team
+      if (!(t.playerIds||[]).includes(keepId)) {
+        t.playerIds[idx] = keepId;
+      } else {
+        t.playerIds.splice(idx, 1);
+      }
+    }
+  });
+
+  // Transfer round scores: replace removeId with keepId in all rounds
+  (DATA.rounds||[]).forEach(function(r) {
+    if (r.scores && r.scores[removeId]) {
+      if (!r.scores[keepId]) r.scores[keepId] = r.scores[removeId];
+      delete r.scores[removeId];
+    }
+    if (r.handicapsAfter && r.handicapsAfter[removeId] !== undefined) {
+      if (r.handicapsAfter[keepId] === undefined) r.handicapsAfter[keepId] = r.handicapsAfter[removeId];
+      delete r.handicapsAfter[removeId];
+    }
+  });
+
+  // If current user was using the removed profile, switch to keep
+  if (DATA.currentUserId === removeId) DATA.currentUserId = keepId;
+
+  // Remove the duplicate profile
+  DATA.players = DATA.players.filter(function(p){ return p.id !== removeId; });
+
+  saveData();
+  renderPlayersList();
+  renderTeamsList();
+  showToast('Players merged ✓');
 }
 
 function openAddPlayerModal() {
@@ -4181,6 +4288,19 @@ function openAddPlayerModal() {
 
 function closeAddPlayerModal() { closeDynamicSheet('add-player-sheet'); }
 
+function _findDuplicatePlayers(firstName, lastName, excludeId) {
+  var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
+  var nLast  = norm(lastName);
+  var nFirst = norm(firstName);
+  return (DATA.players||[]).filter(function(p){
+    if (p.id === excludeId) return false;
+    if (norm(p.lastName) !== nLast) return false;
+    var pF = norm(p.firstName);
+    // Same last name + first names overlap (exact, or one contains the other)
+    return pF === nFirst || pF.includes(nFirst) || nFirst.includes(pF);
+  });
+}
+
 function addPlayer() {
   const firstName = (document.getElementById('modal-player-first') || {value:''}).value.trim();
   const lastName  = (document.getElementById('modal-player-last')  || {value:''}).value.trim();
@@ -4190,6 +4310,14 @@ function addPlayer() {
   const email     = ((emailEl || {value:''}).value || '').trim().toLowerCase();
   if (!firstName) { showToast('Please enter a first name'); return; }
   if (!lastName)  { showToast('Please enter a last name'); return; }
+
+  // Duplicate check
+  const dupes = _findDuplicatePlayers(firstName, lastName, null);
+  if (dupes.length > 0) {
+    const names = dupes.map(function(p){ return playerName(p); }).join(', ');
+    if (!confirm('A player with a similar name already exists: ' + names + '.\n\nAdd ' + firstName + ' ' + lastName + ' anyway?')) return;
+  }
+
   const player = { id: 'p' + Date.now(), firstName, lastName, handicap: hcp,
     googleEmail: email || null, googleUid: null, claimed: !!email };
   DATA.players.push(player);
@@ -6038,6 +6166,20 @@ function joinLeague() {
     }
   }
 
+  // Before creating a new profile, check for any existing player with a similar name
+  // (catches "Dan" vs "Daniel" and similar nickname mismatches)
+  if (type === 'member') {
+    const dupeCandidates = _findDuplicatePlayers(first, last, null).filter(function(p){
+      // Include claimed players too — they might be the same person with a different nickname
+      return true;
+    });
+    if (dupeCandidates.length > 0) {
+      // Show a blocking modal so the player can claim the existing profile instead
+      _showDuplicateWarningModal(dupeCandidates, user, first, last, phone, type);
+      return;
+    }
+  }
+
   // No match found (or registering as sub) — create a brand new profile
   // Clear this Google account off any previous player link before creating a new one
   const newId = (type === 'sub' ? 's' : 'p') + Date.now();
@@ -6072,6 +6214,95 @@ function joinLeague() {
     // After landing, check for a fuzzy-match unclaimed profile on a team
     setTimeout(function(){ _checkProfileSuggestion(profile.id, first, last); }, 800);
   }
+}
+
+function _showDuplicateWarningModal(candidates, user, first, last, phone, type) {
+  const existing = document.getElementById('dup-warn-modal');
+  if (existing) existing.remove();
+  const email = user.email.toLowerCase();
+  const best  = candidates[0];
+  const bestName = playerName(best);
+
+  const el = document.createElement('div');
+  el.id = 'dup-warn-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,0.12)">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="font-size:22px;text-align:center;margin-bottom:8px">👋</div>' +
+      '<div style="font-size:17px;font-weight:700;color:#1A1A1A;text-align:center;margin-bottom:6px">Is this you?</div>' +
+      '<div style="font-size:14px;color:#6B7280;text-align:center;margin-bottom:20px">A player named <strong style="color:#1A1A1A">' + bestName + '</strong> is already in this league. Are you the same person?</div>' +
+      '<button onclick="_claimExistingOnDuplicate(\'' + best.id + '\')" style="width:100%;padding:14px;background:#1B4332;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:10px">Yes, that\'s me — link my account</button>' +
+      '<button onclick="_createNewOnDuplicate()" style="width:100%;padding:14px;background:#F9FAFB;color:#6B7280;border:1.5px solid #E5E7EB;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">No, I\'m a different person</button>' +
+    '</div>';
+
+  // Store pending registration data for the callbacks
+  el._pendingUser  = user;
+  el._pendingFirst = first;
+  el._pendingLast  = last;
+  el._pendingPhone = phone;
+  el._pendingType  = type;
+  document.body.appendChild(el);
+}
+
+function _claimExistingOnDuplicate(existingId) {
+  const modal = document.getElementById('dup-warn-modal');
+  if (!modal) return;
+  const user  = modal._pendingUser;
+  const phone = modal._pendingPhone;
+  const email = user.email.toLowerCase();
+  modal.remove();
+
+  const existing = DATA.players.find(function(p){ return p.id === existingId; });
+  if (!existing) return;
+
+  // Unlink this Google account from any other player first
+  DATA.players.forEach(function(p) {
+    if (p.id === existingId) return;
+    if ((p.googleUid && p.googleUid === user.uid) || (p.googleEmail && p.googleEmail.toLowerCase() === email)) {
+      delete p.googleUid; delete p.googleEmail; p.claimed = false;
+    }
+  });
+
+  existing.googleEmail = email;
+  existing.googleUid   = user.uid;
+  existing.phone       = existing.phone || phone;
+  existing.claimed     = true;
+  DATA.currentUserId   = existing.id;
+  saveData();
+  updateAvatarBtn();
+  closeLanding();
+  showSection('dashboard');
+  showToast('Welcome back, ' + (existing.firstName || 'golfer') + '! ⛳');
+}
+
+function _createNewOnDuplicate() {
+  const modal = document.getElementById('dup-warn-modal');
+  if (!modal) return;
+  const user  = modal._pendingUser;
+  const first = modal._pendingFirst;
+  const last  = modal._pendingLast;
+  const phone = modal._pendingPhone;
+  const type  = modal._pendingType;
+  const email = user.email.toLowerCase();
+  modal.remove();
+
+  // Clear any existing links for this Google account
+  DATA.players.forEach(function(p) {
+    if ((p.googleUid && p.googleUid === user.uid) || (p.googleEmail && p.googleEmail.toLowerCase() === email)) {
+      delete p.googleUid; delete p.googleEmail; p.claimed = false;
+    }
+  });
+
+  const profile = { id: 'p' + Date.now(), firstName: first, lastName: last, handicap: 0, phone,
+                    googleEmail: email, googleUid: user.uid, claimed: true };
+  DATA.players.push(profile);
+  DATA.currentUserId = profile.id;
+  saveData();
+  updateAvatarBtn();
+  closeLanding();
+  showSection('dashboard');
+  showToast('Welcome to the league, ' + first + '! ⛳');
 }
 
 function _checkProfileSuggestion(newId, regFirst, regLast) {
