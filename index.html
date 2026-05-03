@@ -584,7 +584,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       <div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;gap:2px">
         <button id="board-tab-team" class="toggle-btn active" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('team')">Leaders</button>
         <button id="board-tab-sf" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('sf')">Stableford</button>
-        <button id="board-tab-history" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('history')">History</button>
         <button id="board-tab-stats" class="toggle-btn" style="flex:1;border-radius:8px;font-size:13px;font-weight:600;padding:7px" onclick="switchBoardTab('stats')">Stats</button>
       </div>
     </div>
@@ -2942,17 +2941,14 @@ function switchBoardTab(tab) {
   boardTab = tab;
   document.getElementById('board-tab-team').classList.toggle('active', tab === 'team');
   document.getElementById('board-tab-sf').classList.toggle('active', tab === 'sf');
-  document.getElementById('board-tab-history').classList.toggle('active', tab === 'history');
   document.getElementById('board-tab-stats').classList.toggle('active', tab === 'stats');
-  if (tab === 'team') buildTeamLeaderboard();
-  else if (tab === 'sf') buildStablefordLeaderboard('leaderboard-content');
+  if (tab === 'sf') buildStablefordLeaderboard('leaderboard-content');
   else if (tab === 'stats') buildSeasonStats();
-  else buildRoundHistory();
+  else buildTeamLeaderboard();
 }
 
 function buildLeaderboard() {
   if (boardTab === 'sf') buildStablefordLeaderboard('leaderboard-content');
-  else if (boardTab === 'history') buildRoundHistory();
   else if (boardTab === 'stats') buildSeasonStats();
   else buildTeamLeaderboard();
 }
@@ -2960,7 +2956,7 @@ function buildLeaderboard() {
 function showBoardSection(tab) {
   boardTab = tab;
   showSection('leaderboard', 'dashboard');
-  ['team','sf','history','stats'].forEach(function(t) {
+  ['team','sf','stats'].forEach(function(t) {
     var btn = document.getElementById('board-tab-' + t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
@@ -3020,21 +3016,7 @@ function buildTeamLeaderboard() {
     }
   }
 
-  var resultsHtml = '';
-  if (rounds.length > 0) {
-    resultsHtml = '<div style="padding:12px 16px 4px;font-size:13px;font-weight:700;color:#1A1A1A">' +
-        (activeMatch ? 'Past Results' : 'Results') + '</div>' +
-      rounds.slice().reverse().map(function(r) {
-        var tA = DATA.teams.find(function(t){return t.id === r.teamAId;});
-        var tB = DATA.teams.find(function(t){return t.id === r.teamBId;});
-        if (!tA || !tB) return '';
-        return buildMatchCard(tA, tB, r.pointsA, r.pointsB, r.holeResults, false, 'Week ' + r.week);
-      }).join('');
-  } else if (!activeMatch && DATA.teams.length === 0) {
-    resultsHtml = '<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-title">No Rounds Yet</div><div class="empty-state-sub">Scores will appear here after the first round.</div></div>';
-  }
-
-  el.innerHTML = standingsHtml + liveHtml + resultsHtml + '<div style="height:12px"></div>';
+  el.innerHTML = standingsHtml + liveHtml + '<div style="height:12px"></div>';
 }
 
 function buildMatchCard(tA, tB, pointsA, pointsB, holeResults, isLive, weekLabel) {
