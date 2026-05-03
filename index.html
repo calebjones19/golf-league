@@ -1420,8 +1420,11 @@ function startFirestoreSync() {
     }
     if (user && !DATA.currentUserId) {
       const email = user.email.toLowerCase();
+      // Check league players first, then subs roster
       let player = DATA.players.find(p => p.googleUid && p.googleUid === user.uid);
       if (!player) player = DATA.players.find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
+      if (!player) player = (DATA.subs||[]).find(p => p.googleUid && p.googleUid === user.uid);
+      if (!player) player = (DATA.subs||[]).find(p => p.googleEmail && p.googleEmail.toLowerCase() === email);
       const landingOpen = !document.getElementById('landing-overlay').classList.contains('hidden');
       if (player) {
         if (!player.googleUid) { player.googleUid = user.uid; player.googleEmail = email; player.claimed = true; }
@@ -4112,16 +4115,18 @@ function renderPlayersList() {
 
   // ── Duplicate player warning banner ────────────────────────────────────
   var dupePairs = [];
-  var checked = new Set();
-  (DATA.players||[]).forEach(function(p) {
-    if (checked.has(p.id)) return;
-    var matches = _findDuplicatePlayers(p.firstName, p.lastName, p.id);
-    if (matches.length > 0) {
-      dupePairs.push({ keep: p, dupes: matches });
-      matches.forEach(function(d){ checked.add(d.id); });
-      checked.add(p.id);
-    }
-  });
+  try {
+    var checked = new Set();
+    (DATA.players||[]).forEach(function(p) {
+      if (!p.id || checked.has(p.id)) return;
+      var matches = _findDuplicatePlayers(p.firstName, p.lastName, p.id);
+      if (matches.length > 0) {
+        dupePairs.push({ keep: p, dupes: matches });
+        matches.forEach(function(d){ checked.add(d.id); });
+        checked.add(p.id);
+      }
+    });
+  } catch(e) { console.warn('Duplicate check error:', e); }
   var dupeBanner = dupePairs.length > 0
     ? '<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
         '<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠ Duplicate players detected</div>' +
@@ -4301,12 +4306,21 @@ function _findDuplicatePlayers(firstName, lastName, excludeId) {
   var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
   var nLast  = norm(lastName);
   var nFirst = norm(firstName);
+  // Don't match if last name is empty — would produce false positives
+  if (!nLast) return [];
   return (DATA.players||[]).filter(function(p){
     if (p.id === excludeId) return false;
+    if (!p.lastName) return false;
     if (norm(p.lastName) !== nLast) return false;
-    var pF = norm(p.firstName);
-    // Same last name + first names overlap (exact, or one contains the other)
-    return pF === nFirst || pF.includes(nFirst) || nFirst.includes(pF);
+    var pF = norm(p.firstName || '');
+    // Require at least 2 chars on both sides before doing substring match
+    // to avoid 'al' matching 'alex', 'alice', 'alfred', etc. on a common name
+    if (!pF || !nFirst) return pF === nFirst; // both empty = exact (both blank)
+    if (pF === nFirst) return true;
+    if (pF.length >= 3 && nFirst.length >= 3) {
+      return pF.includes(nFirst) || nFirst.includes(pF);
+    }
+    return pF === nFirst;
   });
 }
 
