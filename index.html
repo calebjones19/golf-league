@@ -2229,33 +2229,42 @@ function buildScoring() {
       // ── Current / upcoming week ───────────────────────────────────────────
       var bottomPad = (isMyMatch && !done && !isLive) ? '6px' : '14px';
 
-      // Top meta row: tee time centered, LIVE badge if active
-      html += '<div style="display:flex;align-items:center;justify-content:center;padding:12px 14px 8px;position:relative">';
-      html += '<span style="font-size:11px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:2px 10px;white-space:nowrap">' + teeTime + '</span>';
-      if (isLive) html += '<span class="badge-live" style="font-size:10px;padding:2px 7px;position:absolute;right:14px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
-      if (done) {
-        var dPts_A = done.teamAId===m.teamAId ? done.pointsA : done.pointsB;
-        var dPts_B = done.teamAId===m.teamAId ? done.pointsB : done.pointsA;
-        var dWinner = dPts_A>dPts_B ? tA.name : dPts_B>dPts_A ? tB.name : null;
-        html += '<div style="position:absolute;right:14px;display:flex;align-items:center;gap:6px">';
-        html += '<span style="font-size:14px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + dPts_A + ' – ' + dPts_B + '</span>';
-        if (dWinner) html += '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + dWinner + ' wins</span>';
-        else html += '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>';
+      // Status badges (LIVE / final score) in a top-right corner row
+      if (isLive || done) {
+        html += '<div style="display:flex;justify-content:flex-end;padding:8px 14px 0;gap:6px">';
+        if (isLive) html += '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
+        if (done) {
+          var dPts_A = done.teamAId===m.teamAId ? done.pointsA : done.pointsB;
+          var dPts_B = done.teamAId===m.teamAId ? done.pointsB : done.pointsA;
+          var dWinner = dPts_A>dPts_B ? tA.name : dPts_B>dPts_A ? tB.name : null;
+          html += '<span style="font-size:14px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + dPts_A + ' – ' + dPts_B + '</span>';
+          if (dWinner) html += '<span style="font-size:10px;background:#F0FFF4;color:#16A34A;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-weight:700">' + dWinner + ' wins</span>';
+          else html += '<span style="font-size:10px;background:#F9FAFB;color:#6B7280;border:1px solid #E5E7EB;border-radius:8px;padding:1px 7px;font-weight:600">Tied</span>';
+        }
         html += '</div>';
       }
+
+      // Single row: left team | center (tee time + vs.) | right team — all vertically centered
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px ' + bottomPad + '">';
+
+      // Left: team A
+      html += '<div style="flex:1;text-align:center;min-width:0">';
+      html += '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.3px;margin-bottom:4px">' + tA.name + '</div>';
+      html += playerRows(tA.playerIds, effA);
       html += '</div>';
 
-      // Teams + vs. centered layout
-      html += '<div style="display:flex;align-items:flex-start;justify-content:center;gap:8px;padding:0 14px ' + bottomPad + '">';
-      html += '<div style="flex:1;text-align:center;min-width:0">';
-      html += '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.3px;margin-bottom:5px">' + tA.name + '</div>';
-      html += '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">' + playerRows(tA.playerIds, effA) + '</div>';
+      // Center: tee time + vs.
+      html += '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px">';
+      html += '<span style="font-size:11px;font-weight:700;color:#C9A84C;background:#FEF9EE;border-radius:6px;padding:2px 8px;white-space:nowrap">' + teeTime + '</span>';
+      html += '<span style="font-size:11px;font-weight:700;color:#9CA3AF">vs.</span>';
       html += '</div>';
-      html += '<div style="flex-shrink:0;padding-top:2px;font-size:11px;font-weight:700;color:#9CA3AF;line-height:1.4">vs.</div>';
+
+      // Right: team B
       html += '<div style="flex:1;text-align:center;min-width:0">';
-      html += '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.3px;margin-bottom:5px">' + tB.name + '</div>';
-      html += '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">' + playerRows(tB.playerIds, effB) + '</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.3px;margin-bottom:4px">' + tB.name + '</div>';
+      html += playerRows(tB.playerIds, effB);
       html += '</div>';
+
       html += '</div>';
 
       // Start Match button — only on user's card, only if not yet done
