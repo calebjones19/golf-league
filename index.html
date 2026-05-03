@@ -1339,8 +1339,16 @@ function _applyRemoteData(raw) {
       if (_firestoreLoaded) LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
     }, 600);
   }
+  // Normalize week fields to numbers to prevent string/number coercion bugs
+  _normalizeWeekTypes();
   // Cache locally so offline / next cold start is fast
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); } catch(e) {}
+}
+
+function _normalizeWeekTypes() {
+  (DATA.rounds    || []).forEach(function(r){ if (r.week    !== undefined) r.week    = +r.week;    });
+  (DATA.matchups  || []).forEach(function(m){ if (m.week    !== undefined) m.week    = +m.week;    });
+  (DATA.schedule  || []).forEach(function(s){ if (s.week    !== undefined) s.week    = +s.week;    });
 }
 
 function loadData() {
@@ -1646,29 +1654,36 @@ function formatTeeTime(t) {
   return (h % 12 || 12) + (m ? ':' + String(m).padStart(2,'0') : '') + ampm;
 }
 
+// ── Shared standings computation ─────────────────────────────────────────
+// Returns { teamStats: {id: {id,name,W,L,T,pts}}, sorted: [...] }
+function computeTeamStandings() {
+  var stats = {};
+  DATA.teams.forEach(function(t){ stats[t.id] = { id:t.id, name:t.name, playerIds:(t.playerIds||[]), W:0, L:0, T:0, pts:0 }; });
+  (DATA.rounds||[]).forEach(function(r){
+    var sA = stats[r.teamAId], sB = stats[r.teamBId];
+    if (!sA || !sB) return;
+    sA.pts += (r.pointsA||0); sB.pts += (r.pointsB||0);
+    if (r.pointsA > r.pointsB)      { sA.W++; sB.L++; }
+    else if (r.pointsB > r.pointsA) { sB.W++; sA.L++; }
+    else                             { sA.T++; sB.T++; }
+  });
+  var sorted = Object.values(stats).sort(function(a,b){ return b.pts-a.pts || b.W-a.W; });
+  return { teamStats: stats, sorted: sorted };
+}
+
 function buildDashboard() {
   const el = document.getElementById('dashboard-content');
   el.style.cssText = 'padding:0 0 8px';
 
   const rounds      = DATA.rounds || [];
-  const weeksPlayed = rounds.length > 0 ? Math.max.apply(null, rounds.map(function(r){ return r.week; })) : 0;
+  const weeksPlayed = rounds.length > 0 ? Math.max.apply(null, rounds.map(function(r){ return +r.week||0; })) : 0;
   const cfg         = DATA.scoringConfig || {};
   const hasSkins    = cfg.skinsEnabled !== false;
   const fee         = cfg.skinsFee || 5;
   const thisWeek    = getCurrentWeek();
 
-  // --- Compute team standings (always, even if 0-0) ---
-  const teamStats = {};
-  DATA.teams.forEach(function(t){ teamStats[t.id] = { id:t.id, name:t.name, W:0, L:0, T:0, pts:0 }; });
-  rounds.forEach(function(r){
-    const sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
-    if (!sA || !sB) return;
-    sA.pts += r.pointsA; sB.pts += r.pointsB;
-    if (r.pointsA > r.pointsB) { sA.W++; sB.L++; }
-    else if (r.pointsB > r.pointsA) { sB.W++; sA.L++; }
-    else { sA.T++; sB.T++; }
-  });
-  const sorted = Object.values(teamStats).sort(function(a,b){ return b.pts-a.pts || b.W-a.W; });
+  // --- Compute team standings via shared function ---
+  const { teamStats, sorted } = computeTeamStandings();
 
   // --- My team ---
   const myTeam  = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
@@ -2006,12 +2021,18 @@ function computeMatchPoints(teamAIds, teamBIds, scores) {
 
 function getCurrentWeek() {
   if (!DATA.schedule || !DATA.schedule.length) return 1;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const upcoming = DATA.schedule.find(w => {
-    const d = new Date(w.date + 'T12:00:00');
+  var totalWeeks = DATA.league ? (DATA.league.weeks || 16) : 16;
+  var today = new Date(); today.setHours(0,0,0,0);
+  // Sort by week number so find() always returns the earliest upcoming week
+  var sched = DATA.schedule.slice().sort(function(a,b){ return +a.week - +b.week; });
+  var upcoming = sched.find(function(w) {
+    var d = new Date(w.date + 'T12:00:00');
     return d >= today && w.status !== 'cancelled';
   });
-  return upcoming ? upcoming.week : DATA.schedule.filter(w => w.status === 'completed').length + 1;
+  if (upcoming) return +upcoming.week;
+  // After the final week: return the last completed week (not N+1)
+  var completed = sched.filter(function(w){ return w.status === 'completed'; });
+  return completed.length > 0 ? +completed[completed.length - 1].week : totalWeeks;
 }
 
 // ============================================================
@@ -2427,31 +2448,45 @@ function recalcHandicaps() {
   var numRounds = cfg.hcpRounds || 6;
   var pct       = (cfg.hcpPercent || 90) / 100;
   var maxHcp    = cfg.hcpMax || 36;
-  var par       = scoringPars.reduce(function(a,v){return a+v;}, 0);
-  if (!par) return;
+  var holes     = DATA.league ? (DATA.league.holes || 9) : 9;
+
+  // Get par total for a specific round using that round's nine (front/back)
+  function parForRound(r) {
+    var nine = r.nine || 'back';
+    var parArr = nine === 'front'
+      ? (DATA.league && DATA.league.parFront && DATA.league.parFront.length > 0 ? DATA.league.parFront : null)
+      : (DATA.league && DATA.league.par      && DATA.league.par.length      > 0 ? DATA.league.par      : null);
+    parArr = parArr || Array(holes).fill(4);
+    return parArr.reduce(function(a,v){ return a+v; }, 0);
+  }
 
   DATA.players.forEach(function(p) {
-    // Gather all round totals for this player
-    var totals = (DATA.rounds || [])
+    // Gather rounds this player scored in, sorted chronologically by week
+    var playerRounds = (DATA.rounds || [])
       .filter(function(r) {
         var sc = r.scores && r.scores[p.id];
-        return sc && sc.some(function(s){return s != null;});
+        return sc && sc.some(function(s){ return s != null; });
       })
-      .map(function(r) {
-        var sc = r.scores[p.id] || [];
-        return sc.reduce(function(a,s){return a + (s||0);}, 0);
-      });
+      .slice()
+      .sort(function(a, b) { return (+a.week || 0) - (+b.week || 0); });
 
-    if (totals.length === 0) return;
+    if (playerRounds.length === 0) return;
 
-    // Take last N rounds, calculate differentials vs par
-    var recent = totals.slice(-numRounds);
-    var diffs  = recent.map(function(t){ return t - par; });
-    // Sort ascending, take best half (rounds to ceiling)
-    var sorted = diffs.slice().sort(function(a,b){return a-b;});
+    // Take last N rounds (by week order), compute differential vs that week's par
+    var recent = playerRounds.slice(-numRounds);
+    var diffs  = recent.map(function(r) {
+      var par = parForRound(r);
+      if (!par) return 0;
+      var sc    = r.scores[p.id] || [];
+      var total = sc.reduce(function(a,s){ return a + (s||0); }, 0);
+      return total - par;
+    });
+
+    // Sort ascending, take best half (ceiling)
+    var sorted = diffs.slice().sort(function(a,b){ return a-b; });
     var numUse = Math.max(1, Math.ceil(sorted.length / 2));
     var best   = sorted.slice(0, numUse);
-    var avg    = best.reduce(function(a,v){return a+v;}, 0) / best.length;
+    var avg    = best.reduce(function(a,v){ return a+v; }, 0) / best.length;
     p.leagueHandicap = Math.min(maxHcp, Math.max(0, Math.round(avg * pct)));
   });
   saveData();
@@ -2814,17 +2849,9 @@ function buildTeamLeaderboard() {
   // ── Season standings table ──────────────────────────────────────────────
   var standingsHtml = '';
   if (DATA.teams.length > 0) {
-    var teamStats = {};
-    DATA.teams.forEach(function(t){ teamStats[t.id] = {id:t.id, name:t.name, playerIds:t.playerIds, W:0, L:0, T:0, pts:0}; });
-    rounds.forEach(function(r){
-      var sA = teamStats[r.teamAId], sB = teamStats[r.teamBId];
-      if (!sA||!sB) return;
-      sA.pts+=r.pointsA; sB.pts+=r.pointsB;
-      if (r.pointsA>r.pointsB){sA.W++;sB.L++;}
-      else if(r.pointsB>r.pointsA){sB.W++;sA.L++;}
-      else{sA.T++;sB.T++;}
-    });
-    var sorted = Object.values(teamStats).sort(function(a,b){return b.pts-a.pts||b.W-a.W;});
+    var _standings = computeTeamStandings();
+    var teamStats = _standings.teamStats;
+    var sorted = _standings.sorted;
     var myTeam = DATA.teams.find(function(t){return t.playerIds.includes(DATA.currentUserId);});
     function pname(pid){var p=DATA.players.find(function(pl){return pl.id===pid;});return p?playerFirstName(p):'';}
     var rows = sorted.map(function(s,i){
@@ -4611,6 +4638,8 @@ function tapPlayerForPairing(pid) {
 
 function removeTeam(id) {
   DATA.teams = DATA.teams.filter(t => t.id !== id);
+  // Remove any matchups that referenced this team (prevents broken-matchup ghost rows)
+  DATA.matchups = (DATA.matchups||[]).filter(function(m){ return m.teamAId !== id && m.teamBId !== id; });
   pairingSelection = null;
   saveData(); renderTeamsList();
 }
@@ -8056,17 +8085,22 @@ auth.onAuthStateChanged(user => {
 
 // ── Week 1 Auto-Seeder (runs after every Firestore sync until done) ─
 
-var _week1Seeded = false;
+// Persist the seeded flag in localStorage so page reloads don't trigger re-seeding
+var _week1Seeded = (localStorage.getItem('fairway_w1seeded') === '1');
 function _autoSeedWeek1() {
   if (_week1Seeded) return;
   if (!DATA.players || DATA.players.length === 0) return;
   if (!DATA.teams   || DATA.teams.length   === 0) return;
 
-  // Already have all 6 rounds with scores — done
+  // Already have all 6 rounds with scores — lock the flag and stop
   var w1scored = (DATA.rounds||[]).filter(function(r){
     return r.week === 1 && r.scores && Object.keys(r.scores).length > 0;
   });
-  if (w1scored.length >= 6) { _week1Seeded = true; return; }
+  if (w1scored.length >= 6) {
+    _week1Seeded = true;
+    localStorage.setItem('fairway_w1seeded', '1');
+    return;
+  }
 
   // Not complete — wipe all week 1 rounds and rebuild from scratch
   DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
@@ -8172,7 +8206,10 @@ function _autoSeedWeek1() {
     }
   });
   saveData();
-  if (created >= 6) _week1Seeded = true;
+  if (created >= 6) {
+    _week1Seeded = true;
+    localStorage.setItem('fairway_w1seeded', '1');
+  }
   showToast('Week 1 scores loaded ✓');
   buildDashboard();
 }
