@@ -3971,6 +3971,8 @@ function renderPlayersList() {
   const wrap = document.getElementById('players-panel-content');
   if (!wrap) return;
 
+  const on = adminEditModes['players'] || false;
+
   // ── League Players ──────────────────────────────────────────
   const players = DATA.players || [];
   let leagueListHtml;
