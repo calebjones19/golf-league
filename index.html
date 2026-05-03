@@ -2144,7 +2144,7 @@ function buildScoring() {
           : DATA.players.find(function(s){return s.id===origPid;});
         var origP = isSub ? DATA.players.find(function(s){return s.id===origPid;}) : null;
         if (!p) return '';
-        return '<div style="font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.4;text-align:center">' +
+        return '<div style="font-size:13px;font-weight:600;color:#1A1A1A;line-height:1.4;text-align:center">' +
           playerFirstName(p) + ' ' + (p.lastName||'') +
           (isSub ? '<span style="font-size:9px;color:#C9A84C;font-weight:700;margin-left:3px">SUB</span>' : '') +
         '</div>' +
@@ -2258,7 +2258,6 @@ function buildScoring() {
 
       // Left: team A
       html += '<div style="flex:1;text-align:center;min-width:0">';
-      html += '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.3px;margin-bottom:4px">' + tA.name + '</div>';
       html += playerRows(tA.playerIds, effA);
       html += '</div>';
 
@@ -2270,7 +2269,6 @@ function buildScoring() {
 
       // Right: team B
       html += '<div style="flex:1;text-align:center;min-width:0">';
-      html += '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.3px;margin-bottom:4px">' + tB.name + '</div>';
       html += playerRows(tB.playerIds, effB);
       html += '</div>';
 
