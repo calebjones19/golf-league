@@ -1791,8 +1791,6 @@ function buildDashboard() {
       '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
         '<span style="background:#1B4332;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px">' + twNineLabel + '</span>' +
-        (twStartTime ? '<span style="background:#F5F0E8;color:#92400E;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">🕔 ' + twStartTime + '</span>' : '') +
-        '<span style="background:#F9FAFB;color:#6B7280;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">' + twMatchup + '</span>' +
       '</div>' +
     '</div>';
   }
@@ -1842,7 +1840,7 @@ function buildDashboard() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-top:12px">';
 
   // Team Points
-  html += '<div style="background:#fff;border-radius:16px;padding:16px 14px;border:1px solid #E5E7EB;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px" onclick="showSection(\'standings\',\'dashboard\')">' +
+  html += '<div style="background:#fff;border-radius:16px;padding:16px 14px;border:1px solid #E5E7EB;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px" onclick="boardTab=\'team\';showSection(\'leaderboard\',\'dashboard\')">' +
     '<div>' +
       '<div style="font-size:9px;font-weight:700;color:#6B7280;letter-spacing:0.8px;margin-bottom:8px">TEAM POINTS</div>' +
       '<div style="font-size:36px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + (myStats ? myStats.pts : '—') + '</div>' +
@@ -1854,7 +1852,7 @@ function buildDashboard() {
   '</div>';
 
   // Personal Stableford
-  html += '<div style="background:#fff;border-radius:16px;padding:16px 14px;border:1px solid #E5E7EB;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px" onclick="showSection(\'standings\',\'dashboard\')">' +
+  html += '<div style="background:#fff;border-radius:16px;padding:16px 14px;border:1px solid #E5E7EB;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px" onclick="boardTab=\'sf\';showSection(\'leaderboard\',\'dashboard\')">' +
     '<div>' +
       '<div style="font-size:9px;font-weight:700;color:#6B7280;letter-spacing:0.8px;margin-bottom:8px">STABLEFORD</div>' +
       '<div style="font-size:36px;font-weight:800;color:#1B4332;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + (myPlayer ? myStablefordPts : '—') + '</div>' +
@@ -1871,7 +1869,7 @@ function buildDashboard() {
   html += '<div class="card" style="margin-top:12px;padding:0;overflow:hidden">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">' +
       '<div style="font-size:14px;font-weight:700;color:#1A1A1A">🏆 Standings</div>' +
-      '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="showSection(\'standings\',\'dashboard\')">' +
+      '<div style="display:flex;align-items:center;gap:4px;cursor:pointer" onclick="boardTab=\'team\';showSection(\'leaderboard\',\'dashboard\')">' +
         '<span style="font-size:11px;color:#1B4332;font-weight:600">Full table</span>' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
       '</div>' +
@@ -1884,7 +1882,7 @@ function buildDashboard() {
       var teamObj = DATA.teams.find(function(t){return t.id===s.id;});
       var members = teamObj ? teamObj.playerIds.map(pname).filter(Boolean).join(' & ') : '';
       var medals = ['🥇','🥈','🥉'];
-      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F5F0E8;background:' + (isMe ? 'rgba(27,67,50,0.04)' : 'transparent') + ';cursor:pointer" onclick="showSection(\'standings\',\'dashboard\')">' +
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F5F0E8;background:' + (isMe ? 'rgba(27,67,50,0.04)' : 'transparent') + ';cursor:pointer" onclick="boardTab=\'team\';showSection(\'leaderboard\',\'dashboard\')">' +
         '<div style="font-size:20px;width:24px;text-align:center;flex-shrink:0">' + medals[i] + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:13px;font-weight:700;color:#1A1A1A;display:flex;align-items:center;gap:6px">' +
