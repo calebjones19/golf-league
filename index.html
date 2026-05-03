@@ -4691,7 +4691,12 @@ function renderMatchupsList() {
       const availableTeams = DATA.teams.filter(function(t) {
         if (t.id === _matchupSelTeam) return true;
         return !(DATA.matchups || []).some(function(m) {
-          return +m.week === +selWeek && (m.teamAId === t.id || m.teamBId === t.id);
+          // Only count VALID matchups (both teams exist) as "paired"
+          if (+m.week !== +selWeek) return false;
+          if (m.teamAId !== t.id && m.teamBId !== t.id) return false;
+          var tA2 = DATA.teams.find(function(x){ return x.id === m.teamAId; });
+          var tB2 = DATA.teams.find(function(x){ return x.id === m.teamBId; });
+          return !!(tA2 && tB2);
         });
       });
       const pairedCount = DATA.teams.length - availableTeams.length + (_matchupSelTeam ? 1 : 0);
@@ -4734,7 +4739,14 @@ function renderMatchupsList() {
   function adminMatchupRow(m, idx) {
     const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
     const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
-    if (!tA || !tB) return '';
+    if (!tA || !tB) {
+      // Show broken matchups so admin can delete them
+      const badName = !tA ? (m.teamAId || '?') : (m.teamBId || '?');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #FEE2E2;background:#FFF5F5">' +
+        '<div style="flex:1;font-size:11px;color:#EF4444;font-weight:600">⚠ Broken matchup — team not found (ID: ' + badName.substring(0,8) + '…)</div>' +
+        '<button class="btn-sm btn-delete" onclick="deleteMatchup(\'' + m.id + '\')" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;padding:0;line-height:1;font-size:11px">✕</button>' +
+      '</div>';
+    }
     const teeTime = calcTeeTime(idx);
     const existingRound = (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamAId && r.teamBId === m.teamBId && +r.week === +selWeek; })
       || (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamBId && r.teamBId === m.teamAId && +r.week === +selWeek; });
