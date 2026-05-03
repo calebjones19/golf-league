@@ -4368,6 +4368,21 @@ function confirmMergePlayers(keepId, removeId) {
       if (r.handicapsAfter[keepId] === undefined) r.handicapsAfter[keepId] = r.handicapsAfter[removeId];
       delete r.handicapsAfter[removeId];
     }
+    // Update sub references within rounds
+    if (r.subs) {
+      Object.keys(r.subs).forEach(function(origPid) {
+        if (r.subs[origPid] === removeId) r.subs[origPid] = keepId;
+      });
+    }
+  });
+
+  // Update weeklyLineups subs map: if removeId was used as a sub, point to keepId
+  Object.keys(DATA.weeklyLineups || {}).forEach(function(week) {
+    var lineup = DATA.weeklyLineups[week];
+    if (!lineup || !lineup.subs) return;
+    Object.keys(lineup.subs).forEach(function(origPid) {
+      if (lineup.subs[origPid] === removeId) lineup.subs[origPid] = keepId;
+    });
   });
 
   // If current user was using the removed profile, switch to keep
