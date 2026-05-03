@@ -8061,16 +8061,16 @@ function _autoSeedWeek1() {
   if (_week1Seeded) return;
   if (!DATA.players || DATA.players.length === 0) return;
   if (!DATA.teams   || DATA.teams.length   === 0) return;
-  // Skip only if week 1 rounds already have real scores; purge empty stale rounds
-  var w1 = (DATA.rounds||[]).filter(function(r){ return r.week === 1; });
-  if (w1.length > 0) {
-    var hasScores = w1.some(function(r){ return r.scores && Object.keys(r.scores).length > 0; });
-    if (hasScores) { _week1Seeded = true; return; }
-    // Stale empty rounds — remove and re-seed
-    DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
-  }
 
-  // Known Week 1 pairings from score sheets (back 9, holes 10-18)
+  // Already have all 6 rounds with scores — done
+  var w1scored = (DATA.rounds||[]).filter(function(r){
+    return r.week === 1 && r.scores && Object.keys(r.scores).length > 0;
+  });
+  if (w1scored.length >= 6) { _week1Seeded = true; return; }
+
+  // Not complete — wipe all week 1 rounds and rebuild from scratch
+  DATA.rounds = (DATA.rounds||[]).filter(function(r){ return r.week !== 1; });
+
   var PAIRINGS = [
     { a: [['dahlke','jon'],   ['morgan','mike']],      ascores: { 'dahlke-jon':[6,6,4,8,4,5,6,4,3],      'morgan-mike':[6,5,5,7,6,7,7,4,4]      },
       b: [['jipping','daniel'],['waldorf','jake']],    bscores: { 'jipping-daniel':[9,3,5,5,5,6,6,6,6],  'waldorf-jake':[5,5,7,5,5,6,6,6,5]     } },
@@ -8088,13 +8088,10 @@ function _autoSeedWeek1() {
 
   function norm(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); }
   function findPid(last, first) {
-    // Players stored with firstName / lastName fields (not a combined .name)
     var p = DATA.players.find(function(pl){
       return norm(pl.lastName) === norm(last) && norm(pl.firstName) === norm(first);
     });
-    if (!p) p = DATA.players.find(function(pl){
-      return norm(pl.lastName) === norm(last);
-    });
+    if (!p) p = DATA.players.find(function(pl){ return norm(pl.lastName) === norm(last); });
     return p ? p.id : null;
   }
   function findTeamForPids(pids) {
@@ -8110,74 +8107,63 @@ function _autoSeedWeek1() {
   if (!scoringPars || scoringPars.length === 0) scoringPars = Array(9).fill(4);
   if (!scoringHoleHcp || scoringHoleHcp.length === 0) scoringHoleHcp = [1,2,3,4,5,6,7,8,9];
 
-  var anyCreated = false;
+  var created = 0;
   PAIRINGS.forEach(function(pair, pi) {
     var aPids = pair.a.map(function(p){ return findPid(p[0], p[1]); }).filter(Boolean);
     var bPids = pair.b.map(function(p){ return findPid(p[0], p[1]); }).filter(Boolean);
-    if (aPids.length === 0) return;
-
     var tA = findTeamForPids(aPids);
-    var tB = bPids.length > 0 ? findTeamForPids(bPids) : null;
-    if (!tA) return;
+    var tB = findTeamForPids(bPids);
+    if (!tA || !tB) return;
 
+    // Build scores map: pid → hole array
     var scores = {};
     pair.a.forEach(function(pn){
       var pid = findPid(pn[0], pn[1]);
-      if (pid) { var key = pn[0]+'-'+pn[1]; if (pair.ascores[key]) scores[pid] = pair.ascores[key]; }
+      var key = pn[0]+'-'+pn[1];
+      if (pid && pair.ascores[key]) scores[pid] = pair.ascores[key];
     });
-    if (tB) {
-      pair.b.forEach(function(pn){
-        var pid = findPid(pn[0], pn[1]);
-        if (pid) { var key = pn[0]+'-'+pn[1]; if (pair.bscores[key]) scores[pid] = pair.bscores[key]; }
-      });
-    }
+    pair.b.forEach(function(pn){
+      var pid = findPid(pn[0], pn[1]);
+      var key = pn[0]+'-'+pn[1];
+      if (pid && pair.bscores[key]) scores[pid] = pair.bscores[key];
+    });
 
-    if (!tB) return; // can't create a round without both teams
-
-    // Find a valid existing week 1 matchup for these two teams
-    var existingMatchup = (DATA.matchups||[]).find(function(m){
+    // Ensure a week 1 matchup exists for this pair (create if missing/broken)
+    var matchup = (DATA.matchups||[]).find(function(m){
       return +m.week === 1 && (
         (m.teamAId === tA.id && m.teamBId === tB.id) ||
         (m.teamBId === tA.id && m.teamAId === tB.id)
       );
     });
-
-    // If no valid matchup exists, create one now
-    if (!existingMatchup) {
-      // Remove any broken week 1 matchups involving either team
+    if (!matchup) {
+      // Remove any broken week 1 matchups for these teams first
       DATA.matchups = (DATA.matchups||[]).filter(function(m){
         if (+m.week !== 1) return true;
-        if (m.teamAId !== tA.id && m.teamBId !== tA.id &&
-            m.teamAId !== tB.id && m.teamBId !== tB.id) return true;
+        var touches = (m.teamAId === tA.id || m.teamBId === tA.id ||
+                       m.teamAId === tB.id || m.teamBId === tB.id);
+        if (!touches) return true;
         var xA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
         var xB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
-        return !!(xA && xB); // keep only valid matchups
+        return !!(xA && xB);
       });
-      existingMatchup = { id: 'w1m_'+pi+'_'+Date.now(), week: 1, teamAId: tA.id, teamBId: tB.id };
-      DATA.matchups.push(existingMatchup);
+      matchup = { id: 'w1m_'+pi+'_'+Date.now(), week: 1, teamAId: tA.id, teamBId: tB.id };
+      DATA.matchups.push(matchup);
     }
 
-    var realAId = existingMatchup.teamAId, realBId = existingMatchup.teamBId;
-    var realTa  = DATA.teams.find(function(t){ return t.id === realAId; });
-    var realTb  = DATA.teams.find(function(t){ return t.id === realBId; });
-    if (!realTa || !realTb) return;
-
-    var mp = computeMatchPoints(realTa.playerIds, realTb.playerIds, scores);
+    var mp = computeMatchPoints(tA.playerIds, tB.playerIds, scores);
     DATA.rounds.push({
       id: 'w1r_'+pi+'_'+Date.now(),
       week: 1, nine: scoringNine,
-      teamAId: realAId, teamBId: realBId,
+      teamAId: tA.id, teamBId: tB.id,
       scores: scores,
       pointsA: mp.pointsA, pointsB: mp.pointsB, holeResults: mp.holeResults,
       completedAt: '2025-04-28T00:00:00.000Z', subs: {}
     });
-    anyCreated = true;
+    created++;
   });
 
-  if (!anyCreated) return;
+  if (created === 0) return;
 
-  // Don't auto-mark week 1 as completed — that shifts getCurrentWeek() to 2
-  // and causes newly-added matchups to default to week 2 unexpectedly.
   recalcHandicaps();
   DATA.rounds.forEach(function(r){
     if (r.week === 1) {
@@ -8186,7 +8172,7 @@ function _autoSeedWeek1() {
     }
   });
   saveData();
-  _week1Seeded = true;
+  if (created >= 6) _week1Seeded = true;
   showToast('Week 1 scores loaded ✓');
   buildDashboard();
 }
