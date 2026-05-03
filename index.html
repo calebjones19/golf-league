@@ -1727,18 +1727,27 @@ function buildDashboard() {
   if (myPlayer) {
     rounds.forEach(function(r) {
       if (!r.scores || !r.scores[myPlayer.id]) return;
-      var hcp = effectiveHandicap(myPlayer);
-      var numH = r.scores[myPlayer.id].length;
-      var par = (DATA.league && DATA.league.par) || 36;
-      r.scores[myPlayer.id].forEach(function(gross, hi) {
-        var holeRank = hi + 1;
-        var strokes = Math.floor(hcp / numH) + (holeRank <= (hcp % numH) ? 1 : 0);
-        var net = gross - strokes;
-        var holePar = Math.round(par / numH);
+      var hcp  = effectiveHandicap(myPlayer);
+      var sc   = r.scores[myPlayer.id];
+      var numH = sc.length;
+      // Use per-hole par from the correct nine (front/back)
+      var nine   = r.nine || 'back';
+      var parArr = nine === 'front'
+        ? (DATA.league && DATA.league.parFront && DATA.league.parFront.length ? DATA.league.parFront : null)
+        : (DATA.league && DATA.league.par      && DATA.league.par.length      ? DATA.league.par      : null);
+      parArr = parArr || Array(numH).fill(4);
+      // Hole handicap rankings for stroke allocation
+      var hcpArr = (DATA.league && DATA.league.holeHcp && DATA.league.holeHcp.length)
+        ? DATA.league.holeHcp
+        : Array.from({ length: numH }, function(_, i){ return i + 1; });
+      sc.forEach(function(gross, hi) {
+        if (gross == null) return;
+        var holeHcpRank = hcpArr[hi] || (hi + 1);
+        var strokes = Math.floor(hcp / numH) + (holeHcpRank <= (hcp % numH) ? 1 : 0);
+        var net  = gross - strokes;
+        var holePar = parArr[hi] || 4;
         var diff = holePar - net;
-        // Stableford: 2=eagle+, 2=birdie=2, par=1, bogey=0, +bogey=0
-        var pts = Math.max(0, diff + 1);
-        if (diff >= 2) pts = diff + 1; // eagle = 3, double eagle = 4 etc
+        var pts  = diff >= 2 ? diff + 1 : Math.max(0, diff + 1);
         myStablefordPts += pts;
       });
     });
