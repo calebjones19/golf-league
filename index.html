@@ -1531,7 +1531,7 @@ function refreshCurrentSection() {
     if (id === 'leaderboard') buildLeaderboard();
     if (id === 'standings')   buildStandings();
     if (id === 'skins')       buildSkins();
-    if (id === 'score')       buildScoreEntry();
+    if (id === 'score')       { if (!activeMatch) _scoreTabWeek = null; buildScoring(); }
     if (id === 'admin')       buildAdmin();
     updateTopBar();
     buildBottomNav();
@@ -1569,7 +1569,7 @@ function showSection(id, source) {
     sec.scrollTop = 0;
     // Build content first, then fade in — avoids jank from animating during DOM rebuild
     if (id === 'dashboard')   { buildDashboard(); maybePromptNotifications(); }
-    if (id === 'score')       buildScoring();
+    if (id === 'score')       { if (!activeMatch) _scoreTabWeek = null; buildScoring(); }
     if (id === 'leaderboard') buildLeaderboard();
     if (id === 'skins')       { buildSkins(); playBallDrop(); }
     if (id === 'standings')   buildStandings();
@@ -2050,11 +2050,44 @@ let scoringPars = [], scoringHoleHcp = [];
 let scoringNine = 'back';       // 'front' | 'back' — set per week
 let scoringHoleOffset = 9;      // 0 for front nine, 9 for back nine
 let activeMatch = null; // { teamAId, teamBId, week, scores:{pid:[...]}, saved:{pid:[...]} }
+var _scoreTabWeek = null; // null = current week; number = selected week
+
+function _buildWeekSelector(selectedWeek, curWeek) {
+  var totalWeeks = (DATA.league && DATA.league.weeks) || (DATA.schedule || []).length || 16;
+  var opts = '';
+  for (var w = 1; w <= totalWeeks; w++) {
+    opts += '<option value="' + w + '"' + (w === selectedWeek ? ' selected' : '') + '>Week ' + w + (w === curWeek ? ' · Current' : '') + '</option>';
+  }
+  return '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 0;flex-shrink:0">' +
+    '<label style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;white-space:nowrap">WEEK</label>' +
+    '<select class="form-input" style="flex:1;padding:6px 10px;font-size:13px" onchange="_scoreTabWeek=+this.value;buildScoring()">' + opts + '</select>' +
+  '</div>';
+}
 
 function buildScoring() {
   const el = document.getElementById('score-content');
   const holes = DATA.league ? (DATA.league.holes || 9) : 9;
   const _curWeek = getCurrentWeek();
+
+  if (!DATA.league || DATA.teams.filter(function(t){return t.playerIds.length >= 2;}).length < 2) {
+    el.innerHTML = '<div class="empty-state" style="margin-top:40px"><div class="empty-state-icon">⛳</div><div class="empty-state-title">No Teams Ready</div><div class="empty-state-sub">Set up at least 2 teams with 2 players each in Admin → Teams.</div></div>';
+    return;
+  }
+
+  // If a live match is active, go straight to scoring (no week selector)
+  if (activeMatch) { renderScoringUI(el); return; }
+
+  // Resolve which week to display
+  var displayWeek = (_scoreTabWeek !== null) ? _scoreTabWeek : _curWeek;
+  var weekSel = _buildWeekSelector(displayWeek, _curWeek);
+
+  // Past week — show completed scorecards
+  if (displayWeek < _curWeek) {
+    renderPastScoreWeek(el, displayWeek, weekSel);
+    return;
+  }
+
+  // Current (or future) week — set up live scoring pars and show match picker
   const _schedWeek = (DATA.schedule || []).find(function(w){ return w.week === _curWeek; });
   scoringNine       = (_schedWeek && _schedWeek.nine) || 'back';
   scoringHoleOffset = scoringNine === 'back' ? 9 : 0;
@@ -2063,18 +2096,126 @@ function buildScoring() {
     : ((DATA.league && DATA.league.par)      || Array(holes).fill(4));
   scoringHoleHcp = (DATA.league && DATA.league.holeHcp) || Array(holes).fill(1).map(function(_,i){return i+1;});
 
-  if (!DATA.league || DATA.teams.filter(function(t){return t.playerIds.length >= 2;}).length < 2) {
-    el.innerHTML = '<div class="empty-state" style="margin-top:40px"><div class="empty-state-icon">⛳</div><div class="empty-state-title">No Teams Ready</div><div class="empty-state-sub">Set up at least 2 teams with 2 players each in Admin → Teams.</div></div>';
+  renderMatchPicker(el, weekSel);
+}
+
+function renderPastScoreWeek(el, week, weekSelHtml) {
+  var rounds = (DATA.rounds || []).filter(function(r){ return +r.week === +week; });
+  var sched  = (DATA.schedule || []).find(function(s){ return +s.week === +week; });
+  var dateStr = sched ? new Date(sched.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+  if (!rounds.length) {
+    el.innerHTML = weekSelHtml +
+      '<div class="empty-state" style="margin-top:40px">' +
+        '<div class="empty-state-icon">📋</div>' +
+        '<div class="empty-state-title">No Scores Yet</div>' +
+        '<div class="empty-state-sub">Week ' + week + ' hasn\'t been scored.</div>' +
+      '</div>';
     return;
   }
-  if (!activeMatch) { renderMatchPicker(el); return; }
-  renderScoringUI(el);
+
+  var html = '<div style="padding:12px 16px 32px">';
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t){ return t.id === r.teamAId; });
+    var tB = DATA.teams.find(function(t){ return t.id === r.teamBId; });
+    if (!tA || !tB) return;
+    var rNine = r.nine || 'back';
+    var pars = rNine === 'front'
+      ? ((DATA.league && DATA.league.parFront) || (DATA.league && DATA.league.par) || [])
+      : ((DATA.league && DATA.league.par) || []);
+    var holeOffset = rNine === 'back' ? 9 : 0;
+    var parTotal   = pars.reduce(function(a, v){ return a + v; }, 0);
+    var winner = r.pointsA > r.pointsB ? tA.name : r.pointsB > r.pointsA ? tB.name : null;
+
+    // Score banner
+    html += '<div style="background:#1B4332;border-radius:14px;padding:14px 16px;margin-bottom:12px">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">';
+    if (dateStr) html += '<span style="font-size:11px;color:#a0bfab">' + dateStr + '</span><span style="color:#4a7a62;font-size:11px">·</span>';
+    html += '<span style="font-size:11px;color:#a0bfab">' + (rNine === 'front' ? 'Front 9' : 'Back 9') + '</span>';
+    if (winner) html += '<span style="margin-left:auto;font-size:10px;background:#C9A84C;color:#1B4332;border-radius:8px;padding:2px 9px;font-weight:700">' + winner + ' wins</span>';
+    else html += '<span style="margin-left:auto;font-size:10px;background:#4a7a62;color:#fff;border-radius:8px;padding:2px 9px;font-weight:600">Tied</span>';
+    html += '</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between">';
+    html += '<div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:4px">' + tA.name + '</div><div style="font-size:32px;font-weight:800;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + r.pointsA + '</div></div>';
+    html += '<div style="font-size:13px;font-weight:700;color:#6b9e82">vs</div>';
+    html += '<div style="text-align:center;flex:1"><div style="font-size:11px;font-weight:700;color:#a0bfab;margin-bottom:4px">' + tB.name + '</div><div style="font-size:32px;font-weight:800;color:#C9A84C;font-family:\'Space Grotesk\',sans-serif;line-height:1">' + r.pointsB + '</div></div>';
+    html += '</div>';
+    html += '</div>'; // banner
+
+    // Scorecard table
+    if (pars.length) {
+      // Gather all effective player IDs in matchup order: tA players then tB players
+      var allEntries = [];
+      [tA, tB].forEach(function(team) {
+        (team.playerIds || []).forEach(function(pid) {
+          var eff = (r.subs && r.subs[pid]) ? r.subs[pid] : pid;
+          if (!allEntries.some(function(e){ return e.eff === eff; })) {
+            allEntries.push({ orig: pid, eff: eff, team: team });
+          }
+        });
+      });
+
+      html += '<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB">';
+      html += '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:300px;font-size:11px">';
+      html += '<thead><tr style="background:#1B4332">';
+      html += '<th style="text-align:left;padding:7px 10px;color:#fff;font-weight:700;font-size:10px;white-space:nowrap">Player</th>';
+      pars.forEach(function(_, i) {
+        html += '<th style="padding:7px 4px;color:#fff;font-weight:700;font-size:10px;text-align:center;min-width:20px">' + (i + 1 + holeOffset) + '</th>';
+      });
+      html += '<th style="padding:7px 6px;color:#C9A84C;font-weight:700;font-size:10px;text-align:center">Tot</th></tr></thead><tbody>';
+
+      // Par row
+      html += '<tr style="background:#F9FAFB">';
+      html += '<td style="padding:5px 10px;font-size:10px;font-weight:700;color:#6B7280">Par</td>';
+      pars.forEach(function(p) { html += '<td style="padding:5px 4px;text-align:center;font-size:10px;color:#6B7280">' + p + '</td>'; });
+      html += '<td style="padding:5px 6px;text-align:center;font-size:10px;font-weight:700;color:#6B7280">' + parTotal + '</td></tr>';
+
+      // Divider row between the two teams
+      var firstTeamDone = false;
+      allEntries.forEach(function(entry, idx) {
+        var p    = DATA.players.find(function(pl){ return pl.id === entry.eff; }) || (DATA.subs || []).find(function(pl){ return pl.id === entry.eff; });
+        var sc   = (r.scores && r.scores[entry.eff]) ? r.scores[entry.eff] : [];
+        var tot  = sc.reduce(function(a, s){ return a + (s || 0); }, 0);
+        var played = sc.filter(function(s){ return s != null; }).length;
+        if (!played) return;
+        var isSub = r.subs && Object.values(r.subs).includes(entry.eff);
+        var isTeamB = entry.team === tB;
+
+        // Insert divider before first tB player
+        if (isTeamB && !firstTeamDone) {
+          firstTeamDone = true;
+          html += '<tr><td colspan="' + (pars.length + 2) + '" style="padding:0;height:1px;background:#E5E7EB"></td></tr>';
+        }
+
+        var teamColor = entry.team === tA ? '#1B4332' : '#DC2626';
+        html += '<tr style="border-top:1px solid #F5F0E8">';
+        html += '<td style="padding:6px 10px;font-weight:700;font-size:11px;white-space:nowrap;color:' + teamColor + '">' +
+          (p ? playerFirstName(p) : '?') +
+          (isSub ? '<span style="color:#C9A84C;font-size:8px;font-weight:700"> SUB</span>' : '') +
+        '</td>';
+        pars.forEach(function(par, i) {
+          html += '<td style="padding:5px 4px;text-align:center">' + scoreCell(sc[i] || null, par) + '</td>';
+        });
+        var totColor = tot < parTotal ? '#16A34A' : tot > parTotal ? '#DC2626' : '#374151';
+        html += '<td style="padding:5px 6px;text-align:center;font-weight:800;font-size:12px;color:' + totColor + '">' + tot + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div></div>'; // scorecard
+    }
+
+    html += '<div style="height:16px"></div>'; // space between rounds
+  });
+  html += '</div>';
+
+  el.innerHTML = weekSelHtml + html;
 }
 
 // Track sub overrides while building a match
 var pendingSubs = {}; // { originalPlayerId: subPlayerId }
 
-function renderMatchPicker(el) {
+function renderMatchPicker(el, weekSelHtml) {
+  weekSelHtml = weekSelHtml || '';
   const week     = getCurrentWeek();
   const myTeam   = DATA.teams.find(function(t){ return t.playerIds.includes(DATA.currentUserId); });
   const myMatchup = myTeam
@@ -2082,11 +2223,6 @@ function renderMatchPicker(el) {
         return m.week === week && (m.teamAId === myTeam.id || m.teamBId === myTeam.id);
       })
     : null;
-
-  var header =
-    '<div style="padding-bottom:12px">' +
-      '<span style="font-size:15px;font-weight:700;color:#1A1A1A">Score Entry</span>' +
-    '</div>';
 
   pendingSubs = {};
 
@@ -2116,9 +2252,8 @@ function renderMatchPicker(el) {
     }
     var myTeamObj  = DATA.currentUserId && tA && tA.playerIds.includes(DATA.currentUserId) ? tA : tB;
     var oppTeamObj = myTeamObj === tA ? tB : tA;
-    el.innerHTML =
-      '<div style="padding:16px;padding-top:8px">' +
-        header +
+    el.innerHTML = weekSelHtml +
+      '<div style="padding:12px 16px 16px">' +
         '<div class="card">' +
           '<div style="font-size:10px;font-weight:700;color:#C9A84C;letter-spacing:0.5px;margin-bottom:12px">WEEK ' + week + ' MATCHUP</div>' +
           '<div style="font-size:11px;font-weight:700;color:#1B4332;letter-spacing:0.4px;margin-bottom:4px">' + myTeamObj.name + '</div>' +
@@ -2136,14 +2271,11 @@ function renderMatchPicker(el) {
   const weekMatchups = (DATA.matchups || []).filter(function(m){ return m.week === week; });
 
   if (!isAdmin || weekMatchups.length === 0) {
-    el.innerHTML =
-      '<div style="padding:16px;padding-top:8px">' +
-        header +
-        '<div class="empty-state" style="margin-top:20px">' +
-          '<div class="empty-state-icon">📅</div>' +
-          '<div class="empty-state-title">No Match This Week</div>' +
-          '<div class="empty-state-sub">No matchup is scheduled for Week ' + week + '. Check back with your admin.</div>' +
-        '</div>' +
+    el.innerHTML = weekSelHtml +
+      '<div class="empty-state" style="margin-top:20px">' +
+        '<div class="empty-state-icon">📅</div>' +
+        '<div class="empty-state-title">No Match This Week</div>' +
+        '<div class="empty-state-sub">No matchup is scheduled for Week ' + week + '. Check back with your admin.</div>' +
       '</div>';
     return;
   }
@@ -2159,9 +2291,8 @@ function renderMatchPicker(el) {
     '</button>';
   }).join('');
 
-  el.innerHTML =
-    '<div style="padding:16px;padding-top:8px">' +
-      header +
+  el.innerHTML = weekSelHtml +
+    '<div style="padding:12px 16px 16px">' +
       '<div class="card">' +
         '<div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Week ' + week + ' Matchups</div>' +
         '<div style="font-size:12px;color:#6B7280;margin-bottom:14px">Select a match to score</div>' +
