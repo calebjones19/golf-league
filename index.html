@@ -4691,7 +4691,7 @@ function renderMatchupsList() {
       const availableTeams = DATA.teams.filter(function(t) {
         if (t.id === _matchupSelTeam) return true;
         return !(DATA.matchups || []).some(function(m) {
-          return m.week === selWeek && (m.teamAId === t.id || m.teamBId === t.id);
+          return +m.week === +selWeek && (m.teamAId === t.id || m.teamBId === t.id);
         });
       });
       const pairedCount = DATA.teams.length - availableTeams.length + (_matchupSelTeam ? 1 : 0);
@@ -4729,15 +4729,15 @@ function renderMatchupsList() {
   }
 
   // ── Matchup list for selected week ───────────────────────────
-  const weekMatchups = (DATA.matchups || []).filter(function(m) { return m.week === selWeek; });
+  const weekMatchups = (DATA.matchups || []).filter(function(m) { return +m.week === +selWeek; });
 
   function adminMatchupRow(m, idx) {
     const tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
     const tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
     if (!tA || !tB) return '';
     const teeTime = calcTeeTime(idx);
-    const existingRound = (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamAId && r.teamBId === m.teamBId && r.week === selWeek; })
-      || (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamBId && r.teamBId === m.teamAId && r.week === selWeek; });
+    const existingRound = (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamAId && r.teamBId === m.teamBId && +r.week === +selWeek; })
+      || (DATA.rounds || []).find(function(r){ return r.teamAId === m.teamBId && r.teamBId === m.teamAId && +r.week === +selWeek; });
     function playerLines(team) {
       return (team.playerIds || []).map(function(pid) {
         const p = DATA.players.find(function(pl){ return pl.id === pid; });
@@ -8149,8 +8149,8 @@ function _autoSeedWeek1() {
 
   if (!anyCreated) return;
 
-  var sched = (DATA.schedule||[]).find(function(s){ return s.week === 1; });
-  if (sched) sched.status = 'completed';
+  // Don't auto-mark week 1 as completed — that shifts getCurrentWeek() to 2
+  // and causes newly-added matchups to default to week 2 unexpectedly.
   recalcHandicaps();
   DATA.rounds.forEach(function(r){
     if (r.week === 1) {
