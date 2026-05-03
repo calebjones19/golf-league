@@ -1305,7 +1305,9 @@ function _applyRemoteData(raw) {
   // Messages: Firestore is always the source of truth.
   // Never let a stale local cache resurrect deleted messages.
   const remoteMsgs   = Array.isArray(raw.messages)  ? raw.messages  : [];
-  // Players: keep whichever array is longer — protects against accidental roster wipes.
+  // Players: Firestore is the source of truth.
+  // Only fall back to local cache if remote is completely empty (protects against accidental wipes).
+  // Do NOT use "keep longer" — that would revert intentional merges/deletes.
   const localPlayers  = Array.isArray(DATA.players)  ? DATA.players  : [];
   const remotePlayers = Array.isArray(raw.players)   ? raw.players   : [];
   // currentUserId is per-device only — preserve the local value, never overwrite from Firestore.
@@ -1321,19 +1323,12 @@ function _applyRemoteData(raw) {
     }
     return rm;
   });
-  DATA.players  = remotePlayers.length >= localPlayers.length ? remotePlayers : localPlayers;
+  DATA.players  = remotePlayers.length > 0 ? remotePlayers : localPlayers;
   if (DATA.adminEmail && (!DATA.adminEmails || DATA.adminEmails.length === 0)) {
     DATA.adminEmails = [DATA.adminEmail.toLowerCase()];
   }
   if (!DATA.adminEmails) DATA.adminEmails = [];
   if (!DATA.adminUids)   DATA.adminUids   = [];
-  // If remote has fewer players than local, push local back to Firestore.
-  // Use setTimeout so _firestoreLoaded is true by the time the write runs.
-  if (localPlayers.length > remotePlayers.length) {
-    setTimeout(() => {
-      if (_firestoreLoaded) LEAGUE_DOC.set(_dataForFirestore()).catch(console.error);
-    }, 600);
-  }
   // Normalize week fields to numbers to prevent string/number coercion bugs
   _normalizeWeekTypes();
   // Cache locally so offline / next cold start is fast
