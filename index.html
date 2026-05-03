@@ -8132,15 +8132,30 @@ function _autoSeedWeek1() {
       });
     }
 
-    // Find existing week 1 matchup (handle week stored as string or number)
+    if (!tB) return; // can't create a round without both teams
+
+    // Find a valid existing week 1 matchup for these two teams
     var existingMatchup = (DATA.matchups||[]).find(function(m){
       return +m.week === 1 && (
-        (m.teamAId === tA.id && tB && m.teamBId === tB.id) ||
-        (m.teamBId === tA.id && tB && m.teamAId === tB.id) ||
-        (m.teamAId === tA.id || m.teamBId === tA.id)
+        (m.teamAId === tA.id && m.teamBId === tB.id) ||
+        (m.teamBId === tA.id && m.teamAId === tB.id)
       );
     });
-    if (!existingMatchup) return;
+
+    // If no valid matchup exists, create one now
+    if (!existingMatchup) {
+      // Remove any broken week 1 matchups involving either team
+      DATA.matchups = (DATA.matchups||[]).filter(function(m){
+        if (+m.week !== 1) return true;
+        if (m.teamAId !== tA.id && m.teamBId !== tA.id &&
+            m.teamAId !== tB.id && m.teamBId !== tB.id) return true;
+        var xA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
+        var xB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
+        return !!(xA && xB); // keep only valid matchups
+      });
+      existingMatchup = { id: 'w1m_'+pi+'_'+Date.now(), week: 1, teamAId: tA.id, teamBId: tB.id };
+      DATA.matchups.push(existingMatchup);
+    }
 
     var realAId = existingMatchup.teamAId, realBId = existingMatchup.teamBId;
     var realTa  = DATA.teams.find(function(t){ return t.id === realAId; });
