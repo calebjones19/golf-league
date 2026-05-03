@@ -2890,14 +2890,19 @@ function _miniStat(label, val) {
 }
 
 function scoreCell(score, par) {
-  var S = 'font-size:11px;font-variant-numeric:tabular-nums;';
-  if (score === null || score === undefined) return '<span style="'+S+'color:#D1D5DB;font-weight:500">—</span>';
+  var base = 'font-size:11px;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;box-sizing:border-box;';
+  if (score === null || score === undefined) return '<span style="font-size:11px;color:#D1D5DB;font-weight:500">—</span>';
   var diff = score - par;
-  if (diff <= -2) return '<span style="'+S+'color:#7C3AED;font-weight:700">'+score+'</span>';
-  if (diff === -1) return '<span style="'+S+'color:#16A34A;font-weight:700">'+score+'</span>';
-  if (diff === 0)  return '<span style="'+S+'color:#374151;font-weight:500">'+score+'</span>';
-  if (diff === 1)  return '<span style="'+S+'color:#DC2626;font-weight:600">'+score+'</span>';
-  return '<span style="'+S+'color:#991b1b;font-weight:700">'+score+'</span>';
+  // Eagle or better — double circle (purple)
+  if (diff <= -2) return '<span style="'+base+'color:#7C3AED;font-weight:700;border:1.5px solid #7C3AED;border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #7C3AED">'+score+'</span>';
+  // Birdie — single circle (green)
+  if (diff === -1) return '<span style="'+base+'color:#16A34A;font-weight:700;border:1.5px solid #16A34A;border-radius:50%">'+score+'</span>';
+  // Par — plain (grey)
+  if (diff === 0)  return '<span style="font-size:11px;color:#374151;font-weight:500">'+score+'</span>';
+  // Bogey — single square (red)
+  if (diff === 1)  return '<span style="'+base+'color:#DC2626;font-weight:600;border:1.5px solid #DC2626;border-radius:2px">'+score+'</span>';
+  // Double bogey+ — double square (dark red)
+  return '<span style="'+base+'color:#991b1b;font-weight:700;border:1.5px solid #991b1b;border-radius:2px;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #991b1b">'+score+'</span>';
 }
 
 function renderScorecard(tA, tB) {
