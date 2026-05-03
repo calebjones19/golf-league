@@ -4007,16 +4007,53 @@ function renderPlayersList() {
 
   // ── Subs Roster ─────────────────────────────────────────────
   const subs = DATA.subs || [];
+
+  // Duplicate subs banner
+  var subDupePairs = [];
+  try {
+    var subChecked = new Set();
+    subs.forEach(function(s) {
+      if (!s.id || subChecked.has(s.id)) return;
+      var matches = _findDuplicateSubs(s.firstName, s.lastName, s.id);
+      if (matches.length > 0) {
+        subDupePairs.push({ keep: s, dupes: matches });
+        matches.forEach(function(d){ subChecked.add(d.id); });
+        subChecked.add(s.id);
+      }
+    });
+  } catch(e) { console.warn('Sub duplicate check error:', e); }
+  var subDupeBanner = subDupePairs.length > 0
+    ? '<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+        '<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠ Duplicate sub profiles detected</div>' +
+        subDupePairs.map(function(pair) {
+          // Show one merge row per duplicate (so 4 dupes = 3 merge buttons, not 1)
+          return pair.dupes.map(function(dupe) {
+            var keepLabel  = playerName(pair.keep)  + (pair.keep.googleEmail  ? ' (' + pair.keep.googleEmail.split('@')[0]  + ')' : '');
+            var dupeLabel  = playerName(dupe)        + (dupe.googleEmail       ? ' (' + dupe.googleEmail.split('@')[0]        + ')' : '');
+            return '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;gap:8px">' +
+              '<span style="font-size:11px;color:#7F1D1D;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + keepLabel + ' ↔ ' + dupeLabel + '</span>' +
+              '<button onclick="openMergeSubsModal(\'' + pair.keep.id + '\',\'' + dupe.id + '\')" style="flex-shrink:0;font-size:11px;font-weight:700;color:#DC2626;background:none;border:1px solid #FCA5A5;border-radius:6px;padding:2px 8px;cursor:pointer;font-family:\'DM Sans\',sans-serif">Merge</button>' +
+            '</div>';
+          }).join('');
+        }).join('') +
+      '</div>'
+    : '';
+
   const subsListHtml = subs.length === 0
     ? '<div style="text-align:center;color:#6B7280;font-size:13px;padding:16px 0">No subs on roster yet.</div>'
     : subs.map(s => {
+        const claimed = !!(s.googleUid || s.googleEmail);
+        const claimBadge = claimed
+          ? '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Linked</span>'
+          : '';
         return '<div class="player-row">' +
           avatarHtml(playerInitials(s), '#FEF9EE', '#C9A84C', 32) +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(s) +
               '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px">SUB</span>' +
+              claimBadge +
             '</div>' +
-            '<div style="font-size:11px;color:#6B7280">Hcp ' + (s.handicap || 0) + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + (s.handicap || 0) + (s.googleEmail ? ' · ' + s.googleEmail : '') + '</div>' +
           '</div>' +
           (on ? '<button class="btn-sm btn-delete" onclick="removeSub(\'' + s.id + '\')">Remove</button>' : '') +
         '</div>';
@@ -4149,7 +4186,7 @@ function renderPlayersList() {
   wrap.innerHTML =
     tabBar +
     (activeSubTab === 'members' ? dupeBanner + addPlayerBtnHtml + leagueListHtml :
-     activeSubTab === 'subs'    ? addSubBtnHtml + subsListHtml :
+     activeSubTab === 'subs'    ? subDupeBanner + addSubBtnHtml + subsListHtml :
                                   lineupPanel);
 }
 
@@ -4414,6 +4451,126 @@ function removeSub(id) {
   DATA.subs = (DATA.subs || []).filter(s => s.id !== id);
   saveData();
   renderPlayersList();
+}
+
+// ── Duplicate sub detection ───────────────────────────────────────────────
+function _findDuplicateSubs(firstName, lastName, excludeId) {
+  var norm = function(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); };
+  var nLast = norm(lastName);
+  var nFirst = norm(firstName);
+  if (!nLast) return [];
+  return (DATA.subs||[]).filter(function(s){
+    if (s.id === excludeId) return false;
+    if (!s.lastName) return false;
+    if (norm(s.lastName) !== nLast) return false;
+    var sF = norm(s.firstName || '');
+    if (!sF || !nFirst) return sF === nFirst;
+    if (sF === nFirst) return true;
+    if (sF.length >= 3 && nFirst.length >= 3) return sF.includes(nFirst) || nFirst.includes(sF);
+    return sF === nFirst;
+  });
+}
+
+function openMergeSubsModal(keepId, removeId) {
+  const keep   = (DATA.subs||[]).find(function(s){ return s.id === keepId; });
+  const remove = (DATA.subs||[]).find(function(s){ return s.id === removeId; });
+  if (!keep || !remove) return;
+
+  const existing = document.getElementById('merge-subs-modal');
+  if (existing) existing.remove();
+
+  function infoLine(s) {
+    var parts = [];
+    if (s.googleEmail) parts.push(s.googleEmail);
+    if (s.handicap)    parts.push('Hcp ' + s.handicap);
+    return parts.join(' · ') || 'No additional info';
+  }
+
+  const el = document.createElement('div');
+  el.id = 'merge-subs-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px" onclick="event.stopPropagation()">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="font-size:17px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Merge Duplicate Subs</div>' +
+      '<div style="font-size:13px;color:#6B7280;margin-bottom:20px">Choose which profile to keep. Scores and lineup assignments will transfer automatically.</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">KEEP THIS PROFILE</div>' +
+      '<div style="border:2px solid #1B4332;border-radius:12px;padding:12px;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          avatarHtml(playerInitials(keep), '#1B4332', '#fff', 36) +
+          '<div><div style="font-size:14px;font-weight:700;color:#1A1A1A">' + playerName(keep) + '</div>' +
+          '<div style="font-size:11px;color:#6B7280">' + infoLine(keep) + '</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">MERGE & DELETE</div>' +
+      '<div style="border:1.5px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:20px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          avatarHtml(playerInitials(remove), '#E5E7EB', '#9CA3AF', 36) +
+          '<div><div style="font-size:14px;font-weight:700;color:#9CA3AF;text-decoration:line-through">' + playerName(remove) + '</div>' +
+          '<div style="font-size:11px;color:#6B7280">' + infoLine(remove) + '</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="confirmMergeSubs(\'' + keepId + '\',\'' + removeId + '\')" style="width:100%;padding:14px;background:#DC2626;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:10px">Merge Subs</button>' +
+      '<button onclick="openMergeSubsModal(\'' + removeId + '\',\'' + keepId + '\')" style="width:100%;padding:12px;background:#F9FAFB;color:#6B7280;border:1.5px solid #E5E7EB;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:8px">↕ Swap — Keep the other one instead</button>' +
+      '<button onclick="document.getElementById(\'merge-subs-modal\').remove()" style="width:100%;padding:12px;background:transparent;color:#9CA3AF;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  el.onclick = function(e){ if (e.target === el) el.remove(); };
+}
+
+function confirmMergeSubs(keepId, removeId) {
+  const modal = document.getElementById('merge-subs-modal');
+  if (modal) modal.remove();
+
+  const keep   = (DATA.subs||[]).find(function(s){ return s.id === keepId; });
+  const remove = (DATA.subs||[]).find(function(s){ return s.id === removeId; });
+  if (!keep || !remove) return;
+
+  // Transfer Google link: prefer the claimed profile
+  if ((!keep.googleUid || !keep.googleEmail) && (remove.googleUid || remove.googleEmail)) {
+    keep.googleEmail = keep.googleEmail || remove.googleEmail;
+    keep.googleUid   = keep.googleUid   || remove.googleUid;
+    keep.claimed     = true;
+  }
+  // Prefer the non-zero handicap
+  if (!keep.handicap && remove.handicap) keep.handicap = remove.handicap;
+
+  // Update round scores: removeId key → keepId
+  (DATA.rounds||[]).forEach(function(r) {
+    if (r.scores && r.scores[removeId]) {
+      if (!r.scores[keepId]) r.scores[keepId] = r.scores[removeId];
+      delete r.scores[removeId];
+    }
+    if (r.handicapsAfter && r.handicapsAfter[removeId] !== undefined) {
+      if (r.handicapsAfter[keepId] === undefined) r.handicapsAfter[keepId] = r.handicapsAfter[removeId];
+      delete r.handicapsAfter[removeId];
+    }
+    // r.subs: { originalPid: subId } — replace removeId as the assigned sub
+    if (r.subs) {
+      Object.keys(r.subs).forEach(function(origPid) {
+        if (r.subs[origPid] === removeId) r.subs[origPid] = keepId;
+      });
+    }
+  });
+
+  // Update weeklyLineups: subs map values
+  Object.keys(DATA.weeklyLineups || {}).forEach(function(week) {
+    var lineup = DATA.weeklyLineups[week];
+    if (!lineup || !lineup.subs) return;
+    Object.keys(lineup.subs).forEach(function(origPid) {
+      if (lineup.subs[origPid] === removeId) lineup.subs[origPid] = keepId;
+    });
+  });
+
+  // Update currentUserId if the removed profile was the active session
+  if (DATA.currentUserId === removeId) DATA.currentUserId = keepId;
+
+  // Remove the duplicate
+  DATA.subs = (DATA.subs||[]).filter(function(s){ return s.id !== removeId; });
+
+  saveData();
+  renderPlayersList();
+  showToast('Subs merged ✓');
 }
 
 function togglePlayerAdmin(playerId, checked) {
