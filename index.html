@@ -2114,9 +2114,7 @@ function buildScoring() {
   var myTeam = DATA.teams.find(function(t){ return (t.playerIds||[]).includes(DATA.currentUserId); });
   var lineupSubs = isPast ? {} : (getWeekLineup(displayWeek).subs || {});
 
-  var cardsHtml = isPast
-    ? '<div style="padding:8px 16px 24px">'
-    : '<div style="display:flex;flex-direction:column;flex:1;gap:6px;padding:6px 14px 8px;min-height:0">';
+  var cardsHtml = '<div style="padding:6px 14px 16px">';
   weekMatchups.forEach(function(m, idx) {
     var tA = DATA.teams.find(function(t){ return t.id === m.teamAId; });
     var tB = DATA.teams.find(function(t){ return t.id === m.teamBId; });
@@ -2154,7 +2152,7 @@ function buildScoring() {
 
     var cardStyle = isPast
       ? 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)'
-      : 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);flex:1;min-height:0;display:flex;flex-direction:column';
+      : 'background:#fff;border-radius:14px;border:' + (isMyMatch ? '2px solid #1B4332' : '1px solid #E5E7EB') + ';overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:6px';
 
     var html = '<div style="' + cardStyle + '">';
 
@@ -2254,7 +2252,7 @@ function buildScoring() {
       }
 
       // Single row: left team | center (tee time + vs.) | right team — all vertically centered
-      html += '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px ' + bottomPad + ';flex:1">';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px ' + bottomPad + '">';
 
       // Left: team A
       html += '<div style="flex:1;text-align:center;min-width:0">';
