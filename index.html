@@ -1520,7 +1520,7 @@ function refreshCurrentSection() {
   try {
     const active = document.querySelector('.section.active');
     if (!active) return;
-    const id = active.id ? active.id.replace('-section','') : '';
+    const id = active.id ? active.id.replace(/^sec-/, '') : '';
     if (id === 'dashboard')   buildDashboard();
     if (id === 'leaderboard') buildLeaderboard();
     if (id === 'standings')   buildStandings();
@@ -2126,7 +2126,9 @@ function buildScoring() {
     var teeTime   = calcTeeTime(idx);
     var roundKey  = [m.teamAId, m.teamBId].sort().join('|');
     var done      = roundsByMatchup[roundKey];
-    var isLive    = activeMatch && activeMatch.teamAId === m.teamAId && activeMatch.teamBId === m.teamBId;
+    var isLive    = (activeMatch && activeMatch.teamAId === m.teamAId && activeMatch.teamBId === m.teamBId)
+                 || (DATA.liveMatch && DATA.liveMatch.teamAId === m.teamAId && DATA.liveMatch.teamBId === m.teamBId);
+    var liveData  = DATA.liveMatch && DATA.liveMatch.teamAId === m.teamAId && DATA.liveMatch.teamBId === m.teamBId ? DATA.liveMatch : null;
 
     // Effective player IDs (accounting for lineup subs)
     function effIds(team) {
@@ -2240,8 +2242,17 @@ function buildScoring() {
 
       // Status badges (LIVE / final score) in a top-right corner row
       if (isLive || done) {
-        html += '<div style="display:flex;justify-content:flex-end;padding:8px 14px 0;gap:6px">';
-        if (isLive) html += '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
+        html += '<div style="display:flex;justify-content:flex-end;align-items:center;padding:8px 14px 0;gap:6px">';
+        if (isLive) {
+          html += '<span class="badge-live" style="font-size:10px;padding:2px 7px"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>';
+          // Show live score from Firestore for non-scoring devices
+          if (liveData && liveData.holesPlayed > 0) {
+            var livePtsA = liveData.teamAId === m.teamAId ? liveData.pointsA : liveData.pointsB;
+            var livePtsB = liveData.teamAId === m.teamAId ? liveData.pointsB : liveData.pointsA;
+            html += '<span style="font-size:13px;font-weight:800;color:#1A1A1A;font-family:\'Space Grotesk\',sans-serif">' + livePtsA + ' – ' + livePtsB + '</span>';
+            html += '<span style="font-size:10px;color:#9CA3AF">Hole ' + liveData.holesPlayed + '</span>';
+          }
+        }
         if (done) {
           var dPts_A = done.teamAId===m.teamAId ? done.pointsA : done.pointsB;
           var dPts_B = done.teamAId===m.teamAId ? done.pointsB : done.pointsA;
@@ -2326,6 +2337,9 @@ function startScheduledMatch(teamAId, teamBId) {
     subs: Object.assign({}, lineupSubs)
   };
   currentHole = 0;
+  // Publish that this match is now live so other devices see the LIVE badge immediately
+  DATA.liveMatch = { teamAId: teamAId, teamBId: teamBId, week: activeMatch.week, pointsA: 0, pointsB: 0, holesPlayed: 0, scores: {} };
+  saveData();
   buildScoring();
 }
 
@@ -2504,6 +2518,16 @@ function saveHoleScores() {
       activeMatch.saved[pid][currentHole] = true;
   });
   buildHoleChips(teams.tA, teams.tB); renderEntryCard(teams.tA, teams.tB); renderScorecard(teams.tA, teams.tB);
+  // Publish live match state to Firestore so other devices see real-time scores
+  var mpLive = computeMatchPoints(teams.idsA, teams.idsB, activeMatch.scores);
+  DATA.liveMatch = {
+    teamAId: activeMatch.teamAId, teamBId: activeMatch.teamBId,
+    week: activeMatch.week,
+    pointsA: mpLive.pointsA, pointsB: mpLive.pointsB,
+    holesPlayed: currentHole + 1,
+    scores: JSON.parse(JSON.stringify(activeMatch.scores))
+  };
+  saveData();
   var next = -1;
   for (var i = currentHole + 1; i < scoringPars.length; i++) {
     if (allPids.some(function(pid){return !activeMatch.saved[pid][i];})) { next = i; break; }
@@ -2531,7 +2555,9 @@ function nextHole() { if (currentHole < scoringPars.length - 1) goToHole(current
 
 function confirmEndMatch() {
   if (confirm('End this match? Unsaved scores will be lost.')) {
-    activeMatch = null; currentHole = 0; showSection('dashboard');
+    activeMatch = null; currentHole = 0;
+    delete DATA.liveMatch; saveData();
+    showSection('dashboard');
   }
 }
 
@@ -2607,6 +2633,7 @@ function submitRound() {
   DATA.rounds.push(round);
   var week = DATA.schedule.find(function(w){return w.week === activeMatch.week;});
   if (week) week.status = 'completed';
+  delete DATA.liveMatch;
   saveData();
   recalcHandicaps();
   // Snapshot handicaps after recalc so we can track them over time
