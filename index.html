@@ -2008,7 +2008,8 @@ function effectiveHandicap(player) {
   return player.handicap || 0;
 }
 
-function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
+function teamBestBallNet(teamPlayerIds, holeIdx, scores, extraStroke) {
+  extraStroke = extraStroke || 0;
   const numHoles = scoringPars.length;
   let bestNet = null;
   for (const pid of teamPlayerIds) {
@@ -2021,10 +2022,11 @@ function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
     const net     = gross - strokes;
     if (bestNet === null || net < bestNet) bestNet = net;
   }
-  return bestNet;
+  return bestNet !== null ? bestNet - extraStroke : null;
 }
 
-function teamTotalNet(teamPlayerIds, holeIdx, scores) {
+function teamTotalNet(teamPlayerIds, holeIdx, scores, extraStroke) {
+  extraStroke = extraStroke || 0;
   const numHoles = scoringPars.length;
   let total = 0, hasAny = false;
   for (const pid of teamPlayerIds) {
@@ -2037,30 +2039,62 @@ function teamTotalNet(teamPlayerIds, holeIdx, scores) {
     total += gross - strokes;
     hasAny = true;
   }
-  return hasAny ? total : null;
+  return hasAny ? total - extraStroke : null;
 }
 
-function teamNetForHole(teamPlayerIds, holeIdx, scores) {
+function teamNetForHole(teamPlayerIds, holeIdx, scores, extraStroke) {
   const type = (DATA.scoringConfig || {}).scoringType || 'bestball';
   return type === 'total'
-    ? teamTotalNet(teamPlayerIds, holeIdx, scores)
-    : teamBestBallNet(teamPlayerIds, holeIdx, scores);
+    ? teamTotalNet(teamPlayerIds, holeIdx, scores, extraStroke)
+    : teamBestBallNet(teamPlayerIds, holeIdx, scores, extraStroke);
 }
 
-function teamTotalNetScore(teamPlayerIds, scores) {
+function teamTotalNetScore(teamPlayerIds, scores, teamStrokesByHole) {
   // Use the same scoring method (total or bestball) as hole-by-hole play
   const numHoles = scoringPars.length;
   let total = 0;
   for (let h = 0; h < numHoles; h++) {
-    const net = teamNetForHole(teamPlayerIds, h, scores);
+    const extra = teamStrokesByHole ? (teamStrokesByHole[h] || 0) : 0;
+    const net = teamNetForHole(teamPlayerIds, h, scores, extra);
     if (net != null) total += net;
   }
   return total;
 }
 
-function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores) {
-  const netA = teamNetForHole(teamAIds, holeIdx, scores);
-  const netB = teamNetForHole(teamBIds, holeIdx, scores);
+// Compute per-hole team differential strokes arrays for two teams.
+// The weaker team (higher combined handicap) receives 1 extra stroke on each
+// of the hardest (differential) holes, mirroring the "Team strokes" row in
+// other league apps.
+function computeTeamStrokes(teamAIds, teamBIds) {
+  const numHoles = scoringPars.length;
+  function combinedHcp(ids) {
+    return ids.reduce(function(sum, pid) {
+      var p = DATA.players.find(function(p){ return p.id === pid; }) ||
+              (DATA.subs||[]).find(function(p){ return p.id === pid; });
+      return sum + (p ? effectiveHandicap(p) : 0);
+    }, 0);
+  }
+  var combA = combinedHcp(teamAIds);
+  var combB = combinedHcp(teamBIds);
+  var diff  = Math.abs(combA - combB);
+  var weaker = combA > combB ? 'A' : combA < combB ? 'B' : null;
+  var strokesA = Array(numHoles).fill(0);
+  var strokesB = Array(numHoles).fill(0);
+  if (weaker && diff > 0) {
+    for (var h = 0; h < numHoles; h++) {
+      var rank = scoringHoleHcp[h]; // 1 = hardest
+      if (rank <= diff) {
+        if (weaker === 'A') strokesA[h] = 1;
+        else                strokesB[h] = 1;
+      }
+    }
+  }
+  return { strokesA, strokesB, combA, combB, diff };
+}
+
+function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores, teamStrokeA, teamStrokeB) {
+  const netA = teamNetForHole(teamAIds, holeIdx, scores, teamStrokeA || 0);
+  const netB = teamNetForHole(teamBIds, holeIdx, scores, teamStrokeB || 0);
   if (netA === null || netB === null) return null;
   if (netA < netB) return 'A';
   if (netB < netA) return 'B';
@@ -2072,11 +2106,15 @@ function computeMatchPoints(teamAIds, teamBIds, scores) {
   const cfg      = DATA.scoringConfig || {};
   const ptsWin   = cfg.pointsPerHole != null ? cfg.pointsPerHole : 1;
   const ptsTie   = cfg.tiePoints != null ? cfg.tiePoints : 0.5;
+
+  // Team differential strokes (weaker team gets extra strokes on hardest holes)
+  const ts = computeTeamStrokes(teamAIds, teamBIds);
+
   let pointsA = 0, pointsB = 0;
   const holeResults = [];
   let allPlayed = true;
   for (let h = 0; h < numHoles; h++) {
-    const result = computeHoleWinner(teamAIds, teamBIds, h, scores);
+    const result = computeHoleWinner(teamAIds, teamBIds, h, scores, ts.strokesA[h], ts.strokesB[h]);
     holeResults.push(result);
     if (result === null) { allPlayed = false; continue; }
     if (result === 'A')      pointsA += ptsWin;
@@ -2088,16 +2126,16 @@ function computeMatchPoints(teamAIds, teamBIds, scores) {
     const matchBonus = cfg.matchBonus != null ? cfg.matchBonus : 1;
     if (pointsA > pointsB) pointsA += matchBonus;
     else if (pointsB > pointsA) pointsB += matchBonus;
-    // Medal bonus (best total net score)
+    // Medal bonus (best total net score, including team differential strokes)
     const medalBonus = cfg.medalBonus != null ? cfg.medalBonus : 1;
     if (medalBonus > 0) {
-      const totalA = teamTotalNetScore(teamAIds, scores);
-      const totalB = teamTotalNetScore(teamBIds, scores);
+      const totalA = teamTotalNetScore(teamAIds, scores, ts.strokesA);
+      const totalB = teamTotalNetScore(teamBIds, scores, ts.strokesB);
       if (totalA < totalB) pointsA += medalBonus;
       else if (totalB < totalA) pointsB += medalBonus;
     }
   }
-  return { pointsA, pointsB, holeResults, allPlayed };
+  return { pointsA, pointsB, holeResults, allPlayed, teamStrokesA: ts.strokesA, teamStrokesB: ts.strokesB };
 }
 
 function getCurrentWeek() {
@@ -2471,9 +2509,12 @@ function renderEntryCard(tA, tB) {
   var teams2   = getActiveTeams();
   var idsA2    = teams2 ? teams2.idsA : tA.playerIds;
   var idsB2    = teams2 ? teams2.idsB : tB.playerIds;
-  var winner   = computeHoleWinner(idsA2, idsB2, h, activeMatch.scores);
+  var _liveTs  = computeTeamStrokes(idsA2, idsB2);
+  var winner   = computeHoleWinner(idsA2, idsB2, h, activeMatch.scores, _liveTs.strokesA[h], _liveTs.strokesB[h]);
   var winColor = winner==='A' ? '#2D6A4F' : winner==='B' ? '#DC2626' : '#C9A84C';
   var winLabel = winner==='A' ? tA.name+' wins hole' : winner==='B' ? tB.name+' wins hole' : winner==='T' ? 'Hole tied' : '';
+  var teamStrokeLabel = (_liveTs.strokesA[h] ? ' · <span style="color:#C9A84C;font-size:10px;font-weight:700">'+tA.name+' team +1</span>' : '') +
+                        (_liveTs.strokesB[h] ? ' · <span style="color:#C9A84C;font-size:10px;font-weight:700">'+tB.name+' team +1</span>' : '');
 
   // Determine which team the current user is on (for score-entry restrictions)
   var myTeamInMatch = DATA.currentUserId
@@ -2548,7 +2589,7 @@ function renderEntryCard(tA, tB) {
   inner.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
       '<div style="width:32px;height:32px;background:#C9A84C;color:#fff;border-radius:10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;flex-shrink:0">'+(h+1)+'</div>' +
-      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+'</div>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1A1A1A">Hole '+(h+1)+' · Par '+par+' · HCP '+holeRank+teamStrokeLabel+'</div>' +
       (winLabel ? '<div style="font-size:10px;font-weight:700;color:'+winColor+';margin-top:1px">'+winLabel+'</div>' : '') +
       '</div></div>' +
     '<div style="font-size:10px;font-weight:700;color:'+firstColor+';letter-spacing:0.5px;margin-bottom:4px">'+firstTeam.name+(canEditFirst?'':' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(live)</span>')+'</div>' +
@@ -2637,37 +2678,74 @@ function confirmEndMatch() {
 }
 
 function recalcAllRoundPoints() {
-  var rounds = DATA.rounds || [];
+  var rounds = (DATA.rounds || []).slice().sort(function(a, b) { return (+a.week || 0) - (+b.week || 0); });
   if (!rounds.length) { showToast('No rounds to recalculate'); return; }
-  rounds.forEach(function(r) {
-    var tA = DATA.teams.find(function(t) { return t.id === r.teamAId; });
-    var tB = DATA.teams.find(function(t) { return t.id === r.teamBId; });
-    if (!tA || !tB) return;
-    // Set correct pars/hcp context for this round's week
-    setScoringSectionForWeek(r.week);
-    // Resolve effective player IDs accounting for subs
-    function effectivePids(team) {
-      return team.playerIds.map(function(pid) { return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
-    }
-    var pidsA = effectivePids(tA);
-    var pidsB = effectivePids(tB);
-    var mp = computeMatchPoints(pidsA, pidsB, r.scores);
-    r.pointsA = mp.pointsA;
-    r.pointsB = mp.pointsB;
+
+  var cfg = DATA.scoringConfig || {};
+
+  // ── Step 1: reset leagueHandicaps so Week 1 uses manual handicaps ──────────
+  // Save the current auto-handicaps to restore after replay
+  var savedHcps = {};
+  DATA.players.concat(DATA.subs || []).forEach(function(p) {
+    savedHcps[p.id] = p.leagueHandicap;
+    p.leagueHandicap = null; // force effectiveHandicap() to return p.handicap
   });
+
+  // ── Step 2: replay weeks in chronological order ────────────────────────────
+  // Group rounds by week so we can advance handicaps after each week finishes
+  var weekNums = [];
+  var byWeek = {};
+  rounds.forEach(function(r) {
+    var w = +r.week || 0;
+    if (!byWeek[w]) { byWeek[w] = []; weekNums.push(w); }
+    byWeek[w].push(r);
+  });
+  weekNums.sort(function(a, b) { return a - b; });
+
+  var processedRounds = []; // accumulates completed rounds for handicap calc
+
+  weekNums.forEach(function(week) {
+    setScoringSectionForWeek(week);
+
+    // Score all matches for this week using handicaps current at start of week
+    byWeek[week].forEach(function(r) {
+      var tA = DATA.teams.find(function(t) { return t.id === r.teamAId; });
+      var tB = DATA.teams.find(function(t) { return t.id === r.teamBId; });
+      if (!tA || !tB) return;
+      function effectivePids(team) {
+        return team.playerIds.map(function(pid) { return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
+      }
+      var pidsA = effectivePids(tA);
+      var pidsB = effectivePids(tB);
+      var mp = computeMatchPoints(pidsA, pidsB, r.scores);
+      r.pointsA = mp.pointsA;
+      r.pointsB = mp.pointsB;
+      processedRounds.push(r);
+    });
+
+    // Advance handicaps using only rounds completed so far (for next week)
+    if (cfg.autoHandicap) recalcHandicaps(processedRounds);
+  });
+
+  // ── Step 3: after full replay, leagueHandicaps now reflect the running
+  //    calculation through the last completed week — that's the correct
+  //    current state.  No need to restore savedHcps.
   saveData();
   buildDashboard();
   renderLeaderboard && renderLeaderboard();
   showToast('Recalculated ' + rounds.length + ' round' + (rounds.length !== 1 ? 's' : '') + ' ✓');
 }
 
-function recalcHandicaps() {
+// recalcHandicaps([roundsOverride]) — pass a custom rounds array to limit which
+// rounds are used (e.g. when replaying history week-by-week).  Omit to use all DATA.rounds.
+function recalcHandicaps(roundsOverride) {
   var cfg = DATA.scoringConfig || {};
   if (!cfg.autoHandicap) return;
   var numRounds = cfg.hcpRounds || 6;
   var pct       = (cfg.hcpPercent || 90) / 100;
   var maxHcp    = cfg.hcpMax || 36;
   var holes     = DATA.league ? (DATA.league.holes || 9) : 9;
+  var allRounds = roundsOverride || DATA.rounds || [];
 
   // Get par total for a specific round using that round's nine (front/back)
   function parForRound(r) {
@@ -2679,9 +2757,10 @@ function recalcHandicaps() {
     return parArr.reduce(function(a,v){ return a+v; }, 0);
   }
 
-  DATA.players.forEach(function(p) {
+  var allPeople = DATA.players.concat(DATA.subs || []);
+  allPeople.forEach(function(p) {
     // Gather rounds this player scored in, sorted chronologically by week
-    var playerRounds = (DATA.rounds || [])
+    var playerRounds = allRounds
       .filter(function(r) {
         var sc = r.scores && r.scores[p.id];
         return sc && sc.some(function(s){ return s != null; });
@@ -2715,7 +2794,7 @@ function recalcHandicaps() {
     var trunc = Math.floor(raw * 100) / 100;
     p.leagueHandicap = Math.min(maxHcp, Math.max(0, Math.round(trunc)));
   });
-  saveData();
+  if (!roundsOverride) saveData(); // only auto-save when called normally
 }
 
 function submitRound() {
@@ -2819,6 +2898,11 @@ function buildRoundHistory() {
         });
       });
       var parTotal = pars.reduce(function(a,v){return a+v;},0);
+      // Compute team differential strokes for this round
+      setScoringSectionForWeek(r.week);
+      var rEffA = (tA.playerIds||[]).map(function(pid){ return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
+      var rEffB = (tB.playerIds||[]).map(function(pid){ return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
+      var rTs = computeTeamStrokes(rEffA, rEffB);
       html += '<div style="border-top:1px solid #F3F4F6;overflow-x:auto">';
       html += '<table style="border-collapse:collapse;width:100%;min-width:320px;font-size:11px">';
       html += '<thead><tr style="background:#1B4332">';
@@ -2830,6 +2914,18 @@ function buildRoundHistory() {
       html += '<td style="padding:4px 6px;font-size:10px;font-weight:700;color:#6B7280">Par</td>';
       pars.forEach(function(p){ html += '<td style="padding:4px 3px;text-align:center;font-size:10px;color:#6B7280">' + p + '</td>'; });
       html += '<td style="padding:4px 3px;text-align:center;font-size:10px;font-weight:700;color:#6B7280">' + parTotal + '</td></tr>';
+      // Team strokes rows (only show if a team has differential strokes)
+      function buildHistoryStrokesRow(teamName, strokeArr) {
+        if (!strokeArr.some(function(s){ return s > 0; })) return '';
+        var cells = pars.map(function(_, h) {
+          return '<td style="padding:3px 3px;text-align:center;font-size:10px;color:#C9A84C;font-weight:700">' + (strokeArr[h] ? '+' : '') + '</td>';
+        }).join('');
+        return '<tr style="background:#FFFBEE">' +
+          '<td style="padding:3px 6px;font-size:9px;font-weight:700;color:#C9A84C;white-space:nowrap">' + teamName + ' +</td>' +
+          cells + '<td></td></tr>';
+      }
+      html += buildHistoryStrokesRow(tA.name, rTs.strokesA);
+      html += buildHistoryStrokesRow(tB.name, rTs.strokesB);
       allIds.forEach(function(pid) {
         var p = DATA.players.find(function(pl){return pl.id===pid;}) || (DATA.subs||[]).find(function(pl){return pl.id===pid;});
         var sc = r.scores && r.scores[pid] ? r.scores[pid] : [];
@@ -5975,17 +6071,20 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
       cells + totalCell + '</tr>';
   }
 
-  // Team strokes row — shows "+" for each hole where team gets ≥1 stroke
+  // Team strokes row — shows "+" for each hole the team receives a differential team stroke
+  // (weaker combined-handicap team gets extra strokes on the hardest holes)
+  var _ts = (tA && tB) ? computeTeamStrokes(tA.playerIds, tB.playerIds) : { strokesA: [], strokesB: [] };
   function buildStrokesRow(team) {
+    var isTeamA = tA && team && team.id === tA.id;
+    var strokeArr = isTeamA ? _ts.strokesA : _ts.strokesB;
+    var hasAnyStroke = strokeArr.some(function(s){ return s > 0; });
+    if (!hasAnyStroke) return ''; // don't render row if no team strokes
     var cells = scoringPars.map(function(_, h) {
-      var teamGetsStroke = (team.playerIds || []).some(function(pid) {
-        var p = DATA.players.find(function(pl) { return pl.id === pid; });
-        return p ? playerStrokesOnHole(effectiveHandicap(p), scoringHoleHcp[h], holes) > 0 : false;
-      });
-      return '<td style="text-align:center;font-size:10px;color:#9CA3AF;padding:1px">' + (teamGetsStroke ? '+' : '') + '</td>';
+      var gets = strokeArr[h] > 0;
+      return '<td style="text-align:center;font-size:10px;color:#C9A84C;font-weight:700;padding:1px">' + (gets ? '+' : '') + '</td>';
     }).join('');
-    return '<tr style="background:#FAFAFA;border-top:1px dashed #E5E7EB">' +
-      '<td style="padding:2px 6px;font-size:8px;font-weight:700;color:#9CA3AF;white-space:nowrap">Strokes</td>' +
+    return '<tr style="background:#FFFBEE;border-top:1px dashed #FDE68A">' +
+      '<td style="padding:2px 6px;font-size:8px;font-weight:700;color:#C9A84C;white-space:nowrap">Team +</td>' +
       cells + '<td colspan="3"></td></tr>';
   }
 
@@ -6151,7 +6250,7 @@ function recalcAdminPoints() {
   var totalEl = document.getElementById('asc-pts-total');
   if (mp.allPlayed) {
     var mBonus = mp.pointsA > mp.pointsB ? matchBonus : 0;
-    var dBonus = medalBonus > 0 ? (teamTotalNetScore(tA.playerIds, scores) < teamTotalNetScore(tB.playerIds, scores) ? medalBonus : 0) : 0;
+    var dBonus = medalBonus > 0 ? (teamTotalNetScore(tA.playerIds, scores, mp.teamStrokesA) < teamTotalNetScore(tB.playerIds, scores, mp.teamStrokesB) ? medalBonus : 0) : 0;
     if (matchEl) { matchEl.textContent = mBonus > 0 ? '+' + mBonus : ''; }
     if (medalEl) { medalEl.textContent = dBonus > 0 ? '+' + dBonus : ''; }
     if (totalEl) { totalEl.textContent = mp.pointsA; }
