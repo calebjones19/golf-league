@@ -814,8 +814,8 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div class="form-group">
           <label class="form-label">Scoring Type</label>
           <div class="radio-group" style="flex-direction:column;gap:8px">
-            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="bestball" checked disabled> <div><div style="font-weight:600">Best Ball</div><div style="font-size:11px;color:#9CA3AF">Each team uses the lower net score of their two players</div></div></label>
-            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="total" disabled> <div><div style="font-weight:600">Total Score</div><div style="font-size:11px;color:#9CA3AF">Team's combined net score per hole competes vs opponent</div></div></label>
+            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="bestball" onchange="saveScoringType(this)"> <div><div style="font-weight:600">Best Ball</div><div style="font-size:11px;color:#9CA3AF">Each team uses the lower net score of their two players</div></div></label>
+            <label class="radio-label"><input type="radio" name="cfg-scoring-type" value="total" onchange="saveScoringType(this)"> <div><div style="font-weight:600">Total Score</div><div style="font-size:11px;color:#9CA3AF">Team's combined net score per hole competes vs opponent</div></div></label>
           </div>
         </div>
         <div class="form-group">
@@ -1309,7 +1309,7 @@ let DATA = {
   schedule:      [],
   rounds:        [],
   announcements: [],
-  scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
+  scoringConfig: { scoringType: 'bestball', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
   matchups: [],
   weeklyLineups: {},
   messages: []
@@ -1460,6 +1460,12 @@ function startFirestoreSync() {
         const ours = msg.senderId && msg.senderId === chatSenderId();
         if (!ours && !chatOpen) _triggerNotification(msg);
       });
+    }
+    // Migration: scoringType defaulted to 'total' in the initial data but should
+    // be 'bestball' (each team uses the lower net score of their two players).
+    if (DATA.scoringConfig && DATA.scoringConfig.scoringType === 'total') {
+      DATA.scoringConfig.scoringType = 'bestball';
+      saveData();
     }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
@@ -6490,7 +6496,7 @@ function updateHcpPreview() {
 
 function saveScoringConfig() {
   DATA.scoringConfig = {
-    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'total',
+    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'bestball',
     pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) ?? 1,
     tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  ?? 0.5,
     matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value) ?? 1,
@@ -6509,6 +6515,14 @@ function saveScoringConfig() {
   showToast('Scoring settings saved ✓');
 }
 
+
+// Immediately persist scoring type when the radio is changed (no Save button needed)
+function saveScoringType(radio) {
+  if (!DATA.scoringConfig) DATA.scoringConfig = {};
+  DATA.scoringConfig.scoringType = radio.value;
+  saveData();
+  showToast('Scoring type updated to ' + (radio.value === 'bestball' ? 'Best Ball' : 'Total Score') + ' ✓');
+}
 
 // ============================================================
 // ANNOUNCEMENTS
