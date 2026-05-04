@@ -7065,6 +7065,7 @@ async function handleNotifToggle(checked) {
   }
   if (Notification.permission === 'granted') {
     _setNotifPref(true);
+    subscribeToPush();
     if (statusText) statusText.textContent = 'On — you\'ll be notified of new messages';
     showToast('Notifications enabled ✓');
   } else {
@@ -8524,6 +8525,8 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then(function(reg) {
     _swReg = reg;
     updateChatBadge(); // sync badge count now that SW is active
+    // Re-register push subscription on every load (keeps Firestore record fresh)
+    if (Notification.permission === 'granted') subscribeToPush();
   }).catch(function(){});
 
   // Listen for SW → page messages
@@ -8630,8 +8633,58 @@ function requestNotifPermission() {
   dismissNotifPrompt();
   if (!('Notification' in window)) return;
   Notification.requestPermission().then(function(perm) {
-    if (perm === 'granted') { _setNotifPref(true); showToast('Notifications enabled ✓'); }
+    if (perm === 'granted') { _setNotifPref(true); subscribeToPush(); showToast('Notifications enabled ✓'); }
     else _setNotifPref(false);
+  });
+}
+
+// ── Web Push subscription ─────────────────────────────────────
+var VAPID_PUBLIC_KEY = 'BG7H_PDjyGiY1nEAoGj5K2OZ46ZwGQeHsjtkVXElkYm_zDm8CZ84FpJIEot6lEgWoLgOlyYNswEiFtT1ZcTTg9E';
+
+function _urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw     = window.atob(base64);
+  var output  = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
+}
+
+function subscribeToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  navigator.serviceWorker.ready.then(function(reg) {
+    // Check if already subscribed
+    reg.pushManager.getSubscription().then(function(existing) {
+      if (existing) {
+        _storePushSubscription(existing);
+        return;
+      }
+      reg.pushManager.subscribe({
+        userVisibleOnly:      true,
+        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      }).then(function(sub) {
+        _storePushSubscription(sub);
+      }).catch(function(err) {
+        console.warn('Push subscribe failed:', err);
+      });
+    });
+  });
+}
+
+function _storePushSubscription(sub) {
+  var userId   = DATA.currentUserId || '';
+  // Stable device ID — generate once and reuse
+  var deviceId = localStorage.getItem('golf_device_id');
+  if (!deviceId) {
+    deviceId = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    try { localStorage.setItem('golf_device_id', deviceId); } catch(e){}
+  }
+  db.collection('leagues').doc('main').collection('pushSubscriptions').doc(deviceId).set({
+    subscription: sub.toJSON(),
+    userId:       userId,
+    updatedAt:    Date.now()
+  }).catch(function(err) {
+    console.warn('Failed to store push subscription:', err);
   });
 }
 
