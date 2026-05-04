@@ -1309,7 +1309,7 @@ let DATA = {
   schedule:      [],
   rounds:        [],
   announcements: [],
-  scoringConfig: { scoringType: 'bestball', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
+  scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
   matchups: [],
   weeklyLineups: {},
   messages: []
@@ -1460,12 +1460,6 @@ function startFirestoreSync() {
         const ours = msg.senderId && msg.senderId === chatSenderId();
         if (!ours && !chatOpen) _triggerNotification(msg);
       });
-    }
-    // Migration: scoringType defaulted to 'total' in the initial data but should
-    // be 'bestball' (each team uses the lower net score of their two players).
-    if (DATA.scoringConfig && DATA.scoringConfig.scoringType === 'total') {
-      DATA.scoringConfig.scoringType = 'bestball';
-      saveData();
     }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
@@ -2049,7 +2043,7 @@ function teamTotalNet(teamPlayerIds, holeIdx, scores, extraStroke) {
 }
 
 function teamNetForHole(teamPlayerIds, holeIdx, scores, extraStroke) {
-  const type = (DATA.scoringConfig || {}).scoringType || 'bestball';
+  const type = (DATA.scoringConfig || {}).scoringType || 'total';
   return type === 'total'
     ? teamTotalNet(teamPlayerIds, holeIdx, scores, extraStroke)
     : teamBestBallNet(teamPlayerIds, holeIdx, scores, extraStroke);
@@ -2067,35 +2061,13 @@ function teamTotalNetScore(teamPlayerIds, scores, teamStrokesByHole) {
   return total;
 }
 
-// Compute per-hole team differential strokes arrays for two teams.
-// The weaker team (higher combined handicap) receives 1 extra stroke on each
-// of the hardest (differential) holes, mirroring the "Team strokes" row in
-// other league apps.
+// Team differential strokes are display-only in the reference app and do NOT
+// affect scoring. Return zero strokes for both teams.
 function computeTeamStrokes(teamAIds, teamBIds) {
   const numHoles = scoringPars.length;
-  function combinedHcp(ids) {
-    return ids.reduce(function(sum, pid) {
-      var p = DATA.players.find(function(p){ return p.id === pid; }) ||
-              (DATA.subs||[]).find(function(p){ return p.id === pid; });
-      return sum + (p ? effectiveHandicap(p) : 0);
-    }, 0);
-  }
-  var combA = combinedHcp(teamAIds);
-  var combB = combinedHcp(teamBIds);
-  var diff  = Math.abs(combA - combB);
-  var weaker = combA > combB ? 'A' : combA < combB ? 'B' : null;
-  var strokesA = Array(numHoles).fill(0);
-  var strokesB = Array(numHoles).fill(0);
-  if (weaker && diff > 0) {
-    for (var h = 0; h < numHoles; h++) {
-      var rank = scoringHoleHcp[h]; // 1 = hardest
-      if (rank <= diff) {
-        if (weaker === 'A') strokesA[h] = 1;
-        else                strokesB[h] = 1;
-      }
-    }
-  }
-  return { strokesA, strokesB, combA, combB, diff };
+  const strokesA = Array(numHoles).fill(0);
+  const strokesB = Array(numHoles).fill(0);
+  return { strokesA, strokesB, combA: 0, combB: 0, diff: 0 };
 }
 
 function computeHoleWinner(teamAIds, teamBIds, holeIdx, scores, teamStrokeA, teamStrokeB) {
@@ -6496,7 +6468,7 @@ function updateHcpPreview() {
 
 function saveScoringConfig() {
   DATA.scoringConfig = {
-    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'bestball',
+    scoringType:       document.querySelector('input[name="cfg-scoring-type"]:checked')?.value || 'total',
     pointsPerHole:     parseFloat(document.getElementById('cfg-pts-hole').value) ?? 1,
     tiePoints:         parseFloat(document.getElementById('cfg-pts-tie').value)  ?? 0.5,
     matchBonus:        parseFloat(document.getElementById('cfg-pts-match').value) ?? 1,
