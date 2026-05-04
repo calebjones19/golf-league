@@ -1797,7 +1797,10 @@ function buildDashboard() {
   var myStablefordPts = 0;
   if (myPlayer) {
     rounds.forEach(function(r) {
+      // Only count rounds where this specific player personally played (not a sub)
       if (!r.scores || !r.scores[myPlayer.id]) return;
+      // Skip if a sub was recorded for this player — sub's score is under sub's ID, not theirs
+      if (r.subs && r.subs[myPlayer.id]) return;
       var hcp  = effectiveHandicap(myPlayer);
       var sc   = r.scores[myPlayer.id];
       var numH = sc.length;
@@ -3471,40 +3474,59 @@ function buildStablefordLeaderboard(targetElId) {
     }
   }
 
-  // Tally stableford points per player across all rounds
+  // Tally stableford points per person — each player and sub owns their own points
   var playerTotals = {};
+  // Pre-seed all players and subs so everyone appears even with 0 rounds
   DATA.players.forEach(function(p) {
-    playerTotals[p.id] = { id: p.id, name: playerName(p), handicap: p.handicap || 0, total: 0, rounds: 0, best: null };
+    playerTotals[p.id] = { id: p.id, name: playerName(p), handicap: effectiveHandicap(p), total: 0, rounds: 0, best: null, isSub: false };
+  });
+  (DATA.subs || []).forEach(function(p) {
+    playerTotals[p.id] = { id: p.id, name: playerName(p), handicap: effectiveHandicap(p), total: 0, rounds: 0, best: null, isSub: true };
   });
 
   rounds.forEach(function(r) {
     var rScores = r.scores || {};
-    DATA.players.forEach(function(p) {
-      var pScores = rScores[p.id];
+    // Use front/back par array for this specific round
+    var roundPars = (r.nine === 'front' && DATA.league && DATA.league.parFront && DATA.league.parFront.length)
+      ? DATA.league.parFront : pars;
+
+    // Iterate the actual score keys in this round — each person owns their own scores
+    Object.keys(rScores).forEach(function(pid) {
+      var pScores = rScores[pid];
       if (!pScores) return;
+      // Find the person (player or sub)
+      var person = DATA.players.find(function(p) { return p.id === pid; }) ||
+                   (DATA.subs || []).find(function(p) { return p.id === pid; });
+      if (!person) return;
+      // Ensure entry exists (handles subs who joined mid-season)
+      if (!playerTotals[pid]) {
+        playerTotals[pid] = { id: pid, name: playerName(person), handicap: effectiveHandicap(person), total: 0, rounds: 0, best: null, isSub: !!(DATA.subs||[]).find(function(s){return s.id===pid;}) };
+      }
       var roundPts = 0;
       var played = false;
+      var hcp = effectiveHandicap(person);
       for (var h = 0; h < holes; h++) {
         var gross = pScores[h];
         if (gross == null) continue;
         played = true;
         var rank = hcpRanks[h] || (h + 1);
-        var strokes = playerStrokesOnHole(p.handicap || 0, rank, holes);
+        var strokes = playerStrokesOnHole(hcp, rank, holes);
         var net = gross - strokes;
-        var par = pars[h] || 4;
+        var par = roundPars[h] || 4;
         roundPts += stablefordPts(net - par);
       }
       if (played) {
-        playerTotals[p.id].total += roundPts;
-        playerTotals[p.id].rounds++;
-        if (playerTotals[p.id].best === null || roundPts > playerTotals[p.id].best) {
-          playerTotals[p.id].best = roundPts;
+        playerTotals[pid].total += roundPts;
+        playerTotals[pid].rounds++;
+        if (playerTotals[pid].best === null || roundPts > playerTotals[pid].best) {
+          playerTotals[pid].best = roundPts;
         }
       }
     });
   });
 
-  var sorted = Object.values(playerTotals).sort(function(a,b){ return b.total - a.total; });
+  // Only show people who have played at least one round
+  var sorted = Object.values(playerTotals).filter(function(s){ return s.rounds > 0; }).sort(function(a,b){ return b.total - a.total; });
   var myId = DATA.currentUserId;
 
   var rows = sorted.map(function(s, i) {
@@ -3512,9 +3534,10 @@ function buildStablefordLeaderboard(targetElId) {
     var rank = i === 0 ? '🏆' : (i + 1).toString();
     var avg = s.rounds > 0 ? (s.total / s.rounds).toFixed(1) : '—';
     var best = s.best !== null ? s.best : '—';
+    var subBadge = s.isSub ? '<span style="background:#FEF9EE;color:#C9A84C;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px">SUB</span>' : '';
     return '<tr' + (isMe ? ' style="background:#F0FFF4"' : '') + '>' +
       '<td><div style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:' + (i===0?'14':'13') + 'px;font-weight:600;color:' + (i===0?'#C9A84C':'#9CA3AF') + '">' + rank + '</div></td>' +
-      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">' + s.name + (isMe ? '<span class="you-badge">You</span>' : '') + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + s.handicap + ' · ' + s.rounds + ' round' + (s.rounds!==1?'s':'') + '</div></td>' +
+      '<td><div style="font-size:12px;font-weight:700;color:#1A1A1A">' + s.name + subBadge + (isMe ? '<span class="you-badge">You</span>' : '') + '</div><div style="font-size:10px;color:#9CA3AF">Hcp ' + s.handicap + ' · ' + s.rounds + ' round' + (s.rounds!==1?'s':'') + '</div></td>' +
       '<td class="td-pts">' + s.total + '</td>' +
       '<td style="color:#6B7280;font-weight:600">' + avg + '</td>' +
       '<td style="color:#16A34A;font-weight:600">' + best + '</td>' +
