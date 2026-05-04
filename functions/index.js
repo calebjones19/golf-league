@@ -48,9 +48,9 @@ exports.sendChatNotification = onDocumentWritten('leagues/main', async (event) =
   const payload = JSON.stringify({
     title,
     body,
-    tag:   'league-chat',
-    badge: newMsgs.length,
-    data:  { url: 'https://calebjones19.github.io/golf-league/' }
+    tag:        'league-chat',
+    badgeCount: newMsgs.length,
+    data:       { url: 'https://calebjones19.github.io/golf-league/' }
   });
 
   // Fetch all stored push subscriptions
