@@ -505,13 +505,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
       <!-- Formatting toolbar (toggled by Aa button) -->
       <div class="fmt-toolbar" id="fmt-toolbar" style="display:none">
-        <button class="fmt-btn" onclick="fmtWrap('**','**')" title="Bold"><b>B</b></button>
-        <button class="fmt-btn" onclick="fmtWrap('_','_')" title="Italic"><i>I</i></button>
-        <button class="fmt-btn" onclick="fmtWrap('~','~')" title="Underline"><u>U</u></button>
-        <button class="fmt-btn" onclick="fmtLine('# ')" style="font-size:11px;letter-spacing:-0.5px" title="Title">H1</button>
-        <button class="fmt-btn" onclick="fmtLine('## ')" style="font-size:10px;letter-spacing:-0.5px" title="Subtitle">H2</button>
-        <button class="fmt-btn" onclick="fmtLine('- ')" style="font-size:16px" title="Bullet">•</button>
-        <button class="fmt-btn" onclick="fmtLine('1. ')" style="font-size:11px" title="Numbered">1.</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtWrap('**','**')" title="Bold"><b>B</b></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtWrap('_','_')" title="Italic"><i>I</i></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtWrap('~','~')" title="Underline"><u>U</u></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtLine('# ')" style="font-size:11px;letter-spacing:-0.5px" title="Title">H1</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtLine('## ')" style="font-size:10px;letter-spacing:-0.5px" title="Subtitle">H2</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtLine('- ')" style="font-size:16px" title="Bullet">•</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="fmtLine('1. ')" style="font-size:11px" title="Numbered">1.</button>
       </div>
       <!-- Image/file preview before send -->
       <div id="attach-preview-bar" style="display:none" class="img-preview-bar"></div>
@@ -7979,10 +7979,13 @@ function renderMarkdown(raw) {
     // Close lists if this line doesn't continue them
     if (inUL && !isBullet)  { out += '</ul>'; inUL = false; }
     if (inOL && !olMatch)   { out += '</ol>'; inOL = false; }
-    if (line.startsWith('# ')) {
-      out += '<div class="md-h1">' + inlineFmt(line.slice(2)) + '</div>';
-    } else if (line.startsWith('## ')) {
-      out += '<div class="md-h2">' + inlineFmt(line.slice(3)) + '</div>';
+    // Check ## before # — use regex so a missing trailing space still works
+    var h2m = line.match(/^## ?(.*)/);
+    var h1m = !h2m && line.match(/^# ?(.*)/);
+    if (h2m) {
+      out += '<div class="md-h2">' + inlineFmt(h2m[1]) + '</div>';
+    } else if (h1m) {
+      out += '<div class="md-h1">' + inlineFmt(h1m[1]) + '</div>';
     } else if (isBullet) {
       if (!inUL) { out += '<ul class="md-list">'; inUL = true; }
       out += '<li>' + inlineFmt(line.slice(2)) + '</li>';
