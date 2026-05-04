@@ -2187,7 +2187,11 @@ function buildScoring() {
   scoringPars    = scoringNine === 'front'
     ? ((DATA.league && DATA.league.parFront) || Array(holes).fill(4))
     : ((DATA.league && DATA.league.par)      || Array(holes).fill(4));
-  scoringHoleHcp = (DATA.league && DATA.league.holeHcp) || Array(holes).fill(1).map(function(_,i){return i+1;});
+  var _rawHcp0 = (scoringNine === 'front'
+    ? (DATA.league && DATA.league.holeHcpFront)
+    : (DATA.league && DATA.league.holeHcp)) || Array(holes).fill(1).map(function(_,i){return i+1;});
+  var _sortedHcp0 = _rawHcp0.slice().sort(function(a,b){return a-b;});
+  scoringHoleHcp = _rawHcp0.map(function(v){return _sortedHcp0.indexOf(v)+1;});
 
   // ── Week selector ────────────────────────────────────────────────────────
   var totalWeeks = (DATA.league && DATA.league.weeks) || (DATA.schedule || []).length || 16;
@@ -5952,8 +5956,15 @@ function setScoringSectionForWeek(week) {
     ? (DATA.league && DATA.league.parFront)
     : (DATA.league && DATA.league.par);
   scoringPars    = (parArr && parArr.length > 0) ? parArr : Array(holes).fill(4);
-  var hcpArr = DATA.league && DATA.league.holeHcp;
-  scoringHoleHcp = (hcpArr && hcpArr.length > 0) ? hcpArr : Array(holes).fill(1).map(function(_, i) { return i + 1; });
+  var hcpArr = nine === 'front'
+    ? (DATA.league && DATA.league.holeHcpFront)
+    : (DATA.league && DATA.league.holeHcp);
+  var rawHcp = (hcpArr && hcpArr.length > 0) ? hcpArr : Array(holes).fill(1).map(function(_, i) { return i + 1; });
+  // Normalize to 1-N positional ranks so playerStrokesOnHole() works correctly
+  // regardless of whether the stored values are already 1-9 or 18-hole course
+  // ratings like 2,4,6,8,10,12,14,16,18 (back 9) or 1,3,5,…,17 (front 9).
+  var sortedHcp = rawHcp.slice().sort(function(a, b) { return a - b; });
+  scoringHoleHcp = rawHcp.map(function(v) { return sortedHcp.indexOf(v) + 1; });
 }
 
 function renderWeeklyScores() {
