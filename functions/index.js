@@ -11,12 +11,10 @@ initializeApp();
 const VAPID_PUBLIC  = 'BG7H_PDjyGiY1nEAoGj5K2OZ46ZwGQeHsjtkVXElkYm_zDm8CZ84FpJIEot6lEgWoLgOlyYNswEiFtT1ZcTTg9E';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
 
+const APP_URL = 'https://calebjones19.github.io/golf-league/';
+
 if (VAPID_PRIVATE) {
-  webpush.setVapidDetails(
-    'mailto:caleb.jones@planningcenter.com',
-    VAPID_PUBLIC,
-    VAPID_PRIVATE
-  );
+  webpush.setVapidDetails('mailto:caleb.jones@planningcenter.com', VAPID_PUBLIC, VAPID_PRIVATE);
 }
 
 exports.sendChatNotification = onDocumentWritten('leagues/main', async (event) => {
@@ -28,53 +26,146 @@ exports.sendChatNotification = onDocumentWritten('leagues/main', async (event) =
   const before = event.data.before.exists ? event.data.before.data() : {};
   const after  = event.data.after.exists  ? event.data.after.data()  : {};
 
-  const oldMsgs = (before.messages || []).filter(function(m){ return !m.deleted; });
-  const newMsgs = (after.messages  || []).filter(function(m){ return !m.deleted; });
+  // notifications = [{ payload: string, excludeUserId: string }]
+  const notifications = [];
 
-  // Find genuinely new messages (not edits or deletions)
-  const oldIds = new Set(oldMsgs.map(function(m){ return m.id; }));
-  const added  = newMsgs.filter(function(m){ return !oldIds.has(m.id); });
+  // ── 1. New chat messages ──────────────────────────────────────────────────
+  const oldMsgs    = (before.messages || []).filter(m => !m.deleted);
+  const newMsgs    = (after.messages  || []).filter(m => !m.deleted);
+  const oldMsgIds  = new Set(oldMsgs.map(m => m.id));
+  const addedMsgs  = newMsgs.filter(m => !oldMsgIds.has(m.id));
 
-  if (added.length === 0) return null;
+  for (const msg of addedMsgs) {
+    const title = msg.senderName || 'League Chat';
+    const body  = msg.attachment
+      ? ((msg.text || '') + (msg.attachment.type === 'gif' ? ' 🎞️' : ' 📎'))
+      : (msg.text || '');
+    notifications.push({
+      payload: JSON.stringify({ title, body, tag: 'league-chat', badgeCount: newMsgs.length, data: { url: APP_URL } }),
+      excludeUserId: msg.senderId || ''
+    });
+  }
 
-  const latest   = added[added.length - 1];
-  const senderId = latest.senderId || '';
+  // ── 2. New announcements ──────────────────────────────────────────────────
+  const oldAnns   = before.announcements || [];
+  const newAnns   = after.announcements  || [];
+  const oldAnnIds = new Set(oldAnns.map(a => a.id));
+  const addedAnns = newAnns.filter(a => !oldAnnIds.has(a.id));
 
-  const title = latest.senderName || 'League Chat';
-  const body  = latest.attachment
-    ? ((latest.text || '') + (latest.attachment.type === 'gif' ? ' 🎞️' : ' 📎'))
-    : (latest.text || '');
+  for (const ann of addedAnns) {
+    notifications.push({
+      payload: JSON.stringify({
+        title: '📢 ' + ann.title,
+        body:  ann.body || '',
+        tag:   'announcement-' + ann.id,
+        data:  { url: APP_URL }
+      }),
+      excludeUserId: '' // everyone gets announcements
+    });
+  }
 
-  const payload = JSON.stringify({
-    title,
-    body,
-    tag:        'league-chat',
-    badgeCount: newMsgs.length,
-    data:       { url: 'https://calebjones19.github.io/golf-league/' }
-  });
+  // ── 3. Round submissions ──────────────────────────────────────────────────
+  const oldRounds   = before.rounds || [];
+  const newRounds   = after.rounds  || [];
+  const oldRoundIds = new Set(oldRounds.map(r => r.id));
+  const addedRounds = newRounds.filter(r => !oldRoundIds.has(r.id));
+  const teams       = after.teams || [];
 
-  // Fetch all stored push subscriptions
+  for (const round of addedRounds) {
+    const tA = teams.find(t => t.id === round.teamAId);
+    const tB = teams.find(t => t.id === round.teamBId);
+    if (!tA || !tB) continue;
+    const pA = round.pointsA, pB = round.pointsB;
+    const winner = pA > pB ? tA.name : pB > pA ? tB.name : null;
+    const body = tA.name + '  ' + pA + ' – ' + pB + '  ' + tB.name
+               + (winner ? '\n' + winner + ' wins! 🏆' : '\nAll square — tied!');
+    notifications.push({
+      payload: JSON.stringify({
+        title: 'Week ' + round.week + ' Results 🏌️',
+        body,
+        tag:  'round-' + round.id,
+        data: { url: APP_URL }
+      }),
+      excludeUserId: '' // everyone wants to see the result
+    });
+  }
+
+  // ── 4. Birdie / Eagle / Albatross ─────────────────────────────────────────
+  const beforeLive = before.liveMatch;
+  const afterLive  = after.liveMatch;
+
+  if (afterLive && afterLive.scores) {
+    // Resolve pars for this week's nine
+    const schedule  = after.schedule || [];
+    const league    = after.league   || {};
+    const schedWeek = schedule.find(s => s.week === afterLive.week);
+    const nine      = (schedWeek && schedWeek.nine) || 'back';
+    const holes     = league.holes || 9;
+    const pars      = nine === 'front'
+      ? (league.parFront && league.parFront.length > 0 ? league.parFront : Array(holes).fill(4))
+      : (league.par      && league.par.length      > 0 ? league.par      : Array(holes).fill(4));
+    const holeOffset = nine === 'back' ? 9 : 0;
+
+    const players   = after.players || [];
+    const playerMap = {};
+    players.forEach(p => { playerMap[p.id] = p.name; });
+
+    const beforeScores = (beforeLive && beforeLive.scores) || {};
+
+    for (const [pid, holeScores] of Object.entries(afterLive.scores)) {
+      const prevScores = beforeScores[pid] || [];
+      for (let h = 0; h < holeScores.length; h++) {
+        const newScore = holeScores[h];
+        const oldScore = prevScores[h];
+        if (newScore == null) continue;          // hole not scored yet
+        if (oldScore != null) continue;          // score was already set — not new
+        const par  = pars[h];
+        if (!par) continue;
+        const diff = newScore - par;
+        if (diff > -1) continue;                 // par or worse, no celebration needed
+        const playerName = playerMap[pid] || 'Someone';
+        const holeNum    = h + 1 + holeOffset;
+        let emoji, label;
+        if      (diff <= -3) { emoji = '🦅'; label = 'Albatross'; }
+        else if (diff === -2) { emoji = '🦅'; label = 'Eagle'; }
+        else                  { emoji = '🐦'; label = 'Birdie'; }
+        notifications.push({
+          payload: JSON.stringify({
+            title: emoji + ' ' + label + '!',
+            body:  playerName + ' — Hole ' + holeNum,
+            tag:   'score-' + pid + '-h' + holeNum,
+            data:  { url: APP_URL }
+          }),
+          excludeUserId: '' // everyone celebrates birdies
+        });
+      }
+    }
+  }
+
+  if (notifications.length === 0) return null;
+
+  // ── Fetch subscriptions once, fan out all notifications ───────────────────
   const db       = getFirestore();
   const subsSnap = await db.collection('leagues/main/pushSubscriptions').get();
   if (subsSnap.empty) return null;
 
-  const sends = [];
-  subsSnap.forEach(function(doc) {
-    const { subscription, userId } = doc.data();
-    if (userId === senderId) return;              // don't notify the sender
-    if (!subscription || !subscription.endpoint) return;
+  const subs = [];
+  subsSnap.forEach(doc => subs.push({ doc, ...doc.data() }));
 
-    sends.push(
-      webpush.sendNotification(subscription, payload)
-        .catch(function(err) {
-          // Expired or invalid subscription — clean it up
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            return doc.ref.delete();
-          }
-          console.error('Push send failed:', err.statusCode, err.message);
-        })
-    );
-  });
+  const sends = [];
+  for (const notif of notifications) {
+    for (const sub of subs) {
+      if (notif.excludeUserId && sub.userId === notif.excludeUserId) continue;
+      if (!sub.subscription || !sub.subscription.endpoint) continue;
+      sends.push(
+        webpush.sendNotification(sub.subscription, notif.payload)
+          .catch(err => {
+            if (err.statusCode === 410 || err.statusCode === 404) return sub.doc.ref.delete();
+            console.error('Push failed:', err.statusCode, err.message);
+          })
+      );
+    }
+  }
 
   await Promise.all(sends);
   return null;

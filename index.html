@@ -2638,8 +2638,7 @@ function submitRound() {
   // Snapshot handicaps after recalc so we can track them over time
   round.handicapsAfter = {};
   DATA.players.forEach(function(p){ round.handicapsAfter[p.id] = p.leagueHandicap || 0; });
-  saveData();
-  sendRoundSummaryPush(round);
+  saveData(); // triggers Cloud Function → push to all devices
   activeMatch = null; currentHole = 0;
   showToast('Round submitted! 🏌️');
   showSection('leaderboard');
