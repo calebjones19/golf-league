@@ -2660,12 +2660,19 @@ function recalcHandicaps() {
       return total - par;
     });
 
-    // Sort ascending, take best half (ceiling)
+    // Sort ascending (lowest diff first)
+    var n      = diffs.length;
     var sorted = diffs.slice().sort(function(a,b){ return a-b; });
-    var numUse = Math.max(1, Math.ceil(sorted.length / 2));
+    // Discard table: drop this many highest variations
+    // 1→0, 2→1, 3→1, 4→2, 5→2, 6→2
+    var discardHigh = n <= 1 ? 0 : n <= 3 ? 1 : 2;
+    var numUse = Math.max(1, n - discardHigh);
     var best   = sorted.slice(0, numUse);
     var avg    = best.reduce(function(a,v){ return a+v; }, 0) / best.length;
-    p.leagueHandicap = Math.min(maxHcp, Math.max(0, Math.round(avg * pct)));
+    // Truncate at hundredths, then round to whole number
+    var raw   = avg * pct;
+    var trunc = Math.floor(raw * 100) / 100;
+    p.leagueHandicap = Math.min(maxHcp, Math.max(0, Math.round(trunc)));
   });
   saveData();
 }
@@ -4212,7 +4219,7 @@ function renderPlayersList() {
         const claimBadge = claimed
           ? '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Linked</span>'
           : '';
-        return '<div class="player-row">' +
+        return '<div class="player-row" style="cursor:pointer" onclick="openSubPage(\'' + s.id + '\')">' +
           avatarHtml(playerInitials(s), '#FEF9EE', '#C9A84C', 32) +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(s) +
@@ -4221,7 +4228,7 @@ function renderPlayersList() {
             '</div>' +
             '<div style="font-size:11px;color:#6B7280">Hcp ' + (s.handicap || 0) + (s.googleEmail ? ' · ' + s.googleEmail : '') + '</div>' +
           '</div>' +
-          (on ? '<button class="btn-sm btn-delete" onclick="removeSub(\'' + s.id + '\')">Remove</button>' : '') +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>';
       }).join('');
 
@@ -4618,6 +4625,377 @@ function addSub() {
   showToast(`${firstName} ${lastName} added to subs ✓`);
 }
 
+// ── Sub page ──────────────────────────────────────────────────────────────────
+
+function openSubPage(id) {
+  const s = (DATA.subs || []).find(sub => sub.id === id);
+  if (!s) return;
+  const existing = document.getElementById('sub-page');
+  if (existing) existing.remove();
+  const page = document.createElement('div');
+  page.id = 'sub-page';
+  page.style.cssText = 'position:fixed;inset:0;z-index:960;background:#F9F6F0;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding-bottom:env(safe-area-inset-bottom);transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)';
+  page.innerHTML = _buildSubPageHTML(s, id, false);
+  document.body.appendChild(page);
+  requestAnimationFrame(() => requestAnimationFrame(() => { page.style.transform = 'translateX(0)'; }));
+}
+
+function _buildSubPageHTML(s, id, editing) {
+  const ro = !editing;
+  const infoCard = ro
+    ? '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SUB INFO</div>' +
+        _ppRow('Name', playerName(s)) +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6">' +
+          '<span style="font-size:13px;color:#6B7280;font-weight:500">Handicap</span>' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="font-size:13px;font-weight:600;color:#1A1A1A">' + (s.handicap || 0) + '</span>' +
+          '</div>' +
+        '</div>' +
+        _ppRow('Email', s.googleEmail || '—') +
+      '</div>'
+    : '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">SUB INFO</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+          '<div style="flex:1"><label style="font-size:11px;font-weight:600;color:#6B7280">First name</label>' +
+            '<input class="form-input" id="sp-first" value="' + (s.firstName||'') + '" style="margin-top:4px"></div>' +
+          '<div style="flex:1"><label style="font-size:11px;font-weight:600;color:#6B7280">Last name</label>' +
+            '<input class="form-input" id="sp-last" value="' + (s.lastName||'') + '" style="margin-top:4px"></div>' +
+        '</div>' +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
+        '<input class="compact-num" id="sp-hcp" type="number" min="0" max="54" value="' + (s.handicap||0) + '" style="margin-top:4px;margin-bottom:12px;width:80px;display:block">' +
+        '<label style="font-size:11px;font-weight:600;color:#6B7280">Google email</label>' +
+        '<input class="form-input" id="sp-email" type="email" placeholder="their@gmail.com" value="' + (s.googleEmail||'') + '" style="margin-top:4px">' +
+      '</div>';
+
+  const dangerZone = !ro
+    ? '<div style="margin:12px 16px 32px">' +
+        '<button onclick="confirmRemoveSubPage(\'' + id + '\')" style="width:100%;background:none;border:1.5px solid #FCA5A5;border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:#DC2626;cursor:pointer;font-family:\'DM Sans\',sans-serif">Remove Sub</button>' +
+      '</div>'
+    : '<div style="height:32px"></div>';
+
+  return (
+    '<div style="background:#92680a;padding:calc(env(safe-area-inset-top) + 14px) 16px 16px;display:flex;align-items:center;gap:12px">' +
+      '<button onclick="closeSubPage()" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
+      '</button>' +
+      '<div style="font-size:17px;font-weight:700;color:#fff;flex:1">' + playerName(s) + '</div>' +
+      (ro
+        ? '<button onclick="enterSubEditMode(\'' + id + '\')" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:\'DM Sans\',sans-serif">Edit</button>'
+        : '<button onclick="saveSubPage(\'' + id + '\')" style="background:#C9A84C;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;color:#1B4332;cursor:pointer;font-family:\'DM Sans\',sans-serif">Save</button>'
+      ) +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;align-items:center;padding:28px 20px 20px">' +
+      '<div style="width:72px;height:72px;border-radius:50%;background:#92680a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:\'Space Grotesk\',sans-serif">' +
+        playerInitials(s) +
+      '</div>' +
+      '<div style="margin-top:8px"><span style="background:#FEF9EE;color:#C9A84C;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px">SUB</span></div>' +
+    '</div>' +
+    infoCard + dangerZone
+  );
+}
+
+function enterSubEditMode(id) {
+  const s = (DATA.subs || []).find(sub => sub.id === id);
+  if (!s) return;
+  const page = document.getElementById('sub-page');
+  if (!page) return;
+  page.innerHTML = _buildSubPageHTML(s, id, true);
+}
+
+function saveSubPage(id) {
+  const s = (DATA.subs || []).find(sub => sub.id === id);
+  if (!s) return;
+  const first = document.getElementById('sp-first').value.trim();
+  const last  = document.getElementById('sp-last').value.trim();
+  const hcp   = parseInt(document.getElementById('sp-hcp').value) || 0;
+  const email = document.getElementById('sp-email').value.trim().toLowerCase();
+  if (!first) { showToast('First name required'); return; }
+  if (!last)  { showToast('Last name required'); return; }
+  s.firstName   = first;
+  s.lastName    = last;
+  s.handicap    = hcp;
+  s.googleEmail = email || null;
+  saveData();
+  closeSubPage();
+  renderPlayersList();
+  showToast(first + ' ' + last + ' saved ✓');
+}
+
+function closeSubPage() {
+  const p = document.getElementById('sub-page');
+  if (!p) return;
+  p.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+  p.style.transform  = 'translateX(100%)';
+  setTimeout(() => p.remove(), 290);
+}
+
+function confirmRemoveSubPage(id) {
+  const s = (DATA.subs || []).find(sub => sub.id === id);
+  if (!s) return;
+  const existing = document.getElementById('remove-sub-sheet');
+  if (existing) existing.remove();
+  const sheet = document.createElement('div');
+  sheet.id = 'remove-sub-sheet';
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:970;display:flex;flex-direction:column;justify-content:flex-end;touch-action:none';
+  sheet.innerHTML =
+    '<div onclick="document.getElementById(\'remove-sub-sheet\').remove()" style="flex:1;background:rgba(0,0,0,0.5)"></div>' +
+    '<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom))">' +
+      '<div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 20px"></div>' +
+      '<div style="text-align:center;margin-bottom:20px">' +
+        '<div style="width:52px;height:52px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>' +
+        '</div>' +
+        '<div style="font-size:17px;font-weight:700;color:#1A1A1A;margin-bottom:6px">Remove ' + playerName(s) + '?</div>' +
+        '<div style="font-size:14px;color:#6B7280;line-height:1.4">They\'ll be removed from the sub roster. This can\'t be undone.</div>' +
+      '</div>' +
+      '<button onclick="doRemoveSubPage(\'' + id + '\')" style="width:100%;background:#DC2626;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:10px">Remove Sub</button>' +
+      '<button onclick="document.getElementById(\'remove-sub-sheet\').remove()" style="width:100%;background:#F3F4F6;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;color:#374151;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(sheet);
+}
+
+function doRemoveSubPage(id) {
+  const s = (DATA.subs || []).find(sub => sub.id === id);
+  const name = s ? playerName(s) : '';
+  DATA.subs = (DATA.subs || []).filter(sub => sub.id !== id);
+  saveData();
+  const sheet = document.getElementById('remove-sub-sheet');
+  if (sheet) sheet.remove();
+  closeSubPage();
+  renderPlayersList();
+  showToast(name + ' removed');
+}
+
+// ── _ppHcpRow: handicap row with i button ────────────────────────────────────
+
+function _ppHcpRow(p, id, isSub) {
+  const cfg = DATA.scoringConfig || {};
+  const effectiveHcp = effectiveHandicap(p);
+  const autoLabel = (!isSub && cfg.autoHandicap && p.leagueHandicap != null) ? ' (auto)' : '';
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F3F4F6">' +
+    '<span style="font-size:13px;color:#6B7280;font-weight:500">Handicap</span>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+      '<span style="font-size:13px;font-weight:600;color:#1A1A1A">' + effectiveHcp + '<span style="font-size:11px;color:#9CA3AF">' + autoLabel + '</span></span>' +
+      '<button onclick="openHcpInfoPage(\'' + id + '\',' + isSub + ')" style="background:none;border:1.5px solid #9CA3AF;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#6B7280;cursor:pointer;flex-shrink:0;font-family:\'DM Sans\',sans-serif;padding:0;line-height:1">i</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Handicap info page ────────────────────────────────────────────────────────
+
+function openHcpInfoPage(id, isSub) {
+  const existing = document.getElementById('hcp-info-page');
+  if (existing) existing.remove();
+
+  const cfg     = DATA.scoringConfig || {};
+  const numRounds = cfg.hcpRounds || 6;
+  const pct     = (cfg.hcpPercent || 90) / 100;
+  const maxHcp  = cfg.hcpMax || 36;
+  const holes   = DATA.league ? (DATA.league.holes || 9) : 9;
+
+  // Find the player/sub
+  const person = isSub
+    ? (DATA.subs || []).find(s => s.id === id)
+    : (DATA.players || []).find(p => p.id === id);
+  if (!person) return;
+
+  const name = playerName(person);
+
+  // Build discard reference table HTML
+  const discardRows = [1,2,3,4,5,6].map(function(n) {
+    var dh = n <= 1 ? 0 : n <= 3 ? 1 : 2;
+    var keep = n - dh;
+    var isCurrent = n === numRounds;
+    var bg = isCurrent ? 'background:#F0F7F3' : '';
+    return '<tr style="' + bg + '">' +
+      '<td style="padding:6px 10px;text-align:center;font-weight:' + (isCurrent?'700':'400') + '">' + n + '</td>' +
+      '<td style="padding:6px 10px;text-align:center;font-weight:' + (isCurrent?'700':'400') + '">' + dh + '</td>' +
+      '<td style="padding:6px 10px;text-align:center;font-weight:' + (isCurrent?'700':'400') + '">0</td>' +
+      '<td style="padding:6px 10px;text-align:center;font-weight:' + (isCurrent?'700':'400') + '">' + keep + '</td>' +
+    '</tr>';
+  }).join('');
+
+  let calcSectionHTML = '';
+
+  if (!isSub && cfg.autoHandicap) {
+    // Gather all rounds this player played, sorted by week
+    function parForRound(r) {
+      var nine = r.nine || 'back';
+      var parArr = nine === 'front'
+        ? (DATA.league && DATA.league.parFront && DATA.league.parFront.length > 0 ? DATA.league.parFront : null)
+        : (DATA.league && DATA.league.par && DATA.league.par.length > 0 ? DATA.league.par : null);
+      parArr = parArr || Array(holes).fill(4);
+      return parArr.reduce(function(a,v){ return a+v; }, 0);
+    }
+
+    var allRounds = (DATA.rounds || [])
+      .filter(function(r) {
+        var sc = r.scores && r.scores[id];
+        return sc && sc.some(function(s){ return s != null; });
+      })
+      .slice()
+      .sort(function(a,b){ return (+a.week||0) - (+b.week||0) });
+
+    var totalScores = allRounds.length;
+
+    if (totalScores === 0) {
+      calcSectionHTML = '<div style="color:#6B7280;font-size:13px;padding:12px 0">No rounds recorded yet — handicap defaults to 0.</div>';
+    } else {
+      var recent = allRounds.slice(-numRounds);
+      var diffs  = recent.map(function(r) {
+        var par   = parForRound(r);
+        var sc    = r.scores[id] || [];
+        var total = sc.reduce(function(a,s){ return a+(s||0); }, 0);
+        return { week: r.week, total: total, par: par, variation: total - par };
+      });
+
+      var n          = diffs.length;
+      var discardHigh = n <= 1 ? 0 : n <= 3 ? 1 : 2;
+      var numUse     = Math.max(1, n - discardHigh);
+
+      // Sort by variation ascending for discard determination
+      var sorted = diffs.slice().sort(function(a,b){ return a.variation - b.variation; });
+      var usedVariations = sorted.slice(0, numUse).map(function(d){ return d.variation; });
+      var discardedVariations = sorted.slice(numUse).map(function(d){ return d.variation; });
+
+      // Create a Set of variations that are "used" (take lowest numUse)
+      // Build the round rows table (chronological, mark used/discarded)
+      var usedSet = [];
+      var tmpSorted = diffs.slice().sort(function(a,b){ return a.variation - b.variation; });
+      var usedItems = tmpSorted.slice(0, numUse);
+      var usedIds = usedItems.map(function(d,i){ return i; }); // track by index in sorted
+
+      var roundRows = diffs.map(function(d, idx) {
+        // Mark if this entry is in usedItems (match by variation value — use a greedy approach)
+        var isUsed = usedVariations.indexOf(d.variation) !== -1;
+        if (isUsed) {
+          usedVariations.splice(usedVariations.indexOf(d.variation), 1); // consume one match
+        }
+        var rowStyle = isUsed
+          ? 'background:#F0FFF4'
+          : 'background:#FFF8F8;color:#9CA3AF;text-decoration:line-through';
+        return '<tr style="' + rowStyle + '">' +
+          '<td style="padding:6px 10px;text-align:center">Wk ' + d.week + '</td>' +
+          '<td style="padding:6px 10px;text-align:center">' + d.total + '</td>' +
+          '<td style="padding:6px 10px;text-align:center">' + d.par.toFixed(1) + '</td>' +
+          '<td style="padding:6px 10px;text-align:center;font-weight:600">' + d.variation.toFixed(1) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      // Re-compute used for the math display
+      var usedVarsFinal = diffs.slice().sort(function(a,b){ return a.variation - b.variation; }).slice(0, numUse).map(function(d){ return d.variation; });
+      var sumUsed    = usedVarsFinal.reduce(function(a,v){ return a+v; }, 0);
+      var avg        = sumUsed / numUse;
+      var raw        = avg * pct;
+      var trunc      = Math.floor(raw * 100) / 100;
+      var finalHcp   = Math.min(maxHcp, Math.max(0, Math.round(trunc)));
+
+      var keepLabel  = numUse + ' score' + (numUse !== 1 ? 's' : '');
+      var dropLabel  = discardHigh + ' high score' + (discardHigh !== 1 ? 's' : '');
+
+      calcSectionHTML =
+        '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+          '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:8px">SCORE HISTORY</div>' +
+          '<div style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:12px">' +
+            name + ' has <strong>' + totalScores + '</strong> round' + (totalScores !== 1 ? 's' : '') + ' on record.<br>' +
+            'Only the last <strong>' + numRounds + '</strong> are used for handicapping (' + n + ' available).<br>' +
+            dropLabel + ' dropped → <strong>' + keepLabel + '</strong> used to calculate.' +
+          '</div>' +
+          '<div style="overflow-x:auto">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+              '<thead><tr style="background:#F3F4F6">' +
+                '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Round</th>' +
+                '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Gross</th>' +
+                '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Par</th>' +
+                '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Variation</th>' +
+              '</tr></thead>' +
+              '<tbody>' + roundRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#6B7280;margin-top:8px">🟢 Used &nbsp; 🔴 Discarded (highest)</div>' +
+        '</div>' +
+        '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+          '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">CALCULATION</div>' +
+          '<div style="font-size:13px;color:#374151;line-height:2">' +
+            'Variation = Adjusted Gross − Par<br>' +
+            'Used variations: ' + usedVarsFinal.map(function(v){ return v.toFixed(1); }).join(' + ') + ' = <strong>' + sumUsed.toFixed(1) + '</strong><br>' +
+            'Pre-Handicap = ' + sumUsed.toFixed(1) + ' ÷ ' + numUse + ' = <strong>' + avg.toFixed(4) + '</strong><br>' +
+            name.split(' ')[0] + ' is a regular player, so Handicap % is <strong>' + Math.round(pct*100) + '%</strong><br>' +
+            'Handicap = ' + avg.toFixed(4) + ' × ' + Math.round(pct*100) + '% = <strong>' + raw.toFixed(4) + '</strong><br>' +
+            'Truncated to hundredths: <strong>' + trunc.toFixed(2) + '</strong><br>' +
+            'Rounded to whole number: <strong style="color:#1B4332;font-size:15px">' + finalHcp + '</strong>' +
+          '</div>' +
+        '</div>';
+    }
+  } else if (isSub) {
+    calcSectionHTML =
+      '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:13px;color:#374151;line-height:1.6">' +
+          'Subs have manually assigned handicaps. Edit the sub\'s profile to update their handicap.' +
+        '</div>' +
+      '</div>';
+  } else {
+    calcSectionHTML =
+      '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:13px;color:#374151;line-height:1.6">' +
+          'Auto-handicap is currently disabled. Handicaps are set manually. Enable it in League Settings to turn on automatic calculation.' +
+        '</div>' +
+      '</div>';
+  }
+
+  const page = document.createElement('div');
+  page.id = 'hcp-info-page';
+  page.style.cssText = 'position:fixed;inset:0;z-index:970;background:#F9F6F0;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding-bottom:env(safe-area-inset-bottom);transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)';
+
+  page.innerHTML =
+    '<div style="background:#1B4332;padding:calc(env(safe-area-inset-top) + 14px) 16px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0">' +
+      '<button onclick="closeHcpInfoPage()" style="background:rgba(255,255,255,0.15);border:none;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
+      '</button>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:17px;font-weight:700;color:#fff">' + name + '</div>' +
+        '<div style="font-size:12px;color:#a0bfab;margin-top:1px">Handicap Breakdown</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="padding:16px">' +
+      '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">HANDICAP SETUP</div>' +
+        '<div style="font-size:13px;color:#374151;line-height:1.8">' +
+          'Number of scores handicap is based on: <strong>' + numRounds + '</strong><br>' +
+          'Minimum number of scores needed: <strong>1</strong>' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
+        '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:10px">DISCARD TABLE</div>' +
+        '<div style="overflow-x:auto">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+            '<thead><tr style="background:#F3F4F6">' +
+              '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280"># Scores</th>' +
+              '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Discard High</th>' +
+              '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Discard Low</th>' +
+              '<th style="padding:6px 10px;text-align:center;font-weight:600;color:#6B7280">Scores Used</th>' +
+            '</tr></thead>' +
+            '<tbody>' + discardRows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#6B7280;margin-top:8px">🟢 Current setting</div>' +
+      '</div>' +
+      calcSectionHTML +
+    '</div>';
+
+  document.body.appendChild(page);
+  requestAnimationFrame(() => requestAnimationFrame(() => { page.style.transform = 'translateX(0)'; }));
+}
+
+function closeHcpInfoPage() {
+  const p = document.getElementById('hcp-info-page');
+  if (!p) return;
+  p.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+  p.style.transform  = 'translateX(100%)';
+  setTimeout(() => p.remove(), 290);
+}
+
 function removeSub(id) {
   DATA.subs = (DATA.subs || []).filter(s => s.id !== id);
   saveData();
@@ -4810,7 +5188,7 @@ function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, 
       '<div style="margin:0 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">' +
         '<div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">PLAYER INFO</div>' +
         _ppRow('Name', playerName(p)) +
-        _ppRow('Handicap', p.handicap != null ? p.handicap : '—') +
+        _ppHcpRow(p, id, false) +
         _ppRow('Email', p.googleEmail || '—') +
         _ppRow('Phone', p.phone || '—') +
       '</div>'
@@ -4823,7 +5201,10 @@ function _buildPlayerPageHTML(p, id, team, teammate, teammateOptions, pIsAdmin, 
           '<div style="flex:1"><label style="font-size:11px;font-weight:600;color:#6B7280">Last name</label>' +
             '<input class="form-input" id="pp-last" value="' + (p.lastName||'') + '" style="margin-top:4px"></div>' +
         '</div>' +
-        '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+          '<label style="font-size:11px;font-weight:600;color:#6B7280">Handicap</label>' +
+          '<button onclick="openHcpInfoPage(\'' + id + '\',false)" style="background:none;border:1.5px solid #9CA3AF;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#6B7280;cursor:pointer;flex-shrink:0;font-family:\'DM Sans\',sans-serif;padding:0;line-height:1">i</button>' +
+        '</div>' +
         '<input class="compact-num" id="pp-hcp" type="number" min="0" max="54" value="' + (p.handicap||0) + '" style="margin-top:4px;margin-bottom:12px;width:80px;display:block">' +
         '<label style="font-size:11px;font-weight:600;color:#6B7280">Google email</label>' +
         '<input class="form-input" id="pp-email" type="email" placeholder="their@gmail.com" value="' + (p.googleEmail||'') + '" style="margin-top:4px;margin-bottom:12px">' +
