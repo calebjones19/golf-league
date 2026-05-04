@@ -4159,7 +4159,7 @@ function renderPlayersList() {
           avatarHtml(playerInitials(p), '#E5E7EB', '#6B7280', 32) +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1A1A1A">' + playerName(p) + claimBadge + adminBadge + '</div>' +
-            '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(p) + (p.leagueHandicap != null && (DATA.scoringConfig||{}).autoHandicap ? ' <span style="color:#C9A84C">(auto)</span>' : '') + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
+            '<div style="font-size:11px;color:#6B7280">Hcp ' + effectiveHandicap(p) + (team ? ' · ' + team.name : ' · Unassigned') + '</div>' +
           '</div>' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>';
