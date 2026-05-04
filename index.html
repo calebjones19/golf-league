@@ -317,7 +317,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .chat-reply-name{font-weight:700;color:#1B4332;margin-bottom:1px}
 .chat-reply-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-input-row{display:flex;align-items:flex-end;gap:8px}
-.chat-input{flex:1;border:1.5px solid var(--border);border-radius:22px;padding:10px 16px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:40px;max-height:120px;line-height:1.4;color:var(--text1);background:var(--surface2);transition:border-color 0.15s;touch-action:pan-y;overflow-y:auto}
+.chat-input{flex:1;border:1.5px solid var(--border);border-radius:22px;padding:10px 16px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;min-height:40px;max-height:120px;line-height:1.4;color:var(--text1);background:var(--surface2);transition:border-color 0.15s;overflow-y:auto;word-break:break-word;-webkit-user-select:text;user-select:text;cursor:text}
+.chat-input:empty:before{content:attr(data-placeholder);color:var(--text4);pointer-events:none}
+.chat-input b,.chat-input strong{font-weight:700}
+.chat-input i,.chat-input em{font-style:italic}
+.chat-input h1{font-size:17px;font-weight:800;margin:2px 0;line-height:1.3}
+.chat-input h2{font-size:15px;font-weight:700;margin:2px 0;line-height:1.3}
+.chat-input ol,.chat-input ul{padding-left:18px;margin:2px 0}
 .chat-input:focus{border-color:#1B4332;background:var(--surface)}
 .chat-send-btn{width:36px;height:36px;border-radius:50%;background:#1B4332;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s}
 .chat-send-btn:disabled{opacity:0.4;cursor:default}
@@ -390,8 +396,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
 .fmt-toolbar::-webkit-scrollbar{display:none}
 .fmt-btn{border:none;background:var(--surface2);color:var(--text2);border-radius:8px;width:34px;height:30px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Sans',sans-serif;transition:background 0.12s}
 .fmt-btn:active,.fmt-btn.fmt-active{background:#1B4332;color:#fff}
-/* ── Edit-mode bar ──────────────────────────────────────────────── */
-.chat-edit-bar{align-items:center;gap:8px;background:#FEF9EE;border-radius:8px;padding:6px 10px;font-size:12px;color:#92680a;border:1px solid rgba(201,168,76,0.35)}
 /* ── Markdown in bubbles ────────────────────────────────────────── */
 .msg-bubble .md-h1{font-size:16px;font-weight:800;line-height:1.3;margin:0 0 1px}
 .msg-bubble .md-h2{font-size:14px;font-weight:700;line-height:1.3;margin:0 0 1px}
@@ -490,12 +494,6 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
     </div>
 
     <div class="chat-input-bar" id="chat-input-bar">
-      <!-- Edit mode indicator -->
-      <div class="chat-edit-bar" id="chat-edit-bar" style="display:none">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        <span style="flex:1;font-weight:600">Editing message</span>
-        <button style="border:none;background:none;color:#92680a;cursor:pointer;padding:2px;font-size:16px;line-height:1" onclick="cancelEditMessage()">✕</button>
-      </div>
       <div class="chat-reply-bar" id="chat-reply-bar" style="display:none">
         <div class="chat-reply-bar-inner">
           <div class="chat-reply-name" id="chat-reply-name"></div>
@@ -505,13 +503,13 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
       </div>
       <!-- Formatting toolbar (toggled by Aa button) -->
       <div class="fmt-toolbar" id="fmt-toolbar" style="display:none">
-        <button class="fmt-btn" onclick="fmtWrap('**','**')" title="Bold"><b>B</b></button>
-        <button class="fmt-btn" onclick="fmtWrap('_','_')" title="Italic"><i>I</i></button>
-        <button class="fmt-btn" onclick="fmtWrap('~','~')" title="Underline"><u>U</u></button>
-        <button class="fmt-btn" onclick="fmtLine('# ')" style="font-size:11px;letter-spacing:-0.5px" title="Title">H1</button>
-        <button class="fmt-btn" onclick="fmtLine('## ')" style="font-size:10px;letter-spacing:-0.5px" title="Subtitle">H2</button>
-        <button class="fmt-btn" onclick="fmtLine('- ')" style="font-size:16px" title="Bullet">•</button>
-        <button class="fmt-btn" onclick="fmtLine('1. ')" style="font-size:11px" title="Numbered">1.</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('bold')" title="Bold"><b>B</b></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('italic')" title="Italic"><i>I</i></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('underline')" title="Underline"><u>U</u></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('formatBlock','h1')" style="font-size:11px;letter-spacing:-0.5px" title="Title">H1</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('formatBlock','h2')" style="font-size:10px;letter-spacing:-0.5px" title="Subtitle">H2</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('insertUnorderedList')" style="font-size:16px" title="Bullet">•</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('insertOrderedList')" style="font-size:11px" title="Numbered">1.</button>
       </div>
       <!-- Image/file preview before send -->
       <div id="attach-preview-bar" style="display:none" class="img-preview-bar"></div>
@@ -520,7 +518,7 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         <button id="fmt-toggle-btn" onclick="toggleFmtToolbar()" title="Formatting" style="width:36px;height:36px;border-radius:50%;background:#F3F4F6;border:none;color:#374151;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'DM Sans',sans-serif">Aa</button>
-        <textarea class="chat-input" id="chat-input" placeholder="Message…" rows="1" autocorrect="on" autocomplete="on" autocapitalize="sentences" spellcheck="true" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)" onfocus="window.scrollTo(0,0)"></textarea>
+        <div class="chat-input" id="chat-input" contenteditable="true" data-placeholder="Message…" autocorrect="on" autocapitalize="sentences" spellcheck="true" oninput="chatInputChanged(this)" onkeydown="chatInputKeyDown(event)" onfocus="chatInputFocused()"></div>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
@@ -560,6 +558,27 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Full-page edit overlay -->
+  <div id="edit-overlay" style="display:none;position:fixed;inset:0;z-index:600;background:var(--bg);flex-direction:column;padding-top:max(0px,env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="cancelEditMessage()" style="border:none;background:none;color:#6B7280;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;padding:6px 0">Cancel</button>
+      <div style="flex:1;text-align:center;font-size:15px;font-weight:700;color:var(--text1)">Edit Message</div>
+      <button onclick="saveMessageEdit()" style="border:none;background:#1B4332;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;padding:6px 14px;border-radius:20px">Save</button>
+    </div>
+    <div class="fmt-toolbar" id="edit-fmt-toolbar" style="padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('bold')" title="Bold"><b>B</b></button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('italic')" title="Italic"><i>I</i></button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('underline')" title="Underline"><u>U</u></button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('formatBlock','h1')" style="font-size:11px;letter-spacing:-0.5px" title="Title">H1</button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('formatBlock','h2')" style="font-size:10px;letter-spacing:-0.5px" title="Subtitle">H2</button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('insertUnorderedList')" style="font-size:16px" title="Bullet">•</button>
+      <button class="fmt-btn" onmousedown="event.preventDefault()" onclick="execFmt('insertOrderedList')" style="font-size:11px" title="Numbered">1.</button>
+    </div>
+    <div id="edit-input" contenteditable="true"
+      style="flex:1;padding:16px;overflow-y:auto;font-size:15px;line-height:1.5;color:var(--text1);outline:none;word-break:break-word;-webkit-user-select:text;user-select:text"
+      onkeydown="editInputKeyDown(event)"></div>
   </div>
 
   <!-- Emoji reaction bottom sheet -->
@@ -7644,7 +7663,7 @@ function renderThreadMessages() {
       bubbleInner = '<div class="msg-bubble deleted" ontouchstart="msgTouchStart(event,\'' + msg.id + '\',' + isMine + ')" ontouchend="msgTouchEnd()" ontouchmove="msgTouchEnd()" oncontextmenu="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ');return false">' + (isMine ? 'You unsent a message' : 'Message unsent') + '</div>';
     } else {
       var teditedLabel = msg.edited ? '<span class="msg-edited">(edited)</span>' : '';
-      bubbleInner = '<div class="msg-bubble" ontouchstart="msgTouchStart(event,\'' + msg.id + '\',' + isMine + ')" ontouchend="msgTouchEnd()" ontouchmove="msgTouchEnd()" oncontextmenu="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ');return false">' + renderMarkdown(msg.text||'') + teditedLabel + '</div>';
+      bubbleInner = '<div class="msg-bubble" ontouchstart="msgTouchStart(event,\'' + msg.id + '\',' + isMine + ')" ontouchend="msgTouchEnd()" ontouchmove="msgTouchEnd()" oncontextmenu="showMsgContextMenu(\'' + msg.id + '\',this,' + isMine + ');return false">' + (msg.text||'') + teditedLabel + '</div>';
     }
 
     var bubbleWrapStyleT = 'position:relative' + (rxKeys.length ? ';margin-top:12px' : '');
@@ -7797,78 +7816,49 @@ function chatSenderId() {
   return user ? 'g_' + user.uid : null;
 }
 
+function chatInputFocused() { window.scrollTo(0,0); }
+
 function chatInputChanged(el) {
-  // auto-grow
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   updateSendBtn();
 }
 
+function chatInputGetHTML() {
+  var el = document.getElementById('chat-input');
+  return el ? el.innerHTML.trim() : '';
+}
+function chatInputGetText() {
+  var el = document.getElementById('chat-input');
+  return el ? (el.innerText || el.textContent || '').trim() : '';
+}
+function chatInputClear() {
+  var el = document.getElementById('chat-input');
+  if (el) { el.innerHTML = ''; updateSendBtn(); }
+}
+
 function chatInputKeyDown(e) {
-  // Cmd/Ctrl+Enter sends
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
     sendMessage();
-    return;
   }
-  // Plain Enter — auto-continue lists; regular text gets a normal newline
-  if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
-    var ta = e.target;
-    var pos = ta.selectionStart;
-    var val = ta.value;
-    var lsIdx = val.lastIndexOf('\n', pos - 1) + 1;
-    var currentLine = val.substring(lsIdx, pos);
-    var numMatch    = currentLine.match(/^(\d+)\. (.*)/);
-    var bulletMatch = currentLine.match(/^(- |• )(.*)/);
-    if (numMatch) {
-      e.preventDefault();
-      if (numMatch[2].trim() === '') {
-        // Empty numbered item — break out of list
-        ta.value = val.substring(0, lsIdx) + val.substring(pos);
-        ta.setSelectionRange(lsIdx, lsIdx);
-      } else {
-        var nextPrefix = (parseInt(numMatch[1]) + 1) + '. ';
-        var ins = '\n' + nextPrefix;
-        ta.value = val.substring(0, pos) + ins + val.substring(ta.selectionEnd);
-        var np = pos + ins.length;
-        ta.setSelectionRange(np, np);
-      }
-      _savedChatSel = { start: ta.selectionStart, end: ta.selectionEnd };
-      chatInputChanged(ta);
-      return;
-    }
-    if (bulletMatch) {
-      e.preventDefault();
-      if (bulletMatch[2].trim() === '') {
-        // Empty bullet — break out of list
-        ta.value = val.substring(0, lsIdx) + val.substring(pos);
-        ta.setSelectionRange(lsIdx, lsIdx);
-      } else {
-        var bullet = bulletMatch[1];
-        var ins = '\n' + bullet;
-        ta.value = val.substring(0, pos) + ins + val.substring(ta.selectionEnd);
-        var np = pos + ins.length;
-        ta.setSelectionRange(np, np);
-      }
-      _savedChatSel = { start: ta.selectionStart, end: ta.selectionEnd };
-      chatInputChanged(ta);
-      return;
-    }
-    // Regular text — let the browser insert the newline naturally (no preventDefault)
-    setTimeout(function() { chatInputChanged(ta); _savedChatSel = {start:ta.selectionStart, end:ta.selectionEnd}; }, 0);
-    return;
-  }
-  // Escape cancels edit mode
   if (e.key === 'Escape' && _editingMsgId) {
     e.preventDefault();
     cancelEditMessage();
   }
 }
 
+function execFmt(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  // Refocus the active contenteditable
+  var active = document.activeElement;
+  if (active && active.contentEditable === 'true') active.focus();
+  updateSendBtn();
+}
+
 function sendMessage() {
   if (_editingMsgId) { saveMessageEdit(); return; }
   const input = document.getElementById('chat-input');
-  const text  = (input ? input.value : '').trim();
+  const text  = (input ? (input.innerText||input.textContent||'') : '').trim();
+  const html  = input ? input.innerHTML.trim() : '';
   if (!text && !_pendingAttachment) return;
 
   const senderName = chatSenderName();
@@ -7880,7 +7870,7 @@ function sendMessage() {
     id:         'm' + Date.now(),
     senderId:   senderId,
     senderName: senderName,
-    text:       text,
+    text:       html || text,
     timestamp:  new Date().toISOString(),
     reactions:  {},
     replyTo:    chatReplyingTo ? chatReplyingTo.id : null,
@@ -7901,7 +7891,7 @@ function sendMessage() {
     }
   }
 
-  if (input) { input.value = ''; input.style.height = 'auto'; }
+  chatInputClear();
   clearPendingAttachment();
   clearReply();
 
@@ -7966,117 +7956,67 @@ function deleteMessage(msgId) {
 var _editingMsgId = null;
 
 function startEditMessage(msgId) {
-  const msg = (DATA.messages||[]).find(function(m){ return m.id === msgId; });
+  var msg = (DATA.messages||[]).find(function(m){ return m.id === msgId; });
   if (!msg || msg.deleted) return;
   dismissContextMenu();
   _editingMsgId = msgId;
-  clearReply();
-  const input = document.getElementById('chat-input');
-  if (input) {
-    input.style.maxHeight = '220px'; // taller in edit mode so full message is visible
-    input.value = msg.text || '';
-    chatInputChanged(input);
+  var editInput = document.getElementById('edit-input');
+  if (editInput) {
+    editInput.innerHTML = msg.text || '';
     setTimeout(function(){
-      input.focus();
-      input.scrollTop = 0;            // show the top of the message, not the bottom
-      input.setSelectionRange(0, 0);
-    }, 60);
+      editInput.focus();
+      var range = document.createRange();
+      var sel   = window.getSelection();
+      range.selectNodeContents(editInput);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 80);
   }
-  const bar = document.getElementById('chat-edit-bar');
-  if (bar) bar.style.display = 'flex';
-  updateSendBtn();
+  var overlay = document.getElementById('edit-overlay');
+  if (overlay) overlay.style.display = 'flex';
 }
 
 function cancelEditMessage() {
   _editingMsgId = null;
-  const input = document.getElementById('chat-input');
-  if (input) {
-    input.style.maxHeight = '120px'; // restore normal max-height
-    input.value = '';
-    chatInputChanged(input);
-  }
-  const bar = document.getElementById('chat-edit-bar');
-  if (bar) bar.style.display = 'none';
-  updateSendBtn();
+  var editInput = document.getElementById('edit-input');
+  if (editInput) editInput.innerHTML = '';
+  var overlay = document.getElementById('edit-overlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 function saveMessageEdit() {
-  const input = document.getElementById('chat-input');
-  const text  = (input ? input.value : '').trim();
+  var editInput = document.getElementById('edit-input');
+  var html = editInput ? editInput.innerHTML.trim() : '';
+  var text = editInput ? (editInput.innerText||editInput.textContent||'').trim() : '';
   if (!text) return;
-  const msg = (DATA.messages||[]).find(function(m){ return m.id === _editingMsgId; });
+  var msg = (DATA.messages||[]).find(function(m){ return m.id === _editingMsgId; });
   if (!msg) { cancelEditMessage(); return; }
-  if (msg.text !== text) { msg.text = text; msg.edited = true; }
+  if (msg.text !== html) { msg.text = html; msg.edited = true; }
   saveData();
   cancelEditMessage();
   renderChatMessages();
 }
 
-// ── Markdown rendering ────────────────────────────────────────────────────────
-function renderMarkdown(raw) {
-  if (!raw) return '';
-  // Escape HTML to prevent XSS, then process markdown
-  const esc = raw
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const lines = esc.split('\n');
-  let out = '', inUL = false, inOL = false;
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    var isBullet  = line.startsWith('- ') || line.startsWith('• ');
-    var olMatch   = /^\d+\. /.test(line);
-    // Close lists if this line doesn't continue them
-    if (inUL && !isBullet)  { out += '</ul>'; inUL = false; }
-    if (inOL && !olMatch)   { out += '</ol>'; inOL = false; }
-    // Check ## before # — use regex so a missing trailing space still works
-    var h2m = line.match(/^## ?(.*)/);
-    var h1m = !h2m && line.match(/^# ?(.*)/);
-    if (h2m) {
-      out += '<div class="md-h2">' + inlineFmt(h2m[1]) + '</div>';
-    } else if (h1m) {
-      out += '<div class="md-h1">' + inlineFmt(h1m[1]) + '</div>';
-    } else if (isBullet) {
-      if (!inUL) { out += '<ul class="md-list">'; inUL = true; }
-      out += '<li>' + inlineFmt(line.slice(2)) + '</li>';
-    } else if (olMatch) {
-      if (!inOL) { out += '<ol class="md-list">'; inOL = true; }
-      out += '<li>' + inlineFmt(line.replace(/^\d+\. /, '')) + '</li>';
-    } else if (line.trim() === '') {
-      out += '<div class="md-br"></div>';
-    } else {
-      out += '<div class="md-p">' + inlineFmt(line) + '</div>';
-    }
+function editInputKeyDown(e) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    saveMessageEdit();
   }
-  if (inUL) out += '</ul>';
-  if (inOL) out += '</ol>';
-  return out;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelEditMessage();
+  }
 }
 
-function inlineFmt(t) {
-  return t
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
-    .replace(/~(.+?)~/g, '<u>$1</u>');
-}
-
-// Strip markdown syntax for plain-text previews (reply bar, notifications, etc.)
+// Strip HTML tags for plain-text previews (reply bar, notifications, etc.)
 function stripMarkdown(t) {
-  return (t||'').replace(/\*\*/g,'').replace(/_/g,'').replace(/~/g,'')
-    .replace(/^#{1,2} /gm,'').replace(/^[-•] /gm,'').replace(/^\d+\. /gm,'');
+  if (!t) return '';
+  return t.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 }
 
 // ── Format toolbar ────────────────────────────────────────────────────────────
 var _fmtVisible = false;
-
-// Save textarea selection continuously so iOS focus-loss doesn't break formatting
-var _savedChatSel = { start: 0, end: 0 };
-(function() {
-  document.addEventListener('selectionchange', function() {
-    var ta = document.getElementById('chat-input');
-    if (ta && document.activeElement === ta) {
-      _savedChatSel = { start: ta.selectionStart, end: ta.selectionEnd };
-    }
-  });
-})();
 
 function toggleFmtToolbar() {
   _fmtVisible = !_fmtVisible;
@@ -8084,53 +8024,6 @@ function toggleFmtToolbar() {
   var btn = document.getElementById('fmt-toggle-btn');
   if (tb)  tb.style.display = _fmtVisible ? 'flex' : 'none';
   if (btn) { btn.style.background = _fmtVisible ? '#1B4332' : '#F3F4F6'; btn.style.color = _fmtVisible ? '#fff' : '#374151'; }
-}
-
-function _getChatInputSel(ta) {
-  // Use live selection if textarea is focused, otherwise use last saved position
-  if (document.activeElement === ta) {
-    return { start: ta.selectionStart, end: ta.selectionEnd };
-  }
-  return _savedChatSel;
-}
-
-function fmtWrap(before, after) {
-  var ta = document.getElementById('chat-input');
-  if (!ta) return;
-  ta.focus();
-  var sel = _getChatInputSel(ta);
-  var s = sel.start, e = sel.end;
-  ta.setSelectionRange(s, e);
-  var selected = ta.value.substring(s, e) || 'text';
-  var rep = before + selected + after;
-  ta.value = ta.value.substring(0, s) + rep + ta.value.substring(e);
-  var cur = selected === 'text' ? s + before.length : s + rep.length;
-  ta.setSelectionRange(cur, cur);
-  chatInputChanged(ta);
-}
-
-function fmtLine(prefix) {
-  var ta = document.getElementById('chat-input');
-  if (!ta) return;
-  ta.focus();
-  var sel   = _getChatInputSel(ta);
-  var pos   = sel.start;
-  var val   = ta.value;
-  var lsIdx = val.lastIndexOf('\n', pos - 1) + 1; // start of current line
-  var rest  = val.substring(lsIdx);
-  if (rest.startsWith(prefix)) {
-    // Toggle off — remove prefix
-    ta.value = val.substring(0, lsIdx) + rest.substring(prefix.length);
-    var newPos = Math.max(lsIdx, pos - prefix.length);
-    ta.setSelectionRange(newPos, newPos);
-  } else {
-    // Remove any existing block prefix before adding new one
-    var cleaned = rest.replace(/^(#{1,2} ?|[-•] |\d+\. )/, '');
-    ta.value = val.substring(0, lsIdx) + prefix + cleaned;
-    var delta = prefix.length - (rest.length - cleaned.length);
-    ta.setSelectionRange(pos + delta, pos + delta);
-  }
-  chatInputChanged(ta);
 }
 
 // Context menu helpers
@@ -8431,7 +8324,7 @@ function clearPendingAttachment() {
 function updateSendBtn() {
   const input = document.getElementById('chat-input');
   const btn   = document.getElementById('chat-send-btn');
-  if (btn) btn.disabled = (!input || !input.value.trim()) && !_pendingAttachment;
+  if (btn) btn.disabled = (!input || !(input.innerText||input.textContent||'').trim()) && !_pendingAttachment;
   const tinput = document.getElementById('thread-input');
   const tbtn   = document.getElementById('thread-send-btn');
   if (tbtn) tbtn.disabled = (!tinput || !tinput.value.trim()) && !_pendingAttachment;
@@ -8666,7 +8559,7 @@ function renderChatMessages() {
         bubbleInner =
           '<div class="msg-bubble media" ' + lp + '>' +
             '<img src="' + imgSrc + '" class="msg-img" onclick="event.stopPropagation();viewFullImage(\'' + msg.id + '\')" onerror="this.style.display=\'none\'">' +
-            (msg.text ? '<div style="font-size:13px;padding:6px 4px 2px;color:' + (isMine?'#fff':'#1A1A1A') + '">' + renderMarkdown(msg.text) + '</div>' : '') +
+            (msg.text ? '<div style="font-size:13px;padding:6px 4px 2px;color:' + (isMine?'#fff':'#1A1A1A') + '">' + msg.text + '</div>' : '') +
           '</div>';
       } else {
         var kb2 = att.size ? (att.size > 1024*1024 ? (att.size/1024/1024).toFixed(1)+' MB' : Math.round(att.size/1024)+' KB') : '';
@@ -8681,12 +8574,12 @@ function renderChatMessages() {
                 (kb2 ? '<div style="font-size:10px;opacity:0.6;margin-top:1px">' + kb2 + '</div>' : '') +
               '</div>' +
             '</div>' +
-            (msg.text ? '<div style="font-size:13px;margin-top:8px">' + renderMarkdown(msg.text) + '</div>' : '') +
+            (msg.text ? '<div style="font-size:13px;margin-top:8px">' + msg.text + '</div>' : '') +
           '</div>';
       }
     } else {
       var editedLabel = msg.edited ? '<span class="msg-edited">(edited)</span>' : '';
-      bubbleInner = '<div class="msg-bubble" ' + lp + '>' + renderMarkdown(msg.text||'') + editedLabel + '</div>';
+      bubbleInner = '<div class="msg-bubble" ' + lp + '>' + (msg.text||'') + editedLabel + '</div>';
     }
 
     // "Seen by" for own outgoing messages
