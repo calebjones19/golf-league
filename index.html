@@ -2709,6 +2709,31 @@ function recalcAllRoundPoints() {
       r.pointsA = mp.pointsA;
       r.pointsB = mp.pointsB;
       processedRounds.push(r);
+      // ── DEBUG: log match breakdown to console ──────────────────
+      (function() {
+        var allPpl = DATA.players.concat(DATA.subs || []);
+        function pname(pid) { var p = allPpl.find(function(x){ return x.id===pid; }); return p ? p.name + '(hcp:'+effectiveHandicap(p)+')' : pid; }
+        var holeLog = (mp.holeResults||[]).map(function(r,i){ return 'H'+(i+1)+':'+r; }).join(' ');
+        var netA = pidsA.reduce(function(sum,pid){
+          var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return sum;
+          var hcp=effectiveHandicap(p); var s=0;
+          scoringPars.forEach(function(_,h){ s+=playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length); });
+          var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
+          return sum+(gross-s);
+        }, 0);
+        var netB = pidsB.reduce(function(sum,pid){
+          var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return sum;
+          var hcp=effectiveHandicap(p); var s=0;
+          scoringPars.forEach(function(_,h){ s+=playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length); });
+          var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
+          return sum+(gross-s);
+        }, 0);
+        console.log('[W'+week+'] '+tA.name+' vs '+tB.name+' → '+mp.pointsA+'-'+mp.pointsB
+          +' | netA='+netA+' netB='+netB+' | '+holeLog);
+        pidsA.forEach(function(pid){ console.log('  A: '+pname(pid)); });
+        pidsB.forEach(function(pid){ console.log('  B: '+pname(pid)); });
+      })();
+      // ── END DEBUG ──────────────────────────────────────────────
     });
 
     // Advance handicaps using only rounds completed so far (for next week)
