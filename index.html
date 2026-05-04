@@ -1461,6 +1461,12 @@ function startFirestoreSync() {
         if (!ours && !chatOpen) _triggerNotification(msg);
       });
     }
+    // Reverse the bad migration that flipped scoringType 'total'→'bestball'.
+    // 'total' (sum both players' nets per hole) is the correct mode for this league.
+    if (DATA.scoringConfig && DATA.scoringConfig.scoringType === 'bestball') {
+      DATA.scoringConfig.scoringType = 'total';
+      saveData();
+    }
     // Repair any duplicate UID/email links left by the old bug, then save if anything changed.
     if (_deduplicatePlayerLinks()) saveData();
     _autoSeedWeek1();
