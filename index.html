@@ -687,6 +687,9 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <button id="league-stab-announce" style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;cursor:pointer;background:transparent;color:#6B7280;display:flex;align-items:center;justify-content:center" onclick="switchLeagueSubTab('announce')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4"/><path d="M22 6l-4 2"/><path d="M22 18l-4-2"/><rect x="2" y="9" width="8" height="6" rx="1"/><path d="M10 9l8-5v16l-8-5"/><path d="M6 15v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3"/></svg>
         </button>
+        <button id="league-stab-data" style="flex:1;min-width:0;padding:7px 4px;border-radius:8px;border:none;cursor:pointer;background:transparent;color:#6B7280;display:flex;align-items:center;justify-content:center" onclick="switchLeagueSubTab('data')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+        </button>
       </div>
 
       <!-- Action row: injected by switchLeagueSubTab() -->
@@ -894,6 +897,16 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
               🔁 Unclaimed pot rolls to the next week
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ── Data tools ──────────────────────────────────────── -->
+      <div id="league-sec-data" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:0.5px;margin-bottom:12px">DATA TOOLS</div>
+        <div style="background:#FEF9EE;border:1px solid rgba(201,168,76,0.35);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Recalculate All Round Points</div>
+          <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:12px">Re-runs the point calculation for every submitted round using current handicaps and scoring settings. Use this after correcting handicaps or changing scoring rules.</div>
+          <button onclick="recalcAllRoundPoints()" style="background:#1B4332;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Recalculate Now</button>
         </div>
       </div>
 
@@ -1996,7 +2009,7 @@ function teamBestBallNet(teamPlayerIds, holeIdx, scores) {
   const numHoles = scoringPars.length;
   let bestNet = null;
   for (const pid of teamPlayerIds) {
-    const player = DATA.players.find(p => p.id === pid);
+    const player = DATA.players.find(p => p.id === pid) || (DATA.subs||[]).find(p => p.id === pid);
     if (!player) continue;
     const gross = scores[pid] && scores[pid][holeIdx];
     if (gross == null) continue;
@@ -2012,7 +2025,7 @@ function teamTotalNet(teamPlayerIds, holeIdx, scores) {
   const numHoles = scoringPars.length;
   let total = 0, hasAny = false;
   for (const pid of teamPlayerIds) {
-    const player = DATA.players.find(p => p.id === pid);
+    const player = DATA.players.find(p => p.id === pid) || (DATA.subs||[]).find(p => p.id === pid);
     if (!player) continue;
     const gross = scores[pid] && scores[pid][holeIdx];
     if (gross == null) continue;
@@ -2032,11 +2045,11 @@ function teamNetForHole(teamPlayerIds, holeIdx, scores) {
 }
 
 function teamTotalNetScore(teamPlayerIds, scores) {
-  // Sum all net scores across all holes for medal comparison
+  // Use the same scoring method (total or bestball) as hole-by-hole play
   const numHoles = scoringPars.length;
   let total = 0;
   for (let h = 0; h < numHoles; h++) {
-    const net = teamBestBallNet(teamPlayerIds, h, scores); // always use best ball for medal
+    const net = teamNetForHole(teamPlayerIds, h, scores);
     if (net != null) total += net;
   }
   return total;
@@ -2618,6 +2631,31 @@ function confirmEndMatch() {
     delete DATA.liveMatch; saveData();
     showSection('dashboard');
   }
+}
+
+function recalcAllRoundPoints() {
+  var rounds = DATA.rounds || [];
+  if (!rounds.length) { showToast('No rounds to recalculate'); return; }
+  rounds.forEach(function(r) {
+    var tA = DATA.teams.find(function(t) { return t.id === r.teamAId; });
+    var tB = DATA.teams.find(function(t) { return t.id === r.teamBId; });
+    if (!tA || !tB) return;
+    // Set correct pars/hcp context for this round's week
+    setScoringSectionForWeek(r.week);
+    // Resolve effective player IDs accounting for subs
+    function effectivePids(team) {
+      return team.playerIds.map(function(pid) { return r.subs && r.subs[pid] ? r.subs[pid] : pid; });
+    }
+    var pidsA = effectivePids(tA);
+    var pidsB = effectivePids(tB);
+    var mp = computeMatchPoints(pidsA, pidsB, r.scores);
+    r.pointsA = mp.pointsA;
+    r.pointsB = mp.pointsB;
+  });
+  saveData();
+  buildDashboard();
+  renderLeaderboard && renderLeaderboard();
+  showToast('Recalculated ' + rounds.length + ' round' + (rounds.length !== 1 ? 's' : '') + ' ✓');
 }
 
 function recalcHandicaps() {
@@ -3513,7 +3551,7 @@ var _leagueSubTab    = 'basic';
 
 function switchLeagueSubTab(tab) {
   _leagueSubTab = tab;
-  ['basic','schedule','scoring','announce'].forEach(function(t) {
+  ['basic','schedule','scoring','announce','data'].forEach(function(t) {
     var sec = document.getElementById('league-sec-' + t);
     var btn = document.getElementById('league-stab-' + t);
     var active = t === tab;
@@ -3536,7 +3574,7 @@ function switchLeagueSubTab(tab) {
     } else {
       row.style.display = '';
       if (announceSection) announceSection.style.paddingTop = '';
-      var descriptors = { basic: 'Name, course & format', schedule: 'Season dates & tee times', scoring: 'Points, handicaps & skins' };
+      var descriptors = { basic: 'Name, course & format', schedule: 'Season dates & tee times', scoring: 'Points, handicaps & skins', data: 'Recalculate & repair data' };
       var descriptor = '<span class="panel-title">' + (descriptors[tab] || '') + '</span>';
       var shareBtn = '<button class="btn-sm btn-outline" onclick="shareLeagueLink()" style="display:flex;align-items:center;gap:5px">' +
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>';
@@ -3554,6 +3592,7 @@ function switchLeagueSubTab(tab) {
       if      (tab === 'basic')    btns = shareBtn + leToggle;
       else if (tab === 'schedule') btns = leToggle;
       else if (tab === 'scoring')  btns = scToggle;
+      else if (tab === 'data')     btns = '';
       row.innerHTML = descriptor + '<div style="display:flex;gap:6px">' + btns + '</div>';
     }
   }
