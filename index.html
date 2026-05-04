@@ -7925,9 +7925,14 @@ function startEditMessage(msgId) {
   clearReply();
   const input = document.getElementById('chat-input');
   if (input) {
+    input.style.maxHeight = '220px'; // taller in edit mode so full message is visible
     input.value = msg.text || '';
     chatInputChanged(input);
-    setTimeout(function(){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 60);
+    setTimeout(function(){
+      input.focus();
+      input.scrollTop = 0;            // show the top of the message, not the bottom
+      input.setSelectionRange(0, 0);
+    }, 60);
   }
   const bar = document.getElementById('chat-edit-bar');
   if (bar) bar.style.display = 'flex';
@@ -7937,7 +7942,11 @@ function startEditMessage(msgId) {
 function cancelEditMessage() {
   _editingMsgId = null;
   const input = document.getElementById('chat-input');
-  if (input) { input.value = ''; chatInputChanged(input); }
+  if (input) {
+    input.style.maxHeight = '120px'; // restore normal max-height
+    input.value = '';
+    chatInputChanged(input);
+  }
   const bar = document.getElementById('chat-edit-bar');
   if (bar) bar.style.display = 'none';
   updateSendBtn();
