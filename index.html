@@ -2891,12 +2891,14 @@ function recalcHandicaps(roundsOverride) {
       .slice()
       .sort(function(a, b) { return (+a.week || 0) - (+b.week || 0); });
 
-    if (playerRounds.length === 0) {
-      p.leagueHandicap = null; // no rounds yet → use manual
+    // Need at least 3 rounds to apply the formula (discard 2, average the rest).
+    // Fewer than 3 → stay on manual handicap.
+    if (playerRounds.length < 3) {
+      p.leagueHandicap = null;
       return;
     }
 
-    // Take last numRounds rounds, compute differential vs scratch par
+    // Take last numRounds (default 6) rounds, compute differential vs scratch par
     var recent = playerRounds.slice(-numRounds);
     var diffs  = recent.map(function(r) {
       var sp    = scratchParForRound(r);
@@ -2905,13 +2907,9 @@ function recalcHandicaps(roundsOverride) {
       return total - sp;
     });
 
-    // Scaled discard table (mirrors reference app behavior with partial history):
-    // n=1→use 1, n=2→use 1, n=3→use 2, n=4→use 2, n=5→use 3, n≥6→use 4
-    var n = diffs.length;
-    var discardHigh = n <= 1 ? 0 : n <= 3 ? 1 : 2;
-    var numUse = n - discardHigh;
+    // Discard 2 highest differentials, average the rest
     var sorted = diffs.slice().sort(function(a, b){ return a - b; });
-    var best   = sorted.slice(0, numUse);
+    var best   = sorted.slice(0, sorted.length - 2);
     var avg    = best.reduce(function(a,v){ return a+v; }, 0) / best.length;
     // × pct, truncate at hundredths, round to whole number, cap at maxHcp
     var raw   = avg * pct;
