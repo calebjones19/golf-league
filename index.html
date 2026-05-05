@@ -1312,7 +1312,7 @@ let DATA = {
   schedule:      [],
   rounds:        [],
   announcements: [],
-  scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 36, enableMatchPlay: true, enableStableford: true },
+  scoringConfig: { scoringType: 'total', pointsPerHole: 1, tiePoints: 0.5, matchBonus: 1, medalBonus: 1, skinsEnabled: true, skinsFee: 5, stablefordVariant: 'standard', autoHandicap: true, hcpRounds: 6, hcpPercent: 90, hcpMax: 18, enableMatchPlay: true, enableStableford: true },
   matchups: [],
   weeklyLineups: {},
   messages: []
@@ -2867,11 +2867,11 @@ function recalcHandicaps(roundsOverride) {
   if (!cfg.autoHandicap) return;
   var numRounds = cfg.hcpRounds || 6;
   var pct       = (cfg.hcpPercent || 90) / 100;
-  var maxHcp    = cfg.hcpMax || 36;
+  var maxHcp    = cfg.hcpMax || 18;  // reference app caps at 18
   var holes     = DATA.league ? (DATA.league.holes || 9) : 9;
   var allRounds = roundsOverride || DATA.rounds || [];
 
-  // Scratch par constants (used by the reference app — NOT the actual hole par total).
+  // Scratch par constants — reference app uses these, NOT actual hole par totals.
   // Back 9 = 33.6, Front 9 = 34.5. Variation = gross − scratch par.
   var SCRATCH_PAR_BACK  = 33.6;
   var SCRATCH_PAR_FRONT = 34.5;
@@ -2880,13 +2880,9 @@ function recalcHandicaps(roundsOverride) {
     return (r.nine === 'front') ? SCRATCH_PAR_FRONT : SCRATCH_PAR_BACK;
   }
 
-  // Minimum rounds a player must have before auto-handicap replaces the manual entry.
-  // Matches reference app behavior: uses manual hcp until enough history exists.
-  var minRounds = numRounds; // default: need all 6 rounds before auto kicks in
-
   var allPeople = DATA.players.concat(DATA.subs || []);
   allPeople.forEach(function(p) {
-    // Gather rounds this player scored in, sorted chronologically by week
+    // Gather rounds this player personally scored in, sorted by week
     var playerRounds = allRounds
       .filter(function(r) {
         var sc = r.scores && r.scores[p.id];
@@ -2895,14 +2891,12 @@ function recalcHandicaps(roundsOverride) {
       .slice()
       .sort(function(a, b) { return (+a.week || 0) - (+b.week || 0); });
 
-    // Don't auto-calculate until enough rounds exist — prevents garbage values
-    // from 1–2 round history inflating handicaps and overriding manual entries.
-    if (playerRounds.length < minRounds) {
-      p.leagueHandicap = null; // null → effectiveHandicap() falls back to manual
+    if (playerRounds.length === 0) {
+      p.leagueHandicap = null; // no rounds yet → use manual
       return;
     }
 
-    // Take last N rounds, compute differential vs scratch par (not actual par)
+    // Take last numRounds rounds, compute differential vs scratch par
     var recent = playerRounds.slice(-numRounds);
     var diffs  = recent.map(function(r) {
       var sp    = scratchParForRound(r);
@@ -2911,9 +2905,13 @@ function recalcHandicaps(roundsOverride) {
       return total - sp;
     });
 
-    // Sort ascending (lowest diff first), discard 2 highest, average the rest
-    var sorted = diffs.slice().sort(function(a,b){ return a-b; });
-    var best   = sorted.slice(0, numRounds - 2); // always discard 2 highest
+    // Scaled discard table (mirrors reference app behavior with partial history):
+    // n=1→use 1, n=2→use 1, n=3→use 2, n=4→use 2, n=5→use 3, n≥6→use 4
+    var n = diffs.length;
+    var discardHigh = n <= 1 ? 0 : n <= 3 ? 1 : 2;
+    var numUse = n - discardHigh;
+    var sorted = diffs.slice().sort(function(a, b){ return a - b; });
+    var best   = sorted.slice(0, numUse);
     var avg    = best.reduce(function(a,v){ return a+v; }, 0) / best.length;
     // × pct, truncate at hundredths, round to whole number, cap at maxHcp
     var raw   = avg * pct;
