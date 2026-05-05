@@ -273,10 +273,21 @@ Same stroke pattern as Rob
 
 Reference: Team A Gross=100, Net=77, Strokes=23 · Team B Gross=112, Net=97, Strokes=15
 
-### Team A (Truman/Eric P.) — combined strokes must equal 23
-Our app shows both players at hcp=14 each → 28 strokes (off by 5).
-Likely correction: one player hcp=9 (not 14) → 9+14=23.
-**⚠️ Needs admin verification — check player profiles for Truman and Eric P.**
+### Team A (Truman/Eric P.) — **Jason Noruk subbed for Polvi**
+**Sub rule:** Noruk's scores count for team match play points. Noruk does NOT earn stableford
+points for this round (subs excluded from stableford standings). Polvi gets no stableford
+credit for this round either (didn't play).
+
+Our app debug shows both players at hcp=14 → 28 strokes (off by 5 from reference 23).
+The discrepancy is because the round has **no sub set up** — Polvi's hcp=14 is being used
+instead of Noruk's actual handicap.
+
+**Fix required:**
+1. Make sure Jason Noruk exists in the Subs list with his correct handicap (~9)
+2. In Admin → Weekly Scores → Week 1 → Edit this match → set Noruk as sub for Polvi
+3. Once the sub is saved, the round will use Noruk's hcp → 9+14=23 strokes → net=77 ✓
+
+If Noruk's hcp is NOT 9, check what it should be: it must satisfy Truman_hcp + Noruk_hcp = 23.
 
 ### Team B (Matt/Calvin) — combined strokes must equal 15
 Our app: Matt hcp=3, Calvin hcp=13 → 16 strokes (off by 1).
@@ -288,16 +299,22 @@ Net = 112−15 = 97 ✓
 
 ## Handicap Corrections Required
 
-| Player | App Hcp | Correct Hcp | Match |
+| Player | App Hcp | Correct Hcp | Notes |
 |--------|---------|-------------|-------|
 | Mike Morgan | 13 | **11** | Match #1 |
 | Bill Para (Kyle N) | 15 | **13** | Match #2 |
 | Rob Fitzpatrick | 17 | **16** | Match #5 |
 | Denzel Wright | 17 | **16** | Match #5 |
 | Eric Larock | 16 | **15** | Match #5 |
-| Anthony Codrean | 6 | **5** | Match #4 (pts same) |
-| Calvin (Match #6) | 13 | **12** | Match #6 |
-| Truman or Eric P. | 14 | **~9** | Match #6 — ⚠️ needs verification |
+| Anthony Codrean | 6 | **5** | Match #4 (pts unaffected) |
+| Calvin | 13 | **12** | Match #6 |
+| Jason Noruk (sub) | ? | **~9** | Match #6 — add to Subs list + set as sub for Polvi in W1 round |
+
+## Sub Rule
+- **Match play**: sub's scores count for the team they're subbing for (normal)
+- **Stableford**: sub does NOT earn stableford points for that round
+- **App behavior**: dashboard already excludes sub rounds from personal stableford;
+  stableford leaderboard also skips subs' rounds (code updated)
 
 ---
 

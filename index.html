@@ -3710,10 +3710,15 @@ function buildStablefordLeaderboard(targetElId) {
     var roundPars = (r.nine === 'front' && DATA.league && DATA.league.parFront && DATA.league.parFront.length)
       ? DATA.league.parFront : pars;
 
-    // Iterate the actual score keys in this round — each person owns their own scores
+    // Iterate the actual score keys in this round — each person owns their own points
+    // Subs do NOT accumulate stableford points; their scores only count for team match play.
+    var isSub = {};
+    (DATA.subs || []).forEach(function(s){ isSub[s.id] = true; });
     Object.keys(rScores).forEach(function(pid) {
       var pScores = rScores[pid];
       if (!pScores) return;
+      // Skip subs — sub scores count for match play only, not stableford
+      if (isSub[pid]) return;
       // Find the person (player or sub)
       var person = DATA.players.find(function(p) { return p.id === pid; }) ||
                    (DATA.subs || []).find(function(p) { return p.id === pid; });
