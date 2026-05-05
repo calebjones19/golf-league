@@ -2670,6 +2670,7 @@ function recalcAllRoundPoints() {
   if (!rounds.length) { showToast('No rounds to recalculate'); return; }
 
   var cfg = DATA.scoringConfig || {};
+  var _debugLines = []; // collects per-match debug lines for on-screen display
 
   // ── Step 1: reset leagueHandicaps so Week 1 uses manual handicaps ──────────
   // Save the current auto-handicaps to restore after replay
@@ -2709,11 +2710,18 @@ function recalcAllRoundPoints() {
       r.pointsA = mp.pointsA;
       r.pointsB = mp.pointsB;
       processedRounds.push(r);
-      // ── DEBUG: log match breakdown to console ──────────────────
+      // ── DEBUG: collect match breakdown for on-screen display ───
       (function() {
         var allPpl = DATA.players.concat(DATA.subs || []);
-        function pname(pid) { var p = allPpl.find(function(x){ return x.id===pid; }); return p ? p.name + '(hcp:'+effectiveHandicap(p)+')' : pid; }
-        var holeLog = (mp.holeResults||[]).map(function(r,i){ return 'H'+(i+1)+':'+r; }).join(' ');
+        function pinfo(pid) {
+          var p = allPpl.find(function(x){ return x.id===pid; });
+          if (!p) return pid;
+          var hcp = effectiveHandicap(p);
+          var strokes = 0;
+          scoringPars.forEach(function(_,h){ strokes += playerStrokesOnHole(hcp, scoringHoleHcp[h], scoringPars.length); });
+          var gross = (r.scores && r.scores[pid] || []).reduce(function(a,v){ return a+(v||0); }, 0);
+          return p.name+'('+hcp+') G:'+gross+' S:'+strokes+' N:'+(gross-strokes);
+        }
         var netA = pidsA.reduce(function(sum,pid){
           var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return sum;
           var hcp=effectiveHandicap(p); var s=0;
@@ -2728,10 +2736,13 @@ function recalcAllRoundPoints() {
           var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
           return sum+(gross-s);
         }, 0);
-        console.log('[W'+week+'] '+tA.name+' vs '+tB.name+' → '+mp.pointsA+'-'+mp.pointsB
-          +' | netA='+netA+' netB='+netB+' | '+holeLog);
-        pidsA.forEach(function(pid){ console.log('  A: '+pname(pid)); });
-        pidsB.forEach(function(pid){ console.log('  B: '+pname(pid)); });
+        var holes = (mp.holeResults||[]).map(function(res,i){ return (i+1)+':'+res; }).join(' ');
+        _debugLines.push(
+          'W'+week+' '+tA.name+' '+mp.pointsA+' – '+mp.pointsB+' '+tB.name+' [netA='+netA+' netB='+netB+']',
+          '  A: '+pidsA.map(pinfo).join(' | '),
+          '  B: '+pidsB.map(pinfo).join(' | '),
+          '  Holes: '+holes
+        );
       })();
       // ── END DEBUG ──────────────────────────────────────────────
     });
@@ -2747,6 +2758,21 @@ function recalcAllRoundPoints() {
   buildDashboard();
   renderLeaderboard && renderLeaderboard();
   showToast('Recalculated ' + rounds.length + ' round' + (rounds.length !== 1 ? 's' : '') + ' ✓');
+
+  // ── Show debug overlay on screen (mobile-friendly) ───────────────────────
+  var existing = document.getElementById('recalc-debug-overlay');
+  if (existing) existing.remove();
+  var ov = document.createElement('div');
+  ov.id = 'recalc-debug-overlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:99999;overflow-y:auto;padding:16px;box-sizing:border-box';
+  var pre = _debugLines.join('\n');
+  ov.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    + '<span style="color:#C9A84C;font-weight:700;font-size:14px">📋 Recalc Debug</span>'
+    + '<button onclick="document.getElementById(\'recalc-debug-overlay\').remove()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">Close</button>'
+    + '</div>'
+    + '<pre style="color:#E5E7EB;font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-all;font-family:monospace">' + pre + '</pre>';
+  document.body.appendChild(ov);
+  // ── END debug overlay ─────────────────────────────────────────────────────
 }
 
 // recalcHandicaps([roundsOverride]) — pass a custom rounds array to limit which
