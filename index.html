@@ -906,7 +906,10 @@ section.active{display:block;position:fixed;top:calc(50px + env(safe-area-inset-
         <div style="background:#FEF9EE;border:1px solid rgba(201,168,76,0.35);border-radius:12px;padding:14px 16px;margin-bottom:12px">
           <div style="font-size:14px;font-weight:700;color:#1A1A1A;margin-bottom:4px">Recalculate All Round Points</div>
           <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:12px">Re-runs the point calculation for every submitted round using current handicaps and scoring settings. Use this after correcting handicaps or changing scoring rules.</div>
-          <button onclick="recalcAllRoundPoints()" style="background:#1B4332;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Recalculate Now</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="recalcAllRoundPoints()" style="background:#1B4332;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Recalculate Now</button>
+            <button onclick="copyRecalcDebug()" style="background:#C9A84C;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Copy Debug</button>
+          </div>
         </div>
       </div>
 
@@ -2773,6 +2776,82 @@ function recalcAllRoundPoints() {
     + '<pre style="color:#E5E7EB;font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-all;font-family:monospace">' + pre + '</pre>';
   document.body.appendChild(ov);
   // ── END debug overlay ─────────────────────────────────────────────────────
+}
+
+// ── Shared debug helper — builds per-match breakdown lines ───────────────────
+function buildRecalcDebugLines() {
+  var lines = [];
+  var cfg = DATA.scoringConfig || {};
+  var rounds = (DATA.rounds || []).slice().sort(function(a,b){ return (+a.week||0)-(+b.week||0); });
+  var weekNums = [], byWeek = {};
+  rounds.forEach(function(r){
+    var w = +r.week||0;
+    if (!byWeek[w]) { byWeek[w]=[]; weekNums.push(w); }
+    byWeek[w].push(r);
+  });
+  weekNums.sort(function(a,b){ return a-b; });
+  // Temporarily reset league handicaps so week 1 uses manual hcps
+  var savedHcps = {};
+  DATA.players.concat(DATA.subs||[]).forEach(function(p){ savedHcps[p.id]=p.leagueHandicap; p.leagueHandicap=null; });
+  var processed = [];
+  weekNums.forEach(function(week){
+    setScoringSectionForWeek(week);
+    byWeek[week].forEach(function(r){
+      var tA=DATA.teams.find(function(t){return t.id===r.teamAId;});
+      var tB=DATA.teams.find(function(t){return t.id===r.teamBId;});
+      if (!tA||!tB) return;
+      var pidsA=(tA.playerIds||[]).map(function(pid){return r.subs&&r.subs[pid]?r.subs[pid]:pid;});
+      var pidsB=(tB.playerIds||[]).map(function(pid){return r.subs&&r.subs[pid]?r.subs[pid]:pid;});
+      var mp=computeMatchPoints(pidsA,pidsB,r.scores);
+      processed.push(r);
+      var allPpl=DATA.players.concat(DATA.subs||[]);
+      function pinfo(pid){
+        var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return pid;
+        var hcp=effectiveHandicap(p); var strokes=0;
+        scoringPars.forEach(function(_,h){strokes+=playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length);});
+        var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
+        return p.name+'(hcp:'+hcp+' G:'+gross+' S:'+strokes+' N:'+(gross-strokes)+')';
+      }
+      function teamNet(pids){
+        return pids.reduce(function(sum,pid){
+          var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return sum;
+          var hcp=effectiveHandicap(p); var s=0;
+          scoringPars.forEach(function(_,h){s+=playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length);});
+          var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
+          return sum+(gross-s);
+        },0);
+      }
+      var holes=(mp.holeResults||[]).map(function(res,i){return (i+1)+':'+res;}).join(' ');
+      lines.push('W'+week+' '+tA.name+' '+mp.pointsA+' – '+mp.pointsB+' '+tB.name+' [netA='+teamNet(pidsA)+' netB='+teamNet(pidsB)+']');
+      lines.push('  A: '+pidsA.map(pinfo).join(' | '));
+      lines.push('  B: '+pidsB.map(pinfo).join(' | '));
+      lines.push('  Holes: '+holes);
+    });
+    if (cfg.autoHandicap) recalcHandicaps(processed);
+  });
+  // Restore handicaps
+  DATA.players.concat(DATA.subs||[]).forEach(function(p){ p.leagueHandicap=savedHcps[p.id]; });
+  return lines;
+}
+
+function copyRecalcDebug() {
+  var lines = buildRecalcDebugLines();
+  var text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(function(){
+    showToast('Debug info copied to clipboard ✓');
+  }).catch(function(){
+    // Fallback: show in a textarea the user can select & copy
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:99999;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px';
+    ov.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center">'
+      + '<span style="color:#C9A84C;font-weight:700;font-size:14px">📋 Select All & Copy</span>'
+      + '<button onclick="this.closest(\'div[style]\').remove()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">Close</button>'
+      + '</div>'
+      + '<textarea style="flex:1;background:#111;color:#E5E7EB;font-size:10px;font-family:monospace;border:1px solid #333;border-radius:8px;padding:10px;resize:none" onclick="this.select()">'
+      + text + '</textarea>';
+    document.body.appendChild(ov);
+    ov.querySelector('textarea').select();
+  });
 }
 
 // recalcHandicaps([roundsOverride]) — pass a custom rounds array to limit which
