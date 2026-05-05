@@ -2723,7 +2723,10 @@ function recalcAllRoundPoints() {
           var strokes = 0;
           scoringPars.forEach(function(_,h){ strokes += playerStrokesOnHole(hcp, scoringHoleHcp[h], scoringPars.length); });
           var gross = (r.scores && r.scores[pid] || []).reduce(function(a,v){ return a+(v||0); }, 0);
-          return p.name+'('+hcp+') G:'+gross+' S:'+strokes+' N:'+(gross-strokes);
+          var name = (p.firstName||'') + (p.lastName ? ' '+p.lastName : '') || p.name || pid;
+          var holeStrokes = scoringPars.map(function(_,h){ return playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length); });
+          var strokeHoles = holeStrokes.map(function(s,h){ return s>0 ? 'H'+(h+1+scoringHoleOffset)+'x'+s : null; }).filter(Boolean).join(',');
+          return name+'(hcp:'+hcp+') G:'+gross+' S:'+strokes+'['+strokeHoles+'] N:'+(gross-strokes);
         }
         var netA = pidsA.reduce(function(sum,pid){
           var p=allPpl.find(function(x){return x.id===pid;}); if(!p) return sum;
@@ -2810,7 +2813,10 @@ function buildRecalcDebugLines() {
         var hcp=effectiveHandicap(p); var strokes=0;
         scoringPars.forEach(function(_,h){strokes+=playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length);});
         var gross=(r.scores&&r.scores[pid]||[]).reduce(function(a,v){return a+(v||0);},0);
-        return p.name+'(hcp:'+hcp+' G:'+gross+' S:'+strokes+' N:'+(gross-strokes)+')';
+        var name = (p.firstName||'') + (p.lastName ? ' '+p.lastName : '') || p.name || pid;
+        var holeStrokes = scoringPars.map(function(_,h){ return playerStrokesOnHole(hcp,scoringHoleHcp[h],scoringPars.length); });
+        var strokeHoles = holeStrokes.map(function(s,h){ return s>0 ? 'H'+(h+1+scoringHoleOffset)+'x'+s : null; }).filter(Boolean).join(',');
+        return name+'(hcp:'+hcp+' G:'+gross+' S:'+strokes+'['+strokeHoles+'] N:'+(gross-strokes)+')';
       }
       function teamNet(pids){
         return pids.reduce(function(sum,pid){
@@ -6223,10 +6229,15 @@ function openAdminScorecard(mid, teamAId, teamBId, week) {
       var prev = existingScores[pid] || [];
       var cells = scoringPars.map(function(_, h) {
         var val = prev[h] != null ? prev[h] : '';
+        var strk = playerStrokesOnHole(hcp, scoringHoleHcp[h], scoringPars.length);
+        var dot = strk === 2 ? '<div style="text-align:center;font-size:7px;color:#C9A84C;line-height:1;margin-top:1px">●●</div>'
+                : strk === 1 ? '<div style="text-align:center;font-size:7px;color:#C9A84C;line-height:1;margin-top:1px">●</div>'
+                : '<div style="height:9px"></div>';
         return '<td style="padding:1px 1px;text-align:center">' +
           '<input id="asc-' + pid + '-' + h + '" type="number" min="1" max="15" value="' + val + '"' +
           ' oninput="recalcAdminPoints()" inputmode="numeric"' +
-          ' style="width:22px;height:24px;text-align:center;font-size:11px;font-weight:700;border:1.5px solid #E5E7EB;border-radius:4px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
+          ' style="width:22px;height:24px;text-align:center;font-size:11px;font-weight:700;border:1.5px solid ' + (strk > 0 ? '#C9A84C' : '#E5E7EB') + ';border-radius:4px;padding:0;-moz-appearance:textfield;font-family:\'DM Sans\',sans-serif;color:#1A1A1A">' +
+          dot +
           '</td>';
       }).join('');
       return '<tr style="border-bottom:1px solid #F5F0E8;background:#fff">' +
